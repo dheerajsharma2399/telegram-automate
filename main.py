@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 db = Database(DATABASE_PATH)
 llm_processor = LLMProcessor(OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL)
 sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID) if GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID else None
-monitor = None
 scheduler = AsyncIOScheduler()
 
 # Authorization check
@@ -79,34 +78,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Unauthorized access.")
         return
     
-    current_status = db.get_config('monitoring_status')
-    if current_status == 'running':
-        await update.message.reply_text("⚠️ Monitoring is already running!")
-        return
-    
-    db.set_config('monitoring_status', 'running')
-    
-    global monitor
-    if monitor is None:
-        monitor = TelegramMonitor(
-            TELEGRAM_API_ID, 
-            TELEGRAM_API_HASH,
-            TELEGRAM_PHONE,
-            TELEGRAM_GROUP_USERNAME,
-            db
-        )
-        asyncio.create_task(monitor.start())
-
     if not scheduler.running:
         scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[context])
         scheduler.start()
-    
-    await update.message.reply_text(
-        "✅ Job monitoring started!\n\n"
-        "🔄 Listening for new job postings in the group...\n"
-        "📊 Use /status to check progress\n"
-        "⚙️ Use /process to manually process jobs"
-    )
+        db.set_config('monitoring_status', 'running')
+        await update.message.reply_text(
+            "✅ Job processing started!\n\n"
+            "📊 Use /status to check progress\n"
+            "⚙️ Use /process to manually process jobs"
+        )
+    else:
+        await update.message.reply_text("⚠️ Job processing is already running!")
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stop command"""
@@ -114,20 +96,16 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Unauthorized access.")
         return
     
-    db.set_config('monitoring_status', 'stopped')
-    
-    global monitor
-    if monitor:
-        await monitor.stop()
-        monitor = None
-
     if scheduler.running:
         scheduler.shutdown()
-    
-    await update.message.reply_text(
-        "🛑 Job monitoring stopped.\n\n"
-        "Use /start to resume monitoring."
-    )
+        db.set_config('monitoring_status', 'stopped')
+        await update.message.reply_text(
+            "🛑 Job processing stopped.\n\n"
+            "Use /start to resume processing."
+        )
+    else:
+        await update.message.reply_text("⚠️ Job processing is not running.")
+
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /status command"""
@@ -135,16 +113,17 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Unauthorized access.")
         return
     
-    monitoring_status = db.get_config('monitoring_status')
+    processing_status = db.get_config('monitoring_status')
     unprocessed_count = db.get_unprocessed_count()
     jobs_today = db.get_jobs_today_stats()
     
-    status_emoji = "🟢" if monitoring_status == 'running' else "🔴"
-    status_text = "Running" if monitoring_status == 'running' else "Stopped"
+    status_emoji = "🟢" if processing_status == 'running' else "🔴"
+    status_text = "Running" if processing_status == 'running' else "Stopped"
     
     message = (
         f"📊 *Job Scraper Status*\n\n"
-        f"{status_emoji} Monitoring: *{status_text}*\n"
+        f"🟢 Monitoring: *Running*\n"
+        f"{status_emoji} Job Processing: *{status_text}*\n"
         f"📨 Unprocessed Messages: *{unprocessed_count}*\n"
         f"✅ Processed Jobs (Today): *{jobs_today['total']}*\n"
         f"  - 📧 With Email: *{jobs_today['with_email']}*\n"
@@ -178,11 +157,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     stats = db.get_stats(days)
     message = f"📊 *Statistics for the last {days} days*\n\n"
-    message += "*Jobs by Application Method:*"
+    message += "*Jobs by Application Method:*
+"
     for method, count in stats["by_method"].items():
         message += f"  - {method.capitalize()}: {count}\n"
     
-    message += "\n*Top 5 Companies:*"
+    message += "\n*Top 5 Companies:*
+"
     for company, count in stats["top_companies"].items():
         message += f"  - {company}: {count} jobs\n"
 
@@ -271,7 +252,7 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def log_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Received update: {update}")
 
-def main():
+async def main():
     """Run the bot."""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
@@ -284,8 +265,27 @@ def main():
     application.add_handler(CommandHandler("export", export_command))
     application.add_handler(CommandHandler("sync_sheets", sync_sheets_command))
 
+    # Start the telegram monitor
+    monitor = TelegramMonitor(
+        TELEGRAM_API_ID, 
+        TELEGRAM_API_HASH,
+        TELEGRAM_PHONE,
+        TELEGRAM_GROUP_USERNAME,
+        db
+    )
+    asyncio.create_task(monitor.start())
+
+    # Start the job processing scheduler by default
+    if not scheduler.running:
+        scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[application])
+        scheduler.start()
+        db.set_config('monitoring_status', 'running')
+
     logger.info("Telegram bot is running...")
-    application.run_polling()
+    await application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped.")

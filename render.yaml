@@ -10,6 +10,8 @@ services:
         fromSecret: true
       - key: ADMIN_USER_ID
         fromSecret: true
+      - key: DATABASE_PATH
+        value: jobs.db
 
   - type: worker
     name: telegram-job-bot
@@ -34,19 +36,7 @@ services:
         fromSecret: true
       - key: GOOGLE_CREDENTIALS_JSON
         fromSecret: true
-
-  - type: worker
-    name: telegram-job-monitor
-    env: python
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python monitor.py"
-    envVars:
-      - key: TELEGRAM_API_ID
+      - key: SPREADSHEET_ID
         fromSecret: true
-      - key: TELEGRAM_API_HASH
-        fromSecret: true
-      - key: TELEGRAM_PHONE
-        fromSecret: true
-      - key: TELEGRAM_GROUP_USERNAME
-        fromSecret: true
+      - key: DATABASE_PATH
+        value: jobs.db

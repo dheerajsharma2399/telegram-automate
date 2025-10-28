@@ -6,7 +6,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+*.csv
 # Database file
 jobs.db
 
@@ -14,3 +14,6 @@ jobs.db
 *.session
 venv/ 
 monitor.log
+telegram_monitor.session
+telegram_monitor.session-journal
+data/*.csv 

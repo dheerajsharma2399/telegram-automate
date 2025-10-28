@@ -30,13 +30,13 @@ class GoogleSheetsSync:
             self.sheet_email = self._get_or_create_worksheet(spreadsheet, "email")
             self.sheet_other = self._get_or_create_worksheet(spreadsheet, "non-email")
             
-            print(f"✓ Google Sheets connected: {spreadsheet.url}")
+            print(f"V Google Sheets connected: {spreadsheet.url}")
             
         except gspread.exceptions.SpreadsheetNotFound:
-            print(f"✗ Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
+            print(f"X Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
             self.client = None
         except Exception as e:
-            print(f"✗ Google Sheets setup failed: {str(e)}")
+            print(f"X Google Sheets setup failed: {str(e)}")
             self.client = None
     
     def _get_or_create_worksheet(self, spreadsheet, sheet_name: str):
