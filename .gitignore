@@ -14,4 +14,3 @@ jobs.db
 *.session
 venv/ 
 monitor.log
-.gitignore
