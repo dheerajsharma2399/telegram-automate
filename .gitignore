@@ -1,24 +1,51 @@
-# Environment variables
-.env
-
-# Python cache
+# Python
+# ======
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.csv
-# Database file
-jobs.db
+*.egg
+*.egg-info/
+*.dist-info/
+.Python
+build/
+dist/
+venv/
+env/
+.venv/
+
+# IDEs and editors
+# ================
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+.DS_Store
+
+# Operating System files
+# ======================
+.DS_Store
+Thumbs.db
+
+# Environment variables
+# =====================
+.env
+.env.*
+!/.env.example # Keep the example file
+
+# Logs and databases
+# ==================
 *.log
-# Telegram session file
+*.csv
+jobs.db
+
+# Telegram session files
+# ======================
 *.session
-venv/ 
-monitor.log
-telegram_monitor.session
-telegram_monitor.session-journal
-data/*.csv 
-LICENSE
-*.gitignore
-monitor.log
+*.session-journal
+
+# Specific generated files
+# ========================
 render.exe
 google script.txt
