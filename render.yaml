@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: job-dashboard
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn web_server:app"
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        fromSecret: true
+      - key: ADMIN_USER_ID
+        fromSecret: true
+
+  - type: worker
+    name: telegram-job-bot
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: TELEGRAM_API_ID
+        fromSecret: true
+      - key: TELEGRAM_API_HASH
+        fromSecret: true
+      - key: TELEGRAM_PHONE
+        fromSecret: true
+      - key: TELEGRAM_BOT_TOKEN
+        fromSecret: true
+      - key: TELEGRAM_GROUP_USERNAME
+        fromSecret: true
+      - key: AUTHORIZED_USER_IDS
+        fromSecret: true
+      - key: OPENROUTER_API_KEY
+        fromSecret: true
+      - key: GOOGLE_CREDENTIALS_JSON
+        fromSecret: true
+
+  - type: worker
+    name: telegram-job-monitor
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python monitor.py"
+    envVars:
+      - key: TELEGRAM_API_ID
+        fromSecret: true
+      - key: TELEGRAM_API_HASH
+        fromSecret: true
+      - key: TELEGRAM_PHONE
+        fromSecret: true
+      - key: TELEGRAM_GROUP_USERNAME
+        fromSecret: true
