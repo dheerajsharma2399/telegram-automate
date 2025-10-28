@@ -5717,3 +5717,657 @@ Traceback (most recent call last):
 telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
 2025-10-28 19:12:15,102 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
 2025-10-28 19:12:25,256 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:12:35,413 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:12:38,572 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:12:38,573 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:12:42,744 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:12:42,745 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:12:49,740 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:12:59,894 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:13:10,048 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:13:13,229 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:13:13,230 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:13:17,396 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:13:17,397 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:13:24,396 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:13:34,551 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:13:44,706 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:13:48,076 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:13:48,077 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:13:52,245 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:13:52,246 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:13:59,247 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:14:09,400 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:14:19,556 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:14:22,712 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:14:22,713 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:14:26,879 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:14:26,880 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:14:33,878 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:14:44,032 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:14:54,186 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:14:57,356 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:14:57,357 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:15:01,515 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:15:01,516 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:15:08,515 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:15:18,670 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:15:28,825 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:15:31,986 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:15:31,987 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:15:36,164 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 409 Conflict"
+2025-10-28 19:15:36,164 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 134, in network_retry_loop
+    await do_action()
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_utils\networkloop.py", line 127, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 676, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 4780, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\ext\_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "E:\Assignment_data\telegram automate\venv\Lib\site-packages\telegram\request\_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2025-10-28 19:15:43,165 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 19:15:53,318 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"

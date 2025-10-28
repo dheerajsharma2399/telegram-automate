@@ -9,7 +9,7 @@ __pycache__/
 *.csv
 # Database file
 jobs.db
-
+*.log
 # Telegram session file
 *.session
 venv/ 
