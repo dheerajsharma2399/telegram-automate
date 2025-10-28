@@ -17,3 +17,7 @@ monitor.log
 telegram_monitor.session
 telegram_monitor.session-journal
 data/*.csv 
+LICENSE
+*.gitignore
+monitor.log
+render.exe

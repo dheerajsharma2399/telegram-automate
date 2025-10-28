@@ -23,7 +23,7 @@ This project is a sophisticated Telegram bot that automates the process of scrap
 
 The application consists of three main components:
 
-1.  **Telegram Monitor (`monitor.py`)**: A `telethon` client that runs in the background, listening for new messages in the target Telegram group. When a new message arrives, it's saved to the `raw_messages` table in the database.
+1.  **Telegram Monitor (`monitor.py`)**: A `telethon` client that runs in the background, listening for new messages in the target Telegram group. When a new message arrives, it's saved to the `raw_messages` table in the database. This monitor is started as a background task by the main bot application.
 2.  **Telegram Bot (`main.py`)**: The main `python-telegram-bot` application that provides commands to interact with the system. It runs a scheduler (`APScheduler`) that periodically fetches unprocessed messages from the database, sends them to the `LLMProcessor` for parsing, and stores the structured data in the `processed_jobs` table.
 3.  **Web Server (`web_server.py`)**: A `Flask` application that provides a web-based dashboard for monitoring and managing the bot. It uses a simple API to communicate with the database and send commands to the bot.
 
@@ -84,7 +84,7 @@ The application consists of three main components:
     ```bash
     honcho start
     ```
-    This will start the web server, the bot, and the monitor.
+    This will start the web server and the bot.
 
 2.  **Interact with the bot**:
     - Open Telegram and start a chat with your bot.
@@ -100,18 +100,47 @@ This project is configured for deployment on Render using the `render.yaml` file
 
 1.  **Create a new Blueprint instance on Render**.
 2.  **Connect your GitHub repository**.
-3.  **Render will automatically detect the `render.yaml` file and configure the services**.
+3.  **Render will automatically detect the `render.yaml` file and configure the services**. The `render.yaml` file configures two services:
+    - `job-dashboard`: The web server (`web_server.py`).
+    - `telegram-job-bot`: The main bot application (`main.py`), which also runs the Telegram monitor.
 4.  **Add your environment variables as secrets in the Render dashboard**.
-    - Go to the "Environment" tab of your service.
-    - Add each secret from your `.env` file as a secret file or environment variable. For `GOOGLE_CREDENTIALS_JSON`, it's recommended to add it as a secret file.
+    - Go to the "Environment" tab for each service.
+    - Add each secret from your `.env` file as a secret. For `GOOGLE_CREDENTIALS_JSON`, it's recommended to add it as a secret file.
 5.  **Deploy the application**.
 
-The `render.yaml` file configures three services:
-- `job-dashboard`: The web server.
-- `telegram-job-bot`: The main bot application.
-- `telegram-job-monitor`: The Telegram group monitor.
+### Using the Render CLI
 
-**Note**: The current `render.yaml` starts both `main.py` and `monitor.py` which can cause conflicts. It is recommended to refactor `main.py` to handle the monitoring process as a background task and remove the `telegram-job-monitor` service.
+You can use the [Render CLI](https://render.com/docs/cli) to manage and monitor your application from your terminal.
+
+1.  **Install the Render CLI**:
+    ```bash
+    npm install -g @renderinc/render-cli
+    ```
+
+2.  **Login to your Render account**:
+    ```bash
+    render login
+    ```
+
+3.  **List your services**:
+    ```bash
+    render services
+    ```
+
+4.  **View logs for a service**:
+    ```bash
+    render logs -s <service-id>
+    ```
+
+### Using Render MCP (Model Context Protocol)
+
+You can also use Render's Model Context Protocol (MCP) to manage your application using natural language prompts with an AI assistant (like me!).
+
+1.  **Create a Render API key** in your Render dashboard.
+2.  **Configure your AI assistant** to use the Render MCP server. This usually involves setting an environment variable or a configuration file with your Render API key.
+3.  **Start managing your application with natural language**:
+    - "Render, show me the latest logs for the telegram-job-bot."
+    - "Render, restart the job-dashboard service."
 
 ## Project Structure
 
