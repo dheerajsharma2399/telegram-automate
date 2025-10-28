@@ -441,3 +441,63 @@ Traceback (most recent call last):
 sqlite3.OperationalError: database is locked
 2025-10-28 18:18:05,317 - INFO - Not disconnecting (already have no connection)
 2025-10-28 18:18:10,796 - ERROR - Error setting up monitor: database is locked
+2025-10-28 18:18:14,417 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:18:24,578 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:18:34,734 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:18:34,996 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:18:43,649 - INFO - Processed message 7 and found 5 jobs.
+2025-10-28 18:18:43,653 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:18:44,390 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 18:18:44,391 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 12, 48, 35, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=54, supergroup_chat_created=False, text='/status'), update_id=376291365)
+2025-10-28 18:18:44,816 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 18:18:44,817 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 12, 48, 42, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=55, supergroup_chat_created=False, text='/status'), update_id=376291366)
+2025-10-28 18:18:45,227 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 18:18:53,568 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:18:53,569 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 12, 48, 54, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=12, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=59, supergroup_chat_created=False, text='/sync_sheets'), update_id=376291367)
+2025-10-28 18:18:54,305 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 18:18:54,742 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 18:19:03,725 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:19:13,881 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:19:24,036 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:19:34,192 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:19:44,351 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:19:54,511 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:20:04,668 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:20:14,824 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:20:24,985 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:20:35,139 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:20:45,295 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:20:55,452 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:21:05,609 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:21:15,767 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:21:25,924 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:21:36,080 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:21:46,240 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:21:56,395 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:22:06,552 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:22:16,712 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:22:26,871 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:22:27,911 - INFO - Running job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 18:27:27 IST)" (scheduled at 2025-10-28 18:22:27.899719+05:30)
+2025-10-28 18:22:27,912 - INFO - Starting job processing...
+2025-10-28 18:22:27,913 - INFO - No unprocessed messages to process.
+2025-10-28 18:22:27,914 - INFO - Job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 18:27:27 IST)" executed successfully
+2025-10-28 18:22:37,027 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:22:47,187 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:22:57,344 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:23:07,502 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:23:17,659 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:23:27,816 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:23:37,973 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:23:48,130 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:23:58,287 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:24:08,446 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:24:18,602 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:24:28,759 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:24:38,918 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:24:49,074 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:24:59,232 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:25:09,391 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:25:19,547 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:25:29,702 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:25:39,864 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 18:25:50,019 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"

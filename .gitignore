@@ -13,3 +13,5 @@ jobs.db
 # Telegram session file
 *.session
 venv/ 
+monitor.log
+.gitignore
