@@ -58,11 +58,21 @@ class Database:
                     updated_at TIMESTAMP,
                     jd_text TEXT,
                     email_subject TEXT,
+                    email_body TEXT,
                     synced_to_sheets BOOLEAN DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (raw_message_id) REFERENCES raw_messages(id)
                 )
             ''')
+            # Backfill columns if this DB was created before email_body or synced_to_sheets existed
+            try:
+                cursor.execute("ALTER TABLE processed_jobs ADD COLUMN email_body TEXT")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE processed_jobs ADD COLUMN synced_to_sheets BOOLEAN DEFAULT 0")
+            except Exception:
+                pass
             
             # Bot config table
             cursor.execute('''
@@ -81,6 +91,26 @@ class Database:
                 ('total_messages_processed', '0'),
                 ('total_jobs_extracted', '0')
             ''')
+            
+            # Commands queue (for dashboard -> bot communication)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS commands_queue (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    command TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    executed_at TIMESTAMP NULL,
+                    status TEXT DEFAULT 'pending'
+                )
+            ''')
+            # Ensure we have columns for result storage (safe to run even if table exists)
+            try:
+                cursor.execute("ALTER TABLE commands_queue ADD COLUMN result_text TEXT")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE commands_queue ADD COLUMN executed_by TEXT")
+            except Exception:
+                pass
     
     def add_raw_message(self, message_id: int, message_text: str, 
                        sender_id: int, sent_at: datetime) -> int:
@@ -105,6 +135,88 @@ class Database:
                 LIMIT ?
             ''', (limit,))
             return [dict(row) for row in cursor.fetchall()]
+
+    # --- Command queue helpers ---
+    def enqueue_command(self, command: str) -> int:
+        """Enqueue a command (from web dashboard) to be executed by the bot."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO commands_queue (command, status) VALUES (?, 'pending')
+            ''', (command,))
+            return cursor.lastrowid
+
+    def get_pending_commands(self, limit: int = 10) -> List[Dict]:
+        """Retrieve pending commands for the bot to execute."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM commands_queue
+                WHERE status = 'pending'
+                ORDER BY created_at ASC
+                LIMIT ?
+            ''', (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def list_all_pending_commands(self) -> List[Dict]:
+        """Return all pending commands (no limit)."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM commands_queue
+                WHERE status = 'pending'
+                ORDER BY created_at ASC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def cancel_command(self, command_id: int) -> bool:
+        """Cancel (mark done/cancelled) a pending command by id."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id FROM commands_queue WHERE id = ? AND status = "pending"', (command_id,))
+            if not cursor.fetchone():
+                return False
+            cursor.execute('''
+                UPDATE commands_queue SET status = 'cancelled', executed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (command_id,))
+            return True
+
+    def get_config(self, key: str) -> Optional[str]:
+        """Get config value"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT value FROM bot_config WHERE key = ?', (key,))
+            row = cursor.fetchone()
+            return row['value'] if row else None
+
+    def set_config(self, key: str, value: str):
+        """Set config value"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO bot_config (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (key, value))
+
+    def mark_command_executed(self, command_id: int):
+        """Mark a command as executed."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE commands_queue SET status = 'done', executed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (command_id,))
+
+    def update_command_result(self, command_id: int, status: str, result_text: str = None, executed_by: str = None):
+        """Update a command's status, result text and who executed it."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE commands_queue
+                SET status = ?, executed_at = CURRENT_TIMESTAMP, result_text = ?, executed_by = ?
+                WHERE id = ?
+            ''', (status, result_text, executed_by, command_id))
     
     def update_message_status(self, message_id: int, status: str, 
                             error_message: str = None):
@@ -125,7 +237,7 @@ class Database:
                 INSERT OR IGNORE INTO processed_jobs (
                     raw_message_id, job_id, first_name, last_name, email,
                     company_name, job_role, location, eligibility,
-                    application_method, jd_text, email_subject, status, updated_at
+                    application_method, jd_text, email_subject, email_body, status, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 job_data.get('raw_message_id'),
@@ -140,6 +252,7 @@ class Database:
                 job_data.get('application_method'),
                 job_data.get('jd_text'),
                 job_data.get('email_subject'),
+                job_data.get('email_body'),
                 job_data.get('status'),
                 job_data.get('updated_at')
             ))
@@ -245,3 +358,13 @@ class Database:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM processed_jobs WHERE synced_to_sheets = 0 ORDER BY created_at ASC')
             return [dict(row) for row in cursor.fetchall()]
+
+    def update_job_email_body(self, job_id: str, email_body: str):
+        """Update the email_body for an existing processed job."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE processed_jobs
+                SET email_body = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ?
+            ''', (email_body, job_id))

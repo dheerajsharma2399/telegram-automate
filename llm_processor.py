@@ -5,6 +5,9 @@ from typing import List, Dict, Optional
 import aiohttp
 import asyncio
 from config import SYSTEM_PROMPT
+import os
+from pathlib import Path
+import json
 
 class LLMProcessor:
     def __init__(self, api_key: str, model: str, fallback_model: str):
@@ -12,6 +15,15 @@ class LLMProcessor:
         self.model = model
         self.fallback_model = fallback_model
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
+        # attempt to load a local user profile JSON (optional)
+        self.user_profile = None
+        try:
+            profile_path = Path(__file__).parent / 'user_profile.json'
+            if profile_path.exists():
+                with open(profile_path, 'r', encoding='utf-8') as f:
+                    self.user_profile = json.load(f)
+        except Exception:
+            self.user_profile = None
     
     async def parse_jobs(self, message_text: str, max_retries: int = 3) -> List[Dict]:
         """Parse job postings from message using LLM"""
@@ -29,7 +41,20 @@ class LLMProcessor:
             print("  LLM failed, using regex fallback")
             jobs = self._regex_fallback(message_text)
         
-        return jobs or []
+        # If jobs were found, ensure each job has jd_text; if missing, try to split
+        # the original message into sensible sections and assign per-job jd_text.
+        result = jobs or []
+        if result and any(not j.get('jd_text') for j in result):
+            sections = re.split(r'\n\s*\n|---+', message_text)
+            # assign sections to jobs in order as a best-effort mapping
+            sec_iter = (s.strip() for s in sections if s.strip())
+            for job in result:
+                if not job.get('jd_text'):
+                    try:
+                        job['jd_text'] = next(sec_iter)
+                    except StopIteration:
+                        job['jd_text'] = message_text  # fallback to entire message
+        return result
     
     async def _call_llm(self, message_text: str, model: str, 
                        max_retries: int) -> Optional[List[Dict]]:
@@ -202,6 +227,18 @@ class LLMProcessor:
             job_data.get("email_subject")
         )
 
+        jd_text_val = job_data.get('jd_text')
+        if not jd_text_val:
+            # fallback to the entire message text if not present
+            jd_text_val = job_data.get('message_text') or job_data.get('full_text') or ''
+        # Optionally generate email body using local profile and jd_text if available
+        email_body = None
+        try:
+            if self.user_profile:
+                email_body = self.generate_email_body(job_data, jd_text_val)
+        except Exception:
+            email_body = None
+
         return {
             "raw_message_id": raw_message_id,
             "job_id": job_id,
@@ -213,11 +250,59 @@ class LLMProcessor:
             "location": job_data.get("location"),
             "eligibility": job_data.get("eligibility"),
             "application_method": application_method,
-            "jd_text": job_data.get("jd_text"),
+            "jd_text": jd_text_val,
             "email_subject": email_subject,
+            "email_body": email_body,
             "status": "pending",
             "updated_at": datetime.now().isoformat(),
         }
+
+    def generate_email_body(self, job_data: Dict, jd_text: str) -> str:
+        """Create a concise, personalized outreach email body using the loaded user profile.
+
+        This is a light-weight generator that does not call an external LLM — it uses
+        a templated structure including the user's top projects and a link to LinkedIn.
+        The result is suitable for review and minor editing before sending.
+        """
+        profile = self.user_profile or {}
+        name = profile.get('full_name', 'Dheeraj Sharma')
+        email = profile.get('email', '')
+        current_title = profile.get('current_title', '')
+        current_company = profile.get('current_company', '')
+        linkedin = profile.get('linkedin', '')
+
+        # pick up to two top projects for inclusion
+        projects = profile.get('top_projects', [])[:2]
+        proj_texts = []
+        for p in projects:
+            n = p.get('name')
+            d = p.get('description')
+            if n and d:
+                proj_texts.append(f"{n}: {d}")
+
+        project_section = ''
+        if proj_texts:
+            project_section = "\n\nA couple of relevant projects: \n- " + "\n- ".join(proj_texts)
+
+        # Compose a short outreach body
+        company = job_data.get('company_name') or ''
+        role = job_data.get('job_role') or ''
+
+        body = (
+            f"Hi {job_data.get('recruiter_name') or 'Team'},\n\n"
+            f"I came across the {role} opening at {company} and I wanted to express my interest."
+            f" I am {name}, currently {current_title} at {current_company}."
+            f"{project_section}\n\n"
+            "I'm particularly excited about roles where I can contribute to backend systems, automation, and developer experience."
+            " I'd love to discuss how I could help your team. You can reach me at "
+            f"{email}.\n\nBest regards,\n{name}\n{linkedin}"
+        )
+
+        # Keep result reasonably sized
+        if len(body) > 4000:
+            body = body[:3990] + '...'
+
+        return body
 
     def _split_name(self, full_name: str) -> tuple[str, str]:
         """Splits a full name into first and last name."""

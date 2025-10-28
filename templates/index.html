@@ -35,6 +35,9 @@
                 <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab">Queue</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">Pending</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">Logs</button>
             </li>
         </ul>
@@ -51,6 +54,7 @@
                         <button class="btn btn-primary" onclick="sendCommand('/process')">Process Queue</button>
                         <button class="btn btn-info" onclick="sendCommand('/export')">Export CSV</button>
                         <button class="btn btn-warning" onclick="sendCommand('/sync_sheets')">Sync Sheets</button>
+                        <button class="btn btn-secondary" onclick="generateEmails()">Generate Emails</button>
                     </div>
                     <hr class="my-4">
                     <h4>Status</h4>
@@ -78,6 +82,40 @@
                                 <!-- Queue data will be injected here -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending -->
+            <div class="tab-pane fade" id="pending" role="tabpanel">
+                <div class="py-4">
+                    <h4>Pending Commands</h4>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Command</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pending-commands-body">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr class="my-3">
+                    <h4>Monitored Groups</h4>
+                    <div class="mb-2">
+                        <input id="new-group-input" class="form-control" placeholder="e.g. -1001234567890 or @groupusername">
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-primary" onclick="addMonitoredGroup()">Add Group</button>
+                        </div>
+                    </div>
+                    <ul id="monitored-groups-list" class="list-group"></ul>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-success" onclick="triggerSheetGeneration()">Generate Email Bodies from Sheet</button>
                     </div>
                 </div>
             </div>
@@ -158,6 +196,28 @@
             }
         }
 
+        async function generateEmails() {
+            try {
+                const response = await fetch('/api/generate_emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({run_now: true})
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message || 'Generation completed or enqueued');
+                    // refresh status/logs to show action
+                    fetchStatus();
+                    fetchLogs();
+                    fetchPendingCommands();
+                } else {
+                    alert('Error: ' + (data.error || JSON.stringify(data)));
+                }
+            } catch (err) {
+                alert('Failed to request generation: ' + err);
+            }
+        }
+
         async function fetchQueue() {
             try {
                 const response = await fetch('/api/queue');
@@ -190,6 +250,121 @@
         // --- Event Listeners ---
         document.getElementById('queue-tab').addEventListener('click', fetchQueue);
         document.getElementById('logs-tab').addEventListener('click', fetchLogs);
+        document.getElementById('pending-tab').addEventListener('click', () => { fetchPendingCommands(); fetchMonitoredGroups(); });
+
+        // --- Pending / Groups functions ---
+        async function fetchPendingCommands() {
+            try {
+                const resp = await fetch('/api/pending_commands');
+                const data = await resp.json();
+                const body = document.getElementById('pending-commands-body');
+                if (!Array.isArray(data)) {
+                    body.innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td><code>${item.command}</code></td>
+                        <td>${new Date(item.created_at).toLocaleString()}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="cancelPending(${item.id})">Cancel</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">No pending commands</td></tr>';
+            } catch (err) {
+                console.error('Failed to fetch pending commands', err);
+            }
+        }
+
+        async function cancelPending(id) {
+            try {
+                const resp = await fetch(`/api/command/${id}/cancel`, { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    alert(data.message || 'Cancelled');
+                    fetchPendingCommands();
+                } else {
+                    alert('Error: ' + (data.error || JSON.stringify(data)));
+                }
+            } catch (err) {
+                alert('Failed to cancel: ' + err);
+            }
+        }
+
+        async function fetchMonitoredGroups() {
+            try {
+                const resp = await fetch('/api/monitored_groups');
+                const data = await resp.json();
+                const list = document.getElementById('monitored-groups-list');
+                if (!data.groups) {
+                    list.innerHTML = '<li class="list-group-item">Error loading</li>';
+                    return;
+                }
+                list.innerHTML = data.groups.map(g => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><code>${g}</code></span>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeMonitoredGroup('${g}')">Remove</button>
+                    </li>
+                `).join('') || '<li class="list-group-item">No groups configured</li>';
+            } catch (err) {
+                console.error('Failed to fetch groups', err);
+            }
+        }
+
+        async function addMonitoredGroup() {
+            const input = document.getElementById('new-group-input');
+            const group = input.value.trim();
+            if (!group) { alert('Enter a group id or username'); return; }
+            try {
+                const resp = await fetch('/api/monitored_groups', {
+                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({group})
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    input.value = '';
+                    fetchMonitoredGroups();
+                } else {
+                    alert('Error: ' + (data.error || JSON.stringify(data)));
+                }
+            } catch (err) {
+                alert('Failed to add group: ' + err);
+            }
+        }
+
+        async function removeMonitoredGroup(group) {
+            try {
+                const resp = await fetch('/api/monitored_groups', {
+                    method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({group})
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    fetchMonitoredGroups();
+                } else {
+                    alert('Error: ' + (data.error || JSON.stringify(data)));
+                }
+            } catch (err) {
+                alert('Failed to remove group: ' + err);
+            }
+        }
+
+        async function triggerSheetGeneration() {
+            try {
+                const resp = await fetch('/api/sheets/generate_email_bodies', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sheet: 'email'})
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    alert(data.message + '\n' + JSON.stringify(data.summary));
+                    fetchStatus();
+                    fetchLogs();
+                } else {
+                    alert('Error: ' + (data.error || JSON.stringify(data)));
+                }
+            } catch (err) {
+                alert('Failed to trigger sheet generation: ' + err);
+            }
+        }
 
         // --- Initial Load ---
         fetchStatus();

@@ -1,0 +1,27 @@
+{
+  "full_name": "Dheeraj Sharma",
+  "email": "deepakgp2128@gmail.com",
+  "phone": "(+91) 98330 19396",
+  "current_title": "Senior Software Engineer",
+  "current_company": "Dattra Systems",
+  "summary": "I build backend systems and developer tools. I help companies reduce costs and accelerate product development through automation, observability, and developer experience improvements.",
+  "top_projects": [
+    {
+      "name": "Jobhuntr",
+      "description": "An automated Telegram-to-Google-Sheets pipeline that extracts job postings from Telegram groups, parses them using LLMs, and prepares outreach emails."
+    },
+    {
+      "name": "SignalWatch",
+      "description": "A lightweight observability agent that collects and forwards telemetry to a hosted analytics service with minimal overhead."
+    },
+    {
+      "name": "AutoDocs",
+      "description": "A documentation generator that converts code comments and API specs into well-structured markdown and HTML documentation."
+    }
+  ],
+  "education": "B.Tech in Computer Science",
+  "skills": ["Python", "AsyncIO", "Systems Design", "APIs", "Google Apps Script", "LLMs"],
+  "availability": "Immediate",
+  "location": "India",
+  "linkedin": "https://www.linkedin.com/in/dheeraj-sharma/"
+}

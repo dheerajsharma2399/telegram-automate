@@ -12060,3 +12060,875 @@ Traceback (most recent call last):
 telegram.error.Conflict: Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
 2025-10-28 19:45:13,147 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
 2025-10-28 19:45:23,300 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:06:26,990 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:06:26,991 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:06:26,991 - INFO - Scheduler started
+2025-10-28 22:06:27,001 - INFO - Telegram bot is running...
+2025-10-28 22:06:27,001 - INFO - Starting Telegram monitor...
+2025-10-28 22:06:27,002 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:06:27,002 - ERROR - Command poller error: 'Database' object has no attribute 'get_pending_commands'
+2025-10-28 22:15:43,627 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:15:43,628 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:15:43,628 - INFO - Scheduler started
+2025-10-28 22:15:43,645 - INFO - Telegram bot is running...
+2025-10-28 22:15:43,646 - INFO - Starting Telegram monitor...
+2025-10-28 22:15:43,646 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:19:33,345 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:19:33,346 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:19:33,346 - INFO - Scheduler started
+2025-10-28 22:19:33,365 - INFO - Telegram bot is running...
+2025-10-28 22:19:33,365 - INFO - Starting Telegram monitor...
+2025-10-28 22:19:33,365 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:21:10,028 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:21:10,029 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:21:10,029 - INFO - Scheduler started
+2025-10-28 22:21:10,048 - INFO - Telegram bot is running...
+2025-10-28 22:21:10,048 - INFO - Starting Telegram monitor...
+2025-10-28 22:21:10,048 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:28:35,904 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:28:35,904 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:28:35,905 - INFO - Scheduler started
+2025-10-28 22:28:35,922 - INFO - Telegram bot is running...
+2025-10-28 22:28:35,922 - INFO - Starting Telegram monitor...
+2025-10-28 22:28:35,923 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:29:56,675 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:29:56,676 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:29:56,676 - INFO - Scheduler started
+2025-10-28 22:29:56,696 - INFO - Telegram bot is running...
+2025-10-28 22:29:56,697 - INFO - Starting Telegram monitor...
+2025-10-28 22:29:56,697 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:30:29,522 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:30:29,523 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:30:29,523 - INFO - Scheduler started
+2025-10-28 22:30:29,542 - INFO - Telegram bot is running...
+2025-10-28 22:30:29,543 - INFO - Starting Telegram monitor...
+2025-10-28 22:30:29,543 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:51:15,846 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:51:15,847 - INFO - Starting Telegram monitor...
+2025-10-28 22:51:15,849 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:52:56,940 - INFO - Starting Telegram monitor...
+2025-10-28 22:52:56,940 - INFO - Job scheduler thread started
+2025-10-28 22:52:56,940 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:52:56,942 - INFO - Starting job processing...
+2025-10-28 22:52:56,948 - INFO - Telegram bot is running...
+2025-10-28 22:52:56,957 - INFO - No unprocessed messages to process.
+2025-10-28 22:52:57,039 - INFO - Connection to 91.108.56.200:443/TcpFull complete!
+2025-10-28 22:52:57,583 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getMe "HTTP/1.1 200 OK"
+2025-10-28 22:52:57,736 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/deleteWebhook "HTTP/1.1 200 OK"
+2025-10-28 22:52:57,738 - INFO - Scheduler started
+2025-10-28 22:52:57,738 - INFO - Application started
+2025-10-28 22:52:57,751 - INFO - Monitoring group: -1002947896517
+2025-10-28 22:52:58,000 - INFO - Monitoring group: -4919334395
+2025-10-28 22:52:58,206 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:52:58,212 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 14, 28, 55, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=76, supergroup_chat_created=False, text='/status'), update_id=376291372)
+2025-10-28 22:52:58,629 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:52:58,631 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 14, 29, 1, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=77, supergroup_chat_created=False, text='/status'), update_id=376291373)
+2025-10-28 22:52:59,009 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:52:59,010 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 14, 29, 9, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=78, supergroup_chat_created=False, text='/start'), update_id=376291374)
+2025-10-28 22:52:59,011 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 22:52:59,011 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 22:52:59,011 - INFO - Scheduler started
+2025-10-28 22:52:59,411 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:52:59,412 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 14, 29, 35, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=80, supergroup_chat_created=False, text='/status'), update_id=376291375)
+2025-10-28 22:52:59,781 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:52:59,782 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 14, 29, 38, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=8, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=81, supergroup_chat_created=False, text='/process'), update_id=376291376)
+2025-10-28 22:53:00,220 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:00,221 - INFO - Starting job processing...
+2025-10-28 22:53:00,222 - INFO - No unprocessed messages to process.
+2025-10-28 22:53:00,645 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:00,647 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 8, 40, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=8, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=82, supergroup_chat_created=False, text='/process'), update_id=376291377)
+2025-10-28 22:53:01,074 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:01,075 - INFO - Starting job processing...
+2025-10-28 22:53:01,077 - INFO - No unprocessed messages to process.
+2025-10-28 22:53:01,565 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:01,566 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 8, 41, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=83, supergroup_chat_created=False, text='/status'), update_id=376291378)
+2025-10-28 22:53:01,941 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:01,942 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 33, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=85, supergroup_chat_created=False, text='/start'), update_id=376291379)
+2025-10-28 22:53:02,310 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:02,312 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 41, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=86, supergroup_chat_created=False, text='/status'), update_id=376291380)
+2025-10-28 22:53:02,687 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:02,688 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 44, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=8, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=87, supergroup_chat_created=False, text='/process'), update_id=376291381)
+2025-10-28 22:53:03,066 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:03,068 - INFO - Starting job processing...
+2025-10-28 22:53:03,069 - INFO - No unprocessed messages to process.
+2025-10-28 22:53:03,440 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:03,442 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 46, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=88, supergroup_chat_created=False, text='/status'), update_id=376291382)
+2025-10-28 22:53:03,832 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:03,833 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 47, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=89, supergroup_chat_created=False, text='/start'), update_id=376291383)
+2025-10-28 22:53:04,208 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:04,210 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 48, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=90, supergroup_chat_created=False, text='/status'), update_id=376291384)
+2025-10-28 22:53:04,593 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:04,596 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 34, 48, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=91, supergroup_chat_created=False, text='/status'), update_id=376291385)
+2025-10-28 22:53:04,970 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:04,971 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 45, 42, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=93, supergroup_chat_created=False, text='/start'), update_id=376291386)
+2025-10-28 22:53:05,343 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:05,344 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 45, 47, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=94, supergroup_chat_created=False, text='/status'), update_id=376291387)
+2025-10-28 22:53:05,713 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:05,714 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 45, 47, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=95, supergroup_chat_created=False, text='/start'), update_id=376291388)
+2025-10-28 22:53:06,083 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:06,083 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 45, 48, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=96, supergroup_chat_created=False, text='/status'), update_id=376291389)
+2025-10-28 22:53:06,461 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:06,462 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 15, 45, 48, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=97, supergroup_chat_created=False, text='/status'), update_id=376291390)
+2025-10-28 22:53:06,844 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:06,854 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 16, 55, 16, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=98, supergroup_chat_created=False, text='/status'), update_id=376291391)
+2025-10-28 22:53:07,255 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:07,257 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 16, 55, 24, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=8, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=99, supergroup_chat_created=False, text='/process'), update_id=376291392)
+2025-10-28 22:53:07,631 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:07,633 - INFO - Starting job processing...
+2025-10-28 22:53:07,634 - INFO - No unprocessed messages to process.
+2025-10-28 22:53:08,016 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:08,018 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 11, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=100, supergroup_chat_created=False, text='/status'), update_id=376291393)
+2025-10-28 22:53:08,372 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:53:08,396 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:08,398 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 11, 3, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=101, supergroup_chat_created=False, text='/start'), update_id=376291394)
+2025-10-28 22:53:08,767 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:08,768 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 11, 4, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=8, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=102, supergroup_chat_created=False, text='/process'), update_id=376291395)
+2025-10-28 22:53:09,135 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:09,136 - INFO - Starting job processing...
+2025-10-28 22:53:09,137 - INFO - No unprocessed messages to process.
+2025-10-28 22:53:09,505 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:53:14,132 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:53:14,133 - INFO - Application is stopping. This might take a moment.
+2025-10-28 22:53:14,133 - INFO - Scheduler has been shut down
+2025-10-28 22:53:14,155 - INFO - Application.stop() complete
+2025-10-28 22:53:20,431 - INFO - Job scheduler thread started
+2025-10-28 22:53:20,431 - INFO - Starting Telegram monitor...
+2025-10-28 22:53:20,432 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 22:53:20,432 - INFO - Starting job processing...
+2025-10-28 22:53:20,460 - INFO - Telegram bot is running...
+2025-10-28 22:53:20,473 - INFO - No unprocessed messages to process.
+2025-10-28 22:53:20,525 - INFO - Connection to 91.108.56.200:443/TcpFull complete!
+2025-10-28 22:53:20,931 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getMe "HTTP/1.1 200 OK"
+2025-10-28 22:53:21,084 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/deleteWebhook "HTTP/1.1 200 OK"
+2025-10-28 22:53:21,085 - INFO - Scheduler started
+2025-10-28 22:53:21,085 - INFO - Application started
+2025-10-28 22:53:21,185 - INFO - Monitoring group: -1002947896517
+2025-10-28 22:53:21,289 - INFO - Monitoring group: -4919334395
+2025-10-28 22:53:31,545 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:53:41,698 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:53:51,856 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:02,016 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:12,180 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:22,339 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:32,493 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:42,647 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:52,804 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:54:54,822 - INFO - New message received: 105539
+2025-10-28 22:54:54,837 - INFO - New message received: 105540
+2025-10-28 22:54:54,877 - INFO - New message received: 105541
+2025-10-28 22:54:54,912 - INFO - New message received: 105542
+2025-10-28 22:54:54,940 - INFO - New message received: 105543
+2025-10-28 22:54:55,091 - INFO - New message received: 105544
+2025-10-28 22:55:02,961 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:55:13,117 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:55:23,271 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:55:33,427 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:55:43,582 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:55:53,735 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:56:03,908 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:56:13,383 - INFO - Starting job processing...
+2025-10-28 22:56:14,064 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:56:24,222 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:56:34,376 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:56:44,529 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:56:54,686 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:04,843 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:06,331 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:06,484 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:06,487 - INFO - Received update: Update(message=Message(api_kwargs={'new_chat_participant': {'id': 8331159093, 'is_bot': True, 'first_name': 'n8n', 'username': 'dheerajn8nbot'}, 'new_chat_member': {'id': 8331159093, 'is_bot': True, 'first_name': 'n8n', 'username': 'dheerajn8nbot'}}, channel_chat_created=False, chat=Chat(api_kwargs={'all_members_are_administrators': True, 'accepted_gift_types': {'unlimited_gifts': False, 'limited_gifts': False, 'unique_gifts': False, 'premium_subscription': False}}, id=-4919334395, title='my group for jobs', type=<ChatType.GROUP>), date=datetime.datetime(2025, 10, 28, 17, 27, 7, tzinfo=datetime.timezone.utc), delete_chat_photo=False, from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=132, new_chat_members=(User(first_name='n8n', id=8331159093, is_bot=True, username='dheerajn8nbot'),), supergroup_chat_created=False), update_id=376291397)
+2025-10-28 22:57:16,645 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:18,943 - INFO - Processed message 9 and found 6 jobs.
+2025-10-28 22:57:26,801 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:36,968 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:47,137 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:48,121 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:57:48,122 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 27, 48, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=133, supergroup_chat_created=False, text='/status'), update_id=376291398)
+2025-10-28 22:57:49,403 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 22:57:58,280 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:58:08,436 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:58:18,589 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:58:20,476 - INFO - Starting job processing...
+2025-10-28 22:58:24,167 - INFO - Processed message 10 and found 7 jobs.
+2025-10-28 22:58:28,746 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:58:38,900 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:58:49,057 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:58:53,391 - INFO - Processed message 11 and found 7 jobs.
+2025-10-28 22:58:59,209 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:09,368 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:19,524 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:29,677 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:30,591 - INFO - Processed message 11 and found 7 jobs.
+2025-10-28 22:59:39,830 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:49,983 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:50,729 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 22:59:50,730 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 29, 51, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=135, supergroup_chat_created=False, text='/status'), update_id=376291399)
+2025-10-28 22:59:52,040 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:00:00,885 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:00:11,042 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:00:21,196 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:00:31,351 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:00:41,506 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:00:45,027 - INFO - Processed message 12 and found 11 jobs.
+2025-10-28 23:00:51,661 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:01:01,825 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:01:11,984 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:01:20,273 - INFO - Processed message 12 and found 11 jobs.
+2025-10-28 23:01:22,144 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:01:32,300 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:01:42,453 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:01:52,608 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:02,761 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:12,463 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:12,464 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 32, 13, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=137, supergroup_chat_created=False, text='/status'), update_id=376291400)
+2025-10-28 23:02:13,255 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:02:22,630 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:32,785 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:39,664 - INFO - Processed message 13 and found 16 jobs.
+2025-10-28 23:02:42,952 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:51,745 - INFO - Processed message 14 and found 2 jobs.
+2025-10-28 23:02:53,115 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:57,578 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:02:57,579 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 32, 58, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=139, supergroup_chat_created=False, text='/status'), update_id=376291401)
+2025-10-28 23:02:58,893 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:03:02,502 - INFO - Processed message 13 and found 10 jobs.
+2025-10-28 23:03:07,736 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:09,769 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:09,770 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 33, 10, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=12, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=141, supergroup_chat_created=False, text='/sync_sheets'), update_id=376291402)
+2025-10-28 23:03:10,560 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:03:11,895 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:03:17,562 - INFO - Processed message 14 and found 2 jobs.
+2025-10-28 23:03:19,587 - INFO - Starting job processing...
+2025-10-28 23:03:19,588 - INFO - No unprocessed messages to process.
+2025-10-28 23:03:19,935 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:30,088 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:40,240 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:45,756 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:03:50,394 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:50,773 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:03:54,966 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:03:54,967 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 17, 33, 55, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=12, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=144, supergroup_chat_created=False, text='/sync_sheets'), update_id=376291403)
+2025-10-28 23:03:55,750 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:03:55,787 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:03:56,211 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:04:00,803 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:05,121 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:04:05,816 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:10,830 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:15,286 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:04:15,834 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:20,839 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:25,438 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:04:25,853 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:30,864 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:35,590 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:04:35,880 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:40,882 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:45,744 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:04:45,887 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:50,902 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:55,904 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:04:55,906 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:05:00,919 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:05,935 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:06,059 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:05:10,938 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:15,941 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:16,216 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:05:20,956 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:25,971 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:26,372 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:05:30,984 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:35,999 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:36,528 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:05:41,002 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:46,007 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:46,685 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:05:51,011 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:56,026 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:05:56,838 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:06:01,033 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:06,051 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:06,995 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:06:11,055 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:16,071 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:17,153 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:06:21,086 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:26,101 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:27,306 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:06:31,117 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:36,121 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:37,463 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:06:41,122 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:46,127 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:47,616 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:06:51,129 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:56,144 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:06:57,770 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:07:01,160 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:06,164 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:07,923 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:07:11,166 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:16,182 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:18,078 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:07:21,185 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:26,201 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:28,232 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:07:31,216 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:36,221 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:38,385 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:07:41,236 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:46,252 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:48,541 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:07:51,268 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:51,748 - INFO - Starting job processing...
+2025-10-28 23:07:51,750 - INFO - No unprocessed messages to process.
+2025-10-28 23:07:56,272 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:07:58,700 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:08:01,288 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:06,304 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:08,854 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:08:11,321 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:16,324 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:19,007 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:08:21,214 - INFO - Got difference for account updates
+2025-10-28 23:08:21,327 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:26,340 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:29,162 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:08:31,344 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:36,347 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:39,319 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:08:41,352 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:46,357 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:49,475 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:08:51,361 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:56,364 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:08:59,629 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:09:01,369 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:06,385 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:09,809 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:09:11,390 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:16,394 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:19,968 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:09:21,397 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:26,412 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:30,945 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:09:31,429 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:36,431 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:41,101 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:09:41,433 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:46,437 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:51,258 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:09:51,454 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:09:56,456 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:01,415 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:10:01,471 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:06,476 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:11,491 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:11,573 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:10:16,495 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:21,497 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:21,729 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:10:26,511 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:31,527 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:31,885 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:10:36,530 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:41,532 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:42,042 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:10:46,536 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:51,539 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:10:52,200 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:10:56,542 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:01,545 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:02,359 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:11:06,560 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:11,564 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:12,521 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:11:16,568 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:21,570 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:22,678 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:11:26,572 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:31,589 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:32,836 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:11:36,604 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:41,607 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:42,993 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:11:46,611 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:51,612 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:11:53,151 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:11:56,615 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:01,618 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:03,307 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:12:06,620 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:11,636 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:13,465 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:12:16,640 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:21,645 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:23,622 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:12:26,659 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:31,673 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:33,783 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:12:36,690 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:41,706 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:43,942 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:12:46,709 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:51,710 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:12:51,751 - INFO - Starting job processing...
+2025-10-28 23:12:51,752 - INFO - No unprocessed messages to process.
+2025-10-28 23:12:54,103 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:12:56,727 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:01,731 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:04,264 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:13:06,733 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:11,745 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:14,421 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:13:16,747 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:21,762 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:24,579 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:13:26,763 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:31,775 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:34,736 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:13:36,791 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:41,807 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:44,893 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:13:46,823 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:51,840 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:13:55,050 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:13:56,853 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:01,865 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:05,206 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:14:06,877 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:11,883 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:15,363 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:14:16,886 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:21,890 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:22,338 - INFO - Got difference for channel 1905581924 updates
+2025-10-28 23:14:25,519 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:14:26,892 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:31,895 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:35,675 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:14:36,909 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:41,913 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:45,831 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:14:46,916 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:51,919 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:14:55,989 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:14:56,921 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:01,934 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:06,145 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:15:06,938 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:11,940 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:16,302 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:15:16,945 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:21,949 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:26,460 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:15:26,951 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:31,967 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:36,615 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:15:36,969 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:41,971 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:46,772 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:15:46,974 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:51,978 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:15:56,928 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:15:56,981 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:01,997 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:07,012 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:07,085 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:16:12,027 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:17,029 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:17,242 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:16:22,035 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:27,050 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:27,400 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:16:32,054 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:37,070 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:37,557 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:16:42,076 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:47,080 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:47,717 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:16:52,086 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:57,101 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:16:57,875 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:17:02,103 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:07,118 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:08,032 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:17:12,120 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:17,123 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:18,190 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:17:22,126 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:27,129 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:28,349 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:17:32,132 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:37,137 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:38,507 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:17:42,153 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:47,159 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:48,665 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:17:51,754 - INFO - Starting job processing...
+2025-10-28 23:17:51,755 - INFO - No unprocessed messages to process.
+2025-10-28 23:17:52,161 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:57,178 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:17:58,834 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:18:02,194 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:07,205 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:08,991 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:18:12,210 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:17,214 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:19,148 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:18:22,219 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:27,222 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:29,303 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:18:32,238 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:37,241 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:39,461 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:18:42,244 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:47,248 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:49,617 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:18:52,252 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:57,256 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:18:59,774 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:19:02,273 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:19:07,289 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:19:09,930 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:19:12,293 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:19:17,298 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:19:20,087 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:19:22,311 - ERROR - Command poller error: object NoneType can't be used in 'await' expression
+2025-10-28 23:19:23,646 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:19:23,647 - INFO - Application is stopping. This might take a moment.
+2025-10-28 23:19:23,648 - INFO - Scheduler has been shut down
+2025-10-28 23:19:23,658 - INFO - Application.stop() complete
+2025-10-28 23:30:20,618 - INFO - Job scheduler thread started
+2025-10-28 23:30:20,618 - INFO - Starting Telegram monitor...
+2025-10-28 23:30:20,619 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-28 23:30:20,620 - INFO - Starting job processing...
+2025-10-28 23:30:20,644 - INFO - Telegram bot is running...
+2025-10-28 23:30:20,656 - INFO - No unprocessed messages to process.
+2025-10-28 23:30:20,678 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-28 23:30:20,679 - INFO - Added job "process_jobs" to job store "default"
+2025-10-28 23:30:20,679 - INFO - Scheduler started
+2025-10-28 23:30:20,829 - INFO - Connection to 91.108.56.200:443/TcpFull complete!
+2025-10-28 23:30:21,282 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getMe "HTTP/1.1 200 OK"
+2025-10-28 23:30:21,434 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/deleteWebhook "HTTP/1.1 200 OK"
+2025-10-28 23:30:21,436 - INFO - Scheduler started
+2025-10-28 23:30:21,436 - INFO - Application started
+2025-10-28 23:30:21,900 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:30:21,902 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(api_kwargs={'all_members_are_administrators': True, 'accepted_gift_types': {'unlimited_gifts': False, 'limited_gifts': False, 'unique_gifts': False, 'premium_subscription': False}}, id=-4919334395, title='my group for jobs', type=<ChatType.GROUP>), date=datetime.datetime(2025, 10, 28, 17, 59, 55, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=22, offset=667, type=<MessageEntityType.EMAIL>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=147, supergroup_chat_created=False, text='Company: Solstice Labs\nRole: Backend Engineer (Python)\nLocation: Bangalore, India (Hybrid)\nExperience: 2-4 years\nDescription:\nWe are seeking a Backend Engineer to join our core platform team. You\'ll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.\nResponsibilities:\n- Design and implement reliable backend services\n- Improve observability, monitoring and performance\n- Collaborate with frontend and data teams to deliver features\nHow to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".'), update_id=376291404)
+2025-10-28 23:30:21,903 - INFO - Echo handler received text: Company: Solstice Labs
+Role: Backend Engineer (Python)
+Location: Bangalore, India (Hybrid)
+Experience: 2-4 years
+Description:
+We are seeking a Backend Engineer to join our core platform team. You'll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.
+Responsibilities:
+- Design and implement reliable backend services
+- Improve observability, monitoring and performance
+- Collaborate with frontend and data teams to deliver features
+How to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".
+2025-10-28 23:30:22,276 - INFO - Monitoring group: -1002947896517
+2025-10-28 23:30:22,480 - INFO - Monitoring group: -4919334395
+2025-10-28 23:30:32,059 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:30:42,215 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:30:45,871 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:30:45,873 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(api_kwargs={'all_members_are_administrators': True, 'accepted_gift_types': {'unlimited_gifts': False, 'limited_gifts': False, 'unique_gifts': False, 'premium_subscription': False}}, id=-4919334395, title='my group for jobs', type=<ChatType.GROUP>), date=datetime.datetime(2025, 10, 28, 18, 0, 46, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=22, offset=667, type=<MessageEntityType.EMAIL>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=148, supergroup_chat_created=False, text='Company: Solstice Labs\nRole: Backend Engineer (Python)\nLocation: Bangalore, India (Hybrid)\nExperience: 2-4 years\nDescription:\nWe are seeking a Backend Engineer to join our core platform team. You\'ll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.\nResponsibilities:\n- Design and implement reliable backend services\n- Improve observability, monitoring and performance\n- Collaborate with frontend and data teams to deliver features\nHow to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".'), update_id=376291405)
+2025-10-28 23:30:45,873 - INFO - Echo handler received text: Company: Solstice Labs
+Role: Backend Engineer (Python)
+Location: Bangalore, India (Hybrid)
+Experience: 2-4 years
+Description:
+We are seeking a Backend Engineer to join our core platform team. You'll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.
+Responsibilities:
+- Design and implement reliable backend services
+- Improve observability, monitoring and performance
+- Collaborate with frontend and data teams to deliver features
+How to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".
+2025-10-28 23:30:45,895 - INFO - New message received: 105561
+2025-10-28 23:30:56,028 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:00,933 - INFO - Starting job processing...
+2025-10-28 23:31:06,185 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:14,870 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:14,873 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 18, 1, 15, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=149, supergroup_chat_created=False, text='/status'), update_id=376291406)
+2025-10-28 23:31:15,422 - INFO - Processed message 15 and found 1 jobs.
+2025-10-28 23:31:15,633 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:31:18,044 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:18,046 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 18, 1, 18, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=12, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=151, supergroup_chat_created=False, text='/sync_sheets'), update_id=376291407)
+2025-10-28 23:31:18,457 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:31:18,874 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-28 23:31:28,234 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:38,390 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:48,556 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:31:58,712 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:32:08,882 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:32:19,039 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:32:29,196 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:32:39,351 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:32:49,507 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:32:59,662 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:33:09,820 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:33:19,980 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:33:30,136 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:33:40,291 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:33:50,447 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:34:00,606 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:34:10,764 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:34:20,923 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:34:31,081 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:34:41,240 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:34:51,396 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:35:01,556 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:35:11,712 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:35:20,658 - INFO - Starting job processing...
+2025-10-28 23:35:20,659 - INFO - No unprocessed messages to process.
+2025-10-28 23:35:20,687 - INFO - Running job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 23:40:20 IST)" (scheduled at 2025-10-28 23:35:20.678189+05:30)
+2025-10-28 23:35:20,687 - INFO - Starting job processing...
+2025-10-28 23:35:20,688 - INFO - No unprocessed messages to process.
+2025-10-28 23:35:20,688 - INFO - Job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 23:40:20 IST)" executed successfully
+2025-10-28 23:35:21,869 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:35:32,026 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:35:42,184 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:35:52,362 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:36:02,519 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:36:12,676 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:36:22,834 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:36:32,989 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:36:43,145 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:36:53,301 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:37:03,481 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:37:13,637 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:37:23,793 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:37:33,950 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:37:44,112 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:37:54,272 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:38:04,431 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:38:14,591 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:38:24,749 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:38:34,905 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:38:45,066 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:38:55,224 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:39:05,382 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:39:15,538 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:39:25,697 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:39:35,854 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:39:46,010 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:39:56,176 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:40:06,337 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:40:16,500 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:40:20,662 - INFO - Starting job processing...
+2025-10-28 23:40:20,663 - INFO - No unprocessed messages to process.
+2025-10-28 23:40:20,689 - INFO - Running job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 23:45:20 IST)" (scheduled at 2025-10-28 23:40:20.678189+05:30)
+2025-10-28 23:40:20,690 - INFO - Starting job processing...
+2025-10-28 23:40:20,690 - INFO - No unprocessed messages to process.
+2025-10-28 23:40:20,690 - INFO - Job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 23:45:20 IST)" executed successfully
+2025-10-28 23:40:26,664 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:40:36,821 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:40:46,983 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:40:57,145 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:41:07,303 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:41:17,472 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:41:27,650 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:41:37,806 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:41:47,963 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:41:58,123 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:42:08,281 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:42:18,437 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:42:28,593 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:42:38,750 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:42:48,906 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:42:59,064 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:43:09,223 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:43:19,383 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:43:29,547 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:43:39,704 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:43:49,863 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:44:00,019 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:44:10,176 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:44:20,335 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:44:30,493 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:44:40,650 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:44:50,807 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:45:00,964 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:45:11,120 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:45:20,666 - INFO - Starting job processing...
+2025-10-28 23:45:20,668 - INFO - No unprocessed messages to process.
+2025-10-28 23:45:20,694 - INFO - Running job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 23:50:20 IST)" (scheduled at 2025-10-28 23:45:20.678189+05:30)
+2025-10-28 23:45:20,695 - INFO - Starting job processing...
+2025-10-28 23:45:20,695 - INFO - No unprocessed messages to process.
+2025-10-28 23:45:20,696 - INFO - Job "process_jobs (trigger: interval[0:05:00], next run at: 2025-10-28 23:50:20 IST)" executed successfully
+2025-10-28 23:45:21,281 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:45:31,438 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:45:41,596 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:45:51,753 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:01,909 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:12,068 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:22,226 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:32,388 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:42,545 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:49,767 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-28 23:46:49,768 - INFO - Application is stopping. This might take a moment.
+2025-10-28 23:46:49,769 - INFO - Scheduler has been shut down
+2025-10-28 23:46:49,780 - INFO - Application.stop() complete
+2025-10-29 01:30:56,542 - INFO - Starting Telegram monitor...
+2025-10-29 01:30:56,543 - INFO - Job scheduler thread started
+2025-10-29 01:30:56,543 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-29 01:30:56,544 - INFO - Starting job processing...
+2025-10-29 01:30:56,577 - INFO - Telegram bot is running...
+2025-10-29 01:30:56,586 - INFO - No unprocessed messages to process.
+2025-10-29 01:30:56,725 - INFO - Connection to 91.108.56.200:443/TcpFull complete!
+2025-10-29 01:30:57,240 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getMe "HTTP/1.1 200 OK"
+2025-10-29 01:30:57,398 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/deleteWebhook "HTTP/1.1 200 OK"
+2025-10-29 01:30:57,400 - INFO - Scheduler started
+2025-10-29 01:30:57,401 - INFO - Application started
+2025-10-29 01:30:57,907 - INFO - Monitoring group: -1002947896517
+2025-10-29 01:30:58,098 - INFO - Monitoring group: -4919334395
+2025-10-29 01:31:07,862 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:31:18,016 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:31:28,170 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:31:38,324 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:31:48,479 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:31:58,632 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:32:08,784 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:32:18,937 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:32:29,091 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:32:34,239 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:32:34,241 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 20, 2, 35, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=16, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=155, supergroup_chat_created=False, text='/generate_emails'), update_id=376291408)
+2025-10-29 01:32:44,395 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:32:54,547 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:04,702 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:14,855 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:19,673 - INFO - New message received: 105569
+2025-10-29 01:33:19,674 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:19,676 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(api_kwargs={'all_members_are_administrators': True, 'accepted_gift_types': {'unlimited_gifts': False, 'limited_gifts': False, 'unique_gifts': False, 'premium_subscription': False}}, id=-4919334395, title='my group for jobs', type=<ChatType.GROUP>), date=datetime.datetime(2025, 10, 28, 20, 3, 20, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=16, offset=18, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=156, supergroup_chat_created=False, text='Command executed: /generate_emails - OK'), update_id=376291409)
+2025-10-29 01:33:19,677 - INFO - Echo handler received text: Command executed: /generate_emails - OK
+2025-10-29 01:33:28,009 - INFO - New message received: 105570
+2025-10-29 01:33:28,022 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:28,024 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(api_kwargs={'all_members_are_administrators': True, 'accepted_gift_types': {'unlimited_gifts': False, 'limited_gifts': False, 'unique_gifts': False, 'premium_subscription': False}}, id=-4919334395, title='my group for jobs', type=<ChatType.GROUP>), date=datetime.datetime(2025, 10, 28, 20, 3, 28, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=22, offset=667, type=<MessageEntityType.EMAIL>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=157, supergroup_chat_created=False, text='Company: Solstice Labs\nRole: Backend Engineer (Python)\nLocation: Bangalore, India (Hybrid)\nExperience: 2-4 years\nDescription:\nWe are seeking a Backend Engineer to join our core platform team. You\'ll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.\nResponsibilities:\n- Design and implement reliable backend services\n- Improve observability, monitoring and performance\n- Collaborate with frontend and data teams to deliver features\nHow to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".'), update_id=376291410)
+2025-10-29 01:33:28,025 - INFO - Echo handler received text: Company: Solstice Labs
+Role: Backend Engineer (Python)
+Location: Bangalore, India (Hybrid)
+Experience: 2-4 years
+Description:
+We are seeking a Backend Engineer to join our core platform team. You'll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.
+Responsibilities:
+- Design and implement reliable backend services
+- Improve observability, monitoring and performance
+- Collaborate with frontend and data teams to deliver features
+How to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".
+2025-10-29 01:33:36,512 - INFO - Starting job processing...
+2025-10-29 01:33:38,179 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:48,332 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:49,271 - ERROR - Failed to process message 17: table processed_jobs has no column named email_body
+2025-10-29 01:33:52,569 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:33:52,571 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 20, 3, 53, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=16, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=159, supergroup_chat_created=False, text='/generate_emails'), update_id=376291411)
+2025-10-29 01:34:00,843 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:34:00,844 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 20, 4, 1, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=12, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=161, supergroup_chat_created=False, text='/sync_sheets'), update_id=376291412)
+2025-10-29 01:34:01,563 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 01:34:01,966 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 01:34:10,998 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:34:16,312 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:34:16,314 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 20, 4, 17, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=16, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=165, supergroup_chat_created=False, text='/generate_emails'), update_id=376291413)
+2025-10-29 01:34:26,467 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:34:36,621 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:34:46,774 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:34:56,928 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:35:07,082 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:35:17,235 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:35:27,390 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:35:37,542 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:35:47,701 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:35:56,590 - INFO - Starting job processing...
+2025-10-29 01:35:56,592 - INFO - No unprocessed messages to process.
+2025-10-29 01:35:57,856 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:36:08,011 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:36:18,164 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:36:28,317 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:36:38,470 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:36:48,623 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:36:58,774 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:37:08,932 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:37:19,086 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:37:29,239 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:37:39,392 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:37:49,546 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:37:59,701 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:38:09,855 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:38:20,009 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:38:30,163 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:38:40,316 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:38:50,468 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:39:00,623 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:39:10,775 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:39:20,927 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:39:31,081 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:39:41,234 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:39:51,388 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:40:01,542 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:40:11,996 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:40:17,193 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:40:17,194 - INFO - Application is stopping. This might take a moment.
+2025-10-29 01:40:17,194 - INFO - Scheduler has been shut down
+2025-10-29 01:40:17,218 - INFO - Application.stop() complete
+2025-10-29 01:42:55,142 - INFO - Job scheduler thread started
+2025-10-29 01:42:55,143 - INFO - Starting Telegram monitor...
+2025-10-29 01:42:55,143 - INFO - Connecting to 91.108.56.200:443/TcpFull...
+2025-10-29 01:42:55,144 - INFO - Starting job processing...
+2025-10-29 01:42:55,161 - INFO - Telegram bot is running...
+2025-10-29 01:42:55,171 - INFO - No unprocessed messages to process.
+2025-10-29 01:42:55,241 - INFO - Connection to 91.108.56.200:443/TcpFull complete!
+2025-10-29 01:42:55,789 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getMe "HTTP/1.1 200 OK"
+2025-10-29 01:42:55,923 - INFO - Monitoring group: -1002947896517
+2025-10-29 01:42:55,941 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/deleteWebhook "HTTP/1.1 200 OK"
+2025-10-29 01:42:55,942 - INFO - Scheduler started
+2025-10-29 01:42:55,943 - INFO - Application started
+2025-10-29 01:42:56,028 - INFO - Monitoring group: -4919334395
+2025-10-29 01:43:06,406 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:43:16,563 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:43:26,717 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:43:36,877 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:43:47,037 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:43:57,195 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:07,349 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:17,502 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:27,654 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:37,809 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:39,251 - INFO - New message received: 105579
+2025-10-29 01:44:39,338 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:39,341 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(api_kwargs={'all_members_are_administrators': True, 'accepted_gift_types': {'unlimited_gifts': False, 'limited_gifts': False, 'unique_gifts': False, 'premium_subscription': False}}, id=-4919334395, title='my group for jobs', type=<ChatType.GROUP>), date=datetime.datetime(2025, 10, 28, 20, 14, 40, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=22, offset=667, type=<MessageEntityType.EMAIL>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=166, supergroup_chat_created=False, text='Company: Solstice Labs\nRole: Backend Engineer (Python)\nLocation: Bangalore, India (Hybrid)\nExperience: 2-4 years\nDescription:\nWe are seeking a Backend Engineer to join our core platform team. You\'ll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.\nResponsibilities:\n- Design and implement reliable backend services\n- Improve observability, monitoring and performance\n- Collaborate with frontend and data teams to deliver features\nHow to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".'), update_id=376291414)
+2025-10-29 01:44:39,342 - INFO - Echo handler received text: Company: Solstice Labs
+Role: Backend Engineer (Python)
+Location: Bangalore, India (Hybrid)
+Experience: 2-4 years
+Description:
+We are seeking a Backend Engineer to join our core platform team. You'll work on scalable microservices, REST/GraphQL APIs, and data pipelines. Strong Python, FastAPI/Django experience required. Familiarity with Postgres, Redis, and cloud deployment (AWS/GCP) is a must. Good communication skills and a product mindset expected.
+Responsibilities:
+- Design and implement reliable backend services
+- Improve observability, monitoring and performance
+- Collaborate with frontend and data teams to deliver features
+How to apply: Send your CV to deepakgp2128@gmail.com with subject "Backend Engineer - Solstice".
+2025-10-29 01:44:49,502 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:44:49,763 - INFO - Starting job processing...
+2025-10-29 01:44:58,275 - ERROR - Failed to process message 18: table processed_jobs has no column named email_body
+2025-10-29 01:44:59,655 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:45:09,807 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:45:14,785 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:45:14,786 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 20, 15, 15, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=12, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=168, supergroup_chat_created=False, text='/sync_sheets'), update_id=376291415)
+2025-10-29 01:45:15,552 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 01:45:15,957 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 01:45:22,313 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:45:22,314 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 28, 20, 15, 23, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=16, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=171, supergroup_chat_created=False, text='/generate_emails'), update_id=376291416)
+2025-10-29 01:45:32,471 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:45:42,627 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:45:52,785 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:46:02,939 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:46:13,095 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:46:23,248 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:46:33,404 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:46:43,558 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:46:53,720 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:47:03,873 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:47:14,027 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:47:24,181 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:47:34,339 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:47:39,031 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 01:47:39,032 - INFO - Application is stopping. This might take a moment.
+2025-10-29 01:47:39,032 - INFO - Scheduler has been shut down
+2025-10-29 01:47:39,045 - INFO - Application.stop() complete
