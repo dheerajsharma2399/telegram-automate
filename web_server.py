@@ -390,31 +390,39 @@ except Exception:
 def index():
     return render_template("index.html")
 from telethon.sessions import StringSession
+from telethon import TelegramClient
+from flask import session
+
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret")
 
 # In-memory store for Telegram client sessions during setup
 telegram_clients = {}
 
 @app.route("/api/telegram/setup", methods=["POST"])
 def telegram_setup():
-    data = request.json
-    api_id = data.get("api_id")
-    api_hash = data.get("api_hash")
-    phone = data.get("phone")
+    from config import TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
+    
+    api_id = TELEGRAM_API_ID
+    api_hash = TELEGRAM_API_HASH
+    phone = TELEGRAM_PHONE
 
     if not all([api_id, api_hash, phone]):
-        return jsonify({"error": "API ID, API Hash, and Phone are required."}), 400
+        return jsonify({"error": "TELEGRAM_API_ID, TELEGRAM_API_HASH, and TELEGRAM_PHONE must be set in the environment."}), 400
 
     try:
         client = TelegramClient(StringSession(), int(api_id), api_hash)
         
         async def do_send_code():
             await client.connect()
-            await client.send_code_request(phone)
-        
+            result = await client.send_code_request(phone)
+            return result.phone_code_hash
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(do_send_code())
+        phone_code_hash = loop.run_until_complete(do_send_code())
 
+        session["phone"] = phone
+        session["phone_code_hash"] = phone_code_hash
         telegram_clients[phone] = client
 
         return jsonify({"message": "OTP code sent to your Telegram account."})
@@ -424,12 +432,14 @@ def telegram_setup():
 @app.route("/api/telegram/signin", methods=["POST"])
 def telegram_signin():
     data = request.json
-    phone = data.get("phone")
     code = data.get("code")
     password = data.get("password")
+    
+    phone = session.get("phone")
+    phone_code_hash = session.get("phone_code_hash")
 
     if not phone or not code:
-        return jsonify({"error": "Phone and OTP code are required."}), 400
+        return jsonify({"error": "Session expired or code not provided. Please start over."}), 400
 
     client = telegram_clients.get(phone)
     if not client:
@@ -437,19 +447,27 @@ def telegram_signin():
 
     try:
         async def do_sign_in():
-            if password:
-                await client.sign_in(phone, code, password=password)
-            else:
-                await client.sign_in(phone, code)
+            await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
 
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(do_sign_in())
+        
+        try:
+            loop.run_until_complete(do_sign_in())
+        except errors.SessionPasswordNeededError:
+            if not password:
+                return jsonify({"error": "Two-factor authentication is enabled. Please provide a password."}), 400
+            async def do_sign_in_with_password():
+                await client.sign_in(password=password)
+            loop.run_until_complete(do_sign_in_with_password())
+
 
         session_string = client.session.save()
         db.set_config("telegram_session", session_string)
 
         # Clean up
         del telegram_clients[phone]
+        session.pop("phone", None)
+        session.pop("phone_code_hash", None)
 
         return jsonify({"message": "Successfully signed in! The application is now configured."})
     except Exception as e:
