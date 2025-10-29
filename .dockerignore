@@ -1,0 +1,132 @@
+# Docker ignore file for Telegram Job Scraper
+# Excludes unnecessary files to optimize Docker builds
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment files (use .env file instead)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test files and development artifacts
+test_*.py
+*_test.py
+test_*.db
+*test*.db
+test_*.md
+*_test.md
+integration_*.py
+simple_*_test.py
+separated_flow_test.py
+*_summary.md
+*_action_plan.md
+*_fix_summary.md
+*_guide.py
+*_example.py
+enhanced_email_generator.py
+integration_guide.py
+simple_test.py
+web_server_no_bot.py
+test_google_sheets_fix.py
+test_complete_app.py
+
+# Log files
+*.log
+bot.log
+monitor.log
+logs/
+
+# Database files
+*.db
+!jobs.db
+test_*.db
+
+# Session files
+*.session
+*.session-journal
+
+# Documentation and planning
+outline.txt
+DOCUMENTATION.md
+ERROR_DOCUMENTATION.md
+DOCKERIZATION_PLAN.md
+FINAL_UPDATE_SUMMARY.md
+DATABASE_EXCLUSION_UPDATE.md
+GOOGLE_SHEETS_FIX_SUMMARY.md
+EMAIL_GENERATION_ACTION_PLAN.md
+GITIGNORE_SUMMARY.md
+DEPLOYMENT_FIX.md
+
+# Data directories
+data/
+database-backup/
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Docker files (don't copy Dockerfiles into build context)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Render and deployment files (use in production deployment)
+render.yaml
+Procfile
+job-dashboard.service
+telegram-job-bot.service
+wsgi.py

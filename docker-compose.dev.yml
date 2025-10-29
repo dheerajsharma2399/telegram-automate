@@ -1,0 +1,57 @@
+# Development override for Docker Compose
+# This file extends docker-compose.yml with development-specific settings
+
+version: '3.8'
+
+services:
+  # Web Dashboard Development Override
+  web-dashboard:
+    environment:
+      # Development Flask settings
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      
+      # Hot reload volumes (uncomment for auto-reload during development)
+      # volumes:
+      #   - .:/app
+      #   - /app/__pycache__
+      
+      # Development database path
+      - DATABASE_PATH=/app/data/dev_jobs.db
+    ports:
+      - "5000:5000"  # Web dashboard port
+    stdin_open: true
+    tty: true
+
+  # Telegram Bot Development Override  
+  telegram-bot:
+    environment:
+      # Development bot settings
+      - DATABASE_PATH=/app/data/dev_jobs.db
+    stdin_open: true
+    tty: true
+    
+    # Development volumes for live code changes (optional)
+    volumes:
+      # Uncomment these lines if you want live code reloading
+      # - .:/app
+      # - /app/__pycache__
+      - ./user_profile.json:/app/user_profile.json:ro
+
+  # Development database monitor
+  db-monitor:
+    volumes:
+      - ./data:/app/data
+      - ./dev-logs:/app/logs
+
+# Development-specific volumes
+volumes:
+  db-data:
+    driver: local
+  logs-data:
+    driver: local
+
+# Development network (same as production)
+networks:
+  telegram-network:
+    driver: bridge

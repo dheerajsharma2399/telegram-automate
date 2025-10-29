@@ -259,6 +259,9 @@ class LLMProcessor:
             "location": job_data.get("location"),
             "eligibility": job_data.get("eligibility"),
             "application_method": application_method,
+            "application_link": job_data.get("application_link"),  # FIX: Include application link
+            "phone": job_data.get("phone"),  # FIX: Include phone number
+            "recruiter_name": job_data.get("recruiter_name"),  # FIX: Include recruiter name
             "jd_text": jd_text_val,
             "email_subject": email_subject,
             "email_body": email_body,
