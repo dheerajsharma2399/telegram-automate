@@ -279,21 +279,11 @@
         document.getElementById('setup-tab').addEventListener('click', () => {});
 
         // --- Telegram Setup Functions ---
-        async function sendTelegramDetails() {
-            const apiId = document.getElementById('api-id').value;
-            const apiHash = document.getElementById('api-hash').value;
-            const phone = document.getElementById('phone').value;
-
-            if (!apiId || !apiHash || !phone) {
-                alert('Please fill in all Telegram details.');
-                return;
-            }
-
+        async function sendCode() {
             try {
                 const response = await fetch('/api/telegram/setup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_id: apiId, api_hash: apiHash, phone: phone })
                 });
 
                 const data = await response.json();
@@ -305,14 +295,13 @@
                     alert(`Error: ${data.error}`);
                 }
             } catch (error) {
-                alert(`Failed to send details: ${error}`);
+                alert(`Failed to send code: ${error}`);
             }
         }
 
         async function sendOtp() {
             const otp = document.getElementById('otp').value;
             const password = document.getElementById('password').value;
-            const phone = document.getElementById('phone').value; // We need phone again to identify the session
 
             if (!otp) {
                 alert('Please enter the OTP.');
@@ -323,7 +312,7 @@
                 const response = await fetch('/api/telegram/signin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: phone, code: otp, password: password })
+                    body: JSON.stringify({ code: otp, password: password })
                 });
 
                 const data = await response.json();
