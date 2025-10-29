@@ -346,6 +346,31 @@ def api_jobs_stats():
 
 # --- Telegram Webhook Endpoint ---
 
+def process_webhook_async(update_data):
+    """Process webhook update in separate thread"""
+    try:
+        if not bot_application:
+            logging.error("Bot application not available for webhook")
+            return False
+        
+        from telegram import Update
+        update = Update.de_json(update_data, bot_application.bot)
+        
+        # Create new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            loop.run_until_complete(bot_application.process_update(update))
+            logging.info(f"Processed webhook update: {update.update_id}")
+            return True
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logging.error(f"Error processing webhook: {e}")
+        return False
+
 @app.route("/webhook", methods=["POST"])
 def telegram_webhook():
     """Handle incoming Telegram webhook updates"""
@@ -360,20 +385,14 @@ def telegram_webhook():
         if not update_data:
             return jsonify({"error": "No update data"}), 400
         
-        # Process the update asynchronously
-        from telegram import Update
-        update = Update.de_json(update_data, bot_application.bot)
+        # Process the update in a separate thread
+        import threading
+        thread = threading.Thread(target=process_webhook_async, args=(update_data,))
+        thread.start()
         
-        # Process the update
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            loop.run_until_complete(bot_application.process_update(update))
-            logging.info(f"Processed webhook update: {update.update_id}")
-            return jsonify({"status": "ok"})
-        finally:
-            loop.close()
+        # Don't wait for completion - return immediately
+        logging.info(f"Webhook update queued for processing: {update_data.get('update_id', 'unknown')}")
+        return jsonify({"status": "queued"})
             
     except Exception as e:
         logging.error(f"Error processing webhook: {e}")
