@@ -50,6 +50,8 @@ For EACH job posting found, extract the following fields as a JSON object:
 8. recruiter_name: HR person, hiring manager, or recruiter name (empty string if not mentioned)
 9. email_subject: Custom email subject line if specified (null if not mentioned)
 10. jd_text: Complete job description text including requirements, responsibilities, etc.
+11. experience_required: Experience requirements (e.g., "fresher", "0-1 years", "2+ years", "2024/2025/2026 batch")
+12. job_relevance: "relevant" for freshers (2024/2025/2026 batch, fresher, entry level, 0-1 years experience), "irrelevant" for experienced roles (2023/2022 batch, 2+ years experience, senior/lead/manager positions)
 
 CRITICAL REQUIREMENTS:
 - Return ONLY a JSON array of job objects

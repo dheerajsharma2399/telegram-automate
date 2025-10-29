@@ -8,6 +8,8 @@ class GoogleSheetsSync:
         self.spreadsheet_id = spreadsheet_id
         self.sheet_email = None
         self.sheet_other = None
+        self.sheet_email_exp = None  # NEW: Irrelevant jobs with email
+        self.sheet_other_exp = None  # NEW: Irrelevant jobs with link/phone
         self.client = None
         if credentials_json and spreadsheet_id:
             self._setup_sheets(credentials_json)
@@ -39,9 +41,11 @@ class GoogleSheetsSync:
             
             spreadsheet = self.client.open_by_key(self.spreadsheet_id)
             
-            # Setup worksheets with PROPER headers
-            self.sheet_email = self._get_or_create_worksheet(spreadsheet, "email")
-            self.sheet_other = self._get_or_create_worksheet(spreadsheet, "non-email")
+            # Setup worksheets with PROPER headers for job relevance filtering
+            self.sheet_email = self._get_or_create_worksheet(spreadsheet, "email")        # Relevant jobs with email
+            self.sheet_other = self._get_or_create_worksheet(spreadsheet, "non-email")    # Relevant jobs with link/phone
+            self.sheet_email_exp = self._get_or_create_worksheet(spreadsheet, "email-exp")    # Irrelevant jobs with email
+            self.sheet_other_exp = self._get_or_create_worksheet(spreadsheet, "non-email-exp")  # Irrelevant jobs with link/phone
             
             print(f"✓ Google Sheets connected: {spreadsheet.url}")
             
@@ -57,9 +61,9 @@ class GoogleSheetsSync:
         try:
             worksheet = spreadsheet.worksheet(sheet_name)
         except gspread.WorksheetNotFound:
-            worksheet = spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=15)
+            worksheet = spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=17)  # Updated for new relevance fields
             
-            # PROPER HEADERS for job application tracking
+            # ENHANCED HEADERS for job relevance filtering
             headers = [
                 'Job ID',           # Unique job identifier
                 'Company Name',     # Company/Organization
@@ -67,7 +71,7 @@ class GoogleSheetsSync:
                 'Location',         # Job location
                 'Eligibility',      # Year/requirements
                 'Contact Email',    # Email address
-                'Contact Phone',    # Phone number  
+                'Contact Phone',    # Phone number
                 'Recruiter Name',   # HR/Recruiter name
                 'Application Link', # External application URL
                 'Application Method', # How to apply (email/link/phone)
@@ -75,24 +79,39 @@ class GoogleSheetsSync:
                 'Email Subject',    # Generated email subject
                 'Email Body',       # Generated personalized email
                 'Status',           # pending/applied/rejected
-                'Created At'        # When job was added
+                'Created At',       # When job was added
+                'Experience Required', # NEW: Experience requirements
+                'Job Relevance'     # NEW: relevant/irrelevant for freshers
             ]
             worksheet.append_row(headers)
         return worksheet
     
     def sync_job(self, job_data: Dict) -> bool:
-        """Sync job to appropriate Google Sheet with PROPER data mapping"""
+        """Sync job to appropriate Google Sheet based on relevance and contact method"""
         if not self.client:
             return False
             
         try:
-            # Use the 'email' sheet if an email is present, otherwise use 'non-email'
-            worksheet = self.sheet_email if job_data.get('email') else self.sheet_other
+            # Enhanced routing based on job_relevance and contact method
+            relevance = job_data.get('job_relevance', 'relevant')  # Default to relevant
+            has_email = bool(job_data.get('email'))
+            
+            # Route to appropriate worksheet
+            if relevance == 'relevant':
+                if has_email:
+                    worksheet = self.sheet_email        # Relevant + Email
+                else:
+                    worksheet = self.sheet_other        # Relevant + Link/Phone
+            else:  # irrelevant
+                if has_email:
+                    worksheet = self.sheet_email_exp    # Irrelevant + Email
+                else:
+                    worksheet = self.sheet_other_exp    # Irrelevant + Link/Phone
             
             if not worksheet:
                 return False
             
-            # PROPER DATA MAPPING - all fields from LLM extraction
+            # Enhanced data mapping with new relevance fields
             row = [
                 job_data.get('job_id'),           # Job ID
                 job_data.get('company_name'),     # Company Name
@@ -101,14 +120,16 @@ class GoogleSheetsSync:
                 job_data.get('eligibility'),      # Eligibility
                 job_data.get('email'),           # Contact Email
                 job_data.get('phone'),           # Contact Phone
-                job_data.get('recruiter_name'),   # Recruiter Name (not split)
+                job_data.get('recruiter_name'),   # Recruiter Name
                 job_data.get('application_link'), # Application Link
                 job_data.get('application_method'), # Application Method
                 job_data.get('jd_text'),         # Job Description
                 job_data.get('email_subject'),   # Email Subject
                 job_data.get('email_body'),      # Email Body
                 job_data.get('status', 'pending'), # Status
-                job_data.get('created_at')       # Created At
+                job_data.get('created_at'),      # Created At
+                job_data.get('experience_required'), # NEW: Experience requirements
+                job_data.get('job_relevance')    # NEW: Job relevance
             ]
             
             # Find the next empty row and update it to prevent column shifting issues

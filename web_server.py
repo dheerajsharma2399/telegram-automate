@@ -246,6 +246,77 @@ def api_command():
         return jsonify({"error": "Failed to enqueue command", "details": str(e)}), 500
 
 
+# NEW: Job Relevance Filtering Endpoints
+
+@app.route("/api/jobs/relevant")
+def api_relevant_jobs():
+    """Get relevant jobs (fresher-friendly)"""
+    try:
+        has_email = request.args.get('has_email')
+        if has_email == 'true':
+            jobs = db.get_relevant_jobs(has_email=True)
+        elif has_email == 'false':
+            jobs = db.get_relevant_jobs(has_email=False)
+        else:
+            jobs = db.get_relevant_jobs()
+        
+        return jsonify({
+            "jobs": jobs,
+            "count": len(jobs),
+            "filter": "relevant" + (" (with email)" if has_email == 'true' else " (without email)" if has_email == 'false' else " (all)")
+        })
+    except Exception as e:
+        logging.error(f"Failed to fetch relevant jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/jobs/irrelevant")
+def api_irrelevant_jobs():
+    """Get irrelevant jobs (experienced required)"""
+    try:
+        has_email = request.args.get('has_email')
+        if has_email == 'true':
+            jobs = db.get_irrelevant_jobs(has_email=True)
+        elif has_email == 'false':
+            jobs = db.get_irrelevant_jobs(has_email=False)
+        else:
+            jobs = db.get_irrelevant_jobs()
+        
+        return jsonify({
+            "jobs": jobs,
+            "count": len(jobs),
+            "filter": "irrelevant" + (" (with email)" if has_email == 'true' else " (without email)" if has_email == 'false' else " (all)")
+        })
+    except Exception as e:
+        logging.error(f"Failed to fetch irrelevant jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/jobs/stats")
+def api_jobs_stats():
+    """Get job statistics including relevance breakdown"""
+    try:
+        relevant_with_email = db.get_relevant_jobs(has_email=True)
+        relevant_without_email = db.get_relevant_jobs(has_email=False)
+        irrelevant_with_email = db.get_irrelevant_jobs(has_email=True)
+        irrelevant_without_email = db.get_irrelevant_jobs(has_email=False)
+        
+        return jsonify({
+            "relevant": {
+                "total": len(relevant_with_email) + len(relevant_without_email),
+                "with_email": len(relevant_with_email),
+                "without_email": len(relevant_without_email)
+            },
+            "irrelevant": {
+                "total": len(irrelevant_with_email) + len(irrelevant_without_email),
+                "with_email": len(irrelevant_with_email),
+                "without_email": len(irrelevant_without_email)
+            },
+            "total_jobs": len(relevant_with_email) + len(relevant_without_email) + len(irrelevant_with_email) + len(irrelevant_without_email)
+        })
+    except Exception as e:
+        logging.error(f"Failed to fetch job stats: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/generate_emails', methods=['POST'])
 def api_generate_emails():
     """Generate enhanced email bodies for processed jobs.

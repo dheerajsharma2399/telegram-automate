@@ -93,6 +93,15 @@ class Database:
                 cursor.execute("ALTER TABLE processed_jobs ADD COLUMN synced_to_sheets BOOLEAN DEFAULT 0")
             except Exception:
                 pass
+            # Add new columns for job relevance filtering
+            try:
+                cursor.execute("ALTER TABLE processed_jobs ADD COLUMN experience_required TEXT")
+            except Exception:
+                pass
+            try:
+                cursor.execute("ALTER TABLE processed_jobs ADD COLUMN job_relevance TEXT DEFAULT 'relevant'")
+            except Exception:
+                pass
             
             # Bot config table
             cursor.execute('''
@@ -383,4 +392,32 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM processed_jobs WHERE email_body IS NULL OR email_body == "" ORDER BY created_at ASC')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_relevant_jobs(self, has_email: bool = None) -> List[Dict]:
+        """Get relevant jobs (fresher-friendly)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if has_email is True:
+                query = "SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' AND email IS NOT NULL AND email != '' ORDER BY created_at DESC"
+            elif has_email is False:
+                query = "SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC"
+            else:
+                query = "SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' ORDER BY created_at DESC"
+            
+            cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_irrelevant_jobs(self, has_email: bool = None) -> List[Dict]:
+        """Get irrelevant jobs (experienced required)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if has_email is True:
+                query = "SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND email IS NOT NULL AND email != '' ORDER BY created_at DESC"
+            elif has_email is False:
+                query = "SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC"
+            else:
+                query = "SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' ORDER BY created_at DESC"
+            
+            cursor.execute(query)
             return [dict(row) for row in cursor.fetchall()]
