@@ -13441,3 +13441,46 @@ telegram.error.NetworkError: httpx.ReadError:
 2025-10-29 16:20:23,782 - INFO - Application is stopping. This might take a moment.
 2025-10-29 16:20:23,785 - INFO - Scheduler has been shut down
 2025-10-29 16:20:23,808 - INFO - Application.stop() complete
+2025-10-29 20:29:35,621 - INFO - Job scheduler thread started
+2025-10-29 20:29:35,622 - INFO - Starting Telegram monitor loop...
+2025-10-29 20:29:35,634 - INFO - Starting job processing...
+2025-10-29 20:29:35,646 - INFO - Telegram bot is running...
+2025-10-29 20:29:35,663 - INFO - No active Telegram session found. Waiting for setup via web UI.
+2025-10-29 20:29:35,663 - INFO - No unprocessed messages to process.
+2025-10-29 20:29:36,304 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getMe "HTTP/1.1 200 OK"
+2025-10-29 20:29:36,464 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/deleteWebhook "HTTP/1.1 200 OK"
+2025-10-29 20:29:36,467 - INFO - Scheduler started
+2025-10-29 20:29:36,467 - INFO - Application started
+2025-10-29 20:29:36,930 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:29:36,934 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 32, 29, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=218, supergroup_chat_created=False, text='/start'), update_id=376291434)
+2025-10-29 20:29:36,935 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-29 20:29:36,936 - INFO - Added job "process_jobs" to job store "default"
+2025-10-29 20:29:36,936 - INFO - Scheduler started
+2025-10-29 20:29:37,361 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 20:29:37,366 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 32, 39, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=219, supergroup_chat_created=False, text='/status'), update_id=376291435)
+2025-10-29 20:29:37,815 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 20:29:37,817 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 33, 43, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=220, supergroup_chat_created=False, text='/status'), update_id=376291436)
+2025-10-29 20:29:38,264 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 20:29:38,266 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 33, 47, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=15, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=221, supergroup_chat_created=False, text='/reload_monitor'), update_id=376291437)
+2025-10-29 20:29:38,267 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 33, 52, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=5, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=222, supergroup_chat_created=False, text='/stop'), update_id=376291438)
+2025-10-29 20:29:38,287 - INFO - Scheduler has been shut down
+2025-10-29 20:29:38,673 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 20:29:38,675 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 42, 37, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=7, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=223, supergroup_chat_created=False, text='/status'), update_id=376291439)
+2025-10-29 20:29:39,584 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 20:29:39,585 - INFO - Received update: Update(message=Message(channel_chat_created=False, chat=Chat(first_name='harlem', id=679484400, type=<ChatType.PRIVATE>, username='harlemshake0001'), date=datetime.datetime(2025, 10, 29, 14, 42, 39, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='harlem', id=679484400, is_bot=False, language_code='en', username='harlemshake0001'), group_chat_created=False, message_id=224, supergroup_chat_created=False, text='/start'), update_id=376291440)
+2025-10-29 20:29:39,586 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-29 20:29:39,586 - INFO - Added job "process_jobs" to job store "default"
+2025-10-29 20:29:39,587 - INFO - Scheduler started
+2025-10-29 20:29:40,013 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/sendMessage "HTTP/1.1 200 OK"
+2025-10-29 20:29:47,110 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:29:57,279 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:30:05,678 - INFO - No active Telegram session found. Waiting for setup via web UI.
+2025-10-29 20:30:07,447 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:30:17,601 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:30:27,777 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:30:33,866 - INFO - Scheduler has been shut down
+2025-10-29 20:30:35,689 - INFO - No active Telegram session found. Waiting for setup via web UI.
+2025-10-29 20:30:38,218 - INFO - HTTP Request: POST https://api.telegram.org/bot8331159093:AAEHge-3YbJuBlACgxbRQ2k1JEg15SkEJPE/getUpdates "HTTP/1.1 200 OK"
+2025-10-29 20:30:38,220 - INFO - Application is stopping. This might take a moment.
+2025-10-29 20:30:38,221 - INFO - Scheduler has been shut down
+2025-10-29 20:30:38,234 - INFO - Application.stop() complete

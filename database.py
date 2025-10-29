@@ -24,7 +24,7 @@ class Database:
             conn.close()
     
     def init_database(self):
-        """Initialize database with required tables"""
+        """Initialize database with required tables - FIXED schema for proper Google Sheets sync"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -42,7 +42,7 @@ class Database:
                 )
             ''')
             
-            # Processed jobs table
+            # FIXED Processed jobs table - includes all fields from LLM extraction
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS processed_jobs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +51,7 @@ class Database:
                     first_name TEXT,
                     last_name TEXT,
                     email TEXT,
+                    phone TEXT,
                     company_name TEXT,
                     job_role TEXT,
                     location TEXT,
@@ -61,12 +62,29 @@ class Database:
                     jd_text TEXT,
                     email_subject TEXT,
                     email_body TEXT,
+                    application_link TEXT,
+                    recruiter_name TEXT,
                     synced_to_sheets BOOLEAN DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (raw_message_id) REFERENCES raw_messages(id)
                 )
             ''')
-            # Backfill columns if this DB was created before email_body or synced_to_sheets existed
+            
+            # FIXED: Add missing columns safely with proper defaults
+            missing_columns = [
+                ('phone', 'TEXT'),
+                ('application_link', 'TEXT'), 
+                ('recruiter_name', 'TEXT')
+            ]
+            
+            for col_name, col_type in missing_columns:
+                try:
+                    cursor.execute(f"ALTER TABLE processed_jobs ADD COLUMN {col_name} {col_type}")
+                    self.logger.info(f"Added missing column: {col_name}")
+                except Exception:
+                    pass  # Column already exists
+            
+            # Backfill columns if this DB was created before these fields existed
             try:
                 cursor.execute("ALTER TABLE processed_jobs ADD COLUMN email_body TEXT")
             except Exception:
@@ -232,21 +250,23 @@ class Database:
             ''', (status, error_message, message_id))
     
     def add_processed_job(self, job_data: Dict) -> int:
-        """Add a processed job"""
+        """Add a processed job with ALL fields from LLM extraction"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT OR IGNORE INTO processed_jobs (
-                    raw_message_id, job_id, first_name, last_name, email,
+                    raw_message_id, job_id, first_name, last_name, email, phone,
                     company_name, job_role, location, eligibility,
-                    application_method, jd_text, email_subject, email_body, status, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    application_method, jd_text, email_subject, email_body,
+                    application_link, recruiter_name, status, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 job_data.get('raw_message_id'),
                 job_data.get('job_id'),
                 job_data.get('first_name'),
                 job_data.get('last_name'),
                 job_data.get('email'),
+                job_data.get('phone'),           # FIXED: Added phone
                 job_data.get('company_name'),
                 job_data.get('job_role'),
                 job_data.get('location'),
@@ -255,6 +275,8 @@ class Database:
                 job_data.get('jd_text'),
                 job_data.get('email_subject'),
                 job_data.get('email_body'),
+                job_data.get('application_link'), # FIXED: Added application_link
+                job_data.get('recruiter_name'),   # FIXED: Added recruiter_name
                 job_data.get('status'),
                 job_data.get('updated_at')
             ))
@@ -271,23 +293,6 @@ class Database:
                 SET synced_to_sheets = 1
                 WHERE job_id = ?
             ''', (job_id,))
-    
-    def get_config(self, key: str) -> Optional[str]:
-        """Get config value"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT value FROM bot_config WHERE key = ?', (key,))
-            row = cursor.fetchone()
-            return row['value'] if row else None
-    
-    def set_config(self, key: str, value: str):
-        """Set config value"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR REPLACE INTO bot_config (key, value, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-            ''', (key, value))
 
     def get_unprocessed_count(self) -> int:
         """Get count of unprocessed messages"""

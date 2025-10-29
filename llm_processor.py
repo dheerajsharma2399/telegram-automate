@@ -207,8 +207,15 @@ class LLMProcessor:
         match = re.search(pattern, text)
         return match.group(0) if match else None
     
-    def process_job_data(self, job_data: Dict, raw_message_id: int) -> Dict:
-        """Processes and enriches raw job data extracted by the LLM."""
+    def process_job_data(self, job_data: Dict, raw_message_id: int, generate_email: bool = False) -> Dict:
+        """Processes and enriches raw job data extracted by the LLM.
+        
+        Args:
+            job_data: Raw job data from LLM extraction
+            raw_message_id: ID of the raw message
+            generate_email: If True, generate email body during processing.
+                           If False (default), leave email_body as None for later generation.
+        """
         
         job_id = f"job_{raw_message_id}_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         recruiter_name = job_data.get("recruiter_name", "")
@@ -231,13 +238,15 @@ class LLMProcessor:
         if not jd_text_val:
             # fallback to the entire message text if not present
             jd_text_val = job_data.get('message_text') or job_data.get('full_text') or ''
-        # Optionally generate email body using local profile and jd_text if available
+        
+        # Email body generation - only if explicitly requested
         email_body = None
-        try:
-            if self.user_profile:
-                email_body = self.generate_email_body(job_data, jd_text_val)
-        except Exception:
-            email_body = None
+        if generate_email:
+            try:
+                if self.user_profile:
+                    email_body = self.generate_email_body(job_data, jd_text_val)
+            except Exception:
+                email_body = None
 
         return {
             "raw_message_id": raw_message_id,
@@ -258,12 +267,28 @@ class LLMProcessor:
         }
 
     def generate_email_body(self, job_data: Dict, jd_text: str) -> str:
-        """Create a concise, personalized outreach email body using the loaded user profile.
-
-        This is a light-weight generator that does not call an external LLM — it uses
-        a templated structure including the user's top projects and a link to LinkedIn.
-        The result is suitable for review and minor editing before sending.
+        """Enhanced email generation using job-specific personalization.
+        
+        This uses the sophisticated enhanced email generator for job-specific
+        personalized outreach emails with skills matching and project prioritization.
         """
+        try:
+            # Try to use enhanced email generator
+            if not hasattr(self, 'email_generator'):
+                from enhanced_email_generator import EnhancedEmailGenerator
+                self.email_generator = EnhancedEmailGenerator()
+            
+            # Generate job-specific email
+            email_result = self.email_generator.generate_email(job_data, jd_text)
+            return email_result['body']
+            
+        except Exception as e:
+            print(f"Enhanced email generation failed: {e}, falling back to basic template")
+            # Fallback to basic template
+            return self._generate_basic_email_body(job_data, jd_text)
+    
+    def _generate_basic_email_body(self, job_data: Dict, jd_text: str) -> str:
+        """Fallback basic email generation (original template-based approach)"""
         profile = self.user_profile or {}
         name = profile.get('full_name', 'Dheeraj Sharma')
         email = profile.get('email', '')

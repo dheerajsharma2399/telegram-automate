@@ -39,32 +39,49 @@ class GoogleSheetsSync:
             
             spreadsheet = self.client.open_by_key(self.spreadsheet_id)
             
-            # Setup worksheets
+            # Setup worksheets with PROPER headers
             self.sheet_email = self._get_or_create_worksheet(spreadsheet, "email")
             self.sheet_other = self._get_or_create_worksheet(spreadsheet, "non-email")
             
-            print(f"V Google Sheets connected: {spreadsheet.url}")
+            print(f"✓ Google Sheets connected: {spreadsheet.url}")
             
         except gspread.exceptions.SpreadsheetNotFound:
-            print(f"X Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
+            print(f"✗ Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
             self.client = None
         except Exception as e:
-            print(f"X Google Sheets setup failed: {str(e)}")
+            print(f"✗ Google Sheets setup failed: {str(e)}")
             self.client = None
     
     def _get_or_create_worksheet(self, spreadsheet, sheet_name: str):
-        """Get or create worksheet"""
+        """Get or create worksheet with PROPER headers for job tracking"""
         try:
             worksheet = spreadsheet.worksheet(sheet_name)
         except gspread.WorksheetNotFound:
-            worksheet = spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=10)
-            headers = ['ID', 'First Name', 'Last Name', 'Email', 'Company', 
-                      'Status', 'Updated At', 'JD Text', 'Email Subject', 'Email Body']
+            worksheet = spreadsheet.add_worksheet(title=sheet_name, rows=1000, cols=15)
+            
+            # PROPER HEADERS for job application tracking
+            headers = [
+                'Job ID',           # Unique job identifier
+                'Company Name',     # Company/Organization
+                'Job Role',         # Position/Title
+                'Location',         # Job location
+                'Eligibility',      # Year/requirements
+                'Contact Email',    # Email address
+                'Contact Phone',    # Phone number  
+                'Recruiter Name',   # HR/Recruiter name
+                'Application Link', # External application URL
+                'Application Method', # How to apply (email/link/phone)
+                'Job Description',  # Full job posting text
+                'Email Subject',    # Generated email subject
+                'Email Body',       # Generated personalized email
+                'Status',           # pending/applied/rejected
+                'Created At'        # When job was added
+            ]
             worksheet.append_row(headers)
         return worksheet
     
     def sync_job(self, job_data: Dict) -> bool:
-        """Sync job to appropriate Google Sheet"""
+        """Sync job to appropriate Google Sheet with PROPER data mapping"""
         if not self.client:
             return False
             
@@ -75,17 +92,23 @@ class GoogleSheetsSync:
             if not worksheet:
                 return False
             
+            # PROPER DATA MAPPING - all fields from LLM extraction
             row = [
-                job_data.get('job_id'),
-                job_data.get('first_name'),
-                job_data.get('last_name'),
-                job_data.get('email'),
-                job_data.get('company_name'),
-                job_data.get('status', ''),
-                job_data.get('updated_at', ''),
-                job_data.get('jd_text'),
-                job_data.get('email_subject'),
-                job_data.get('email_body')
+                job_data.get('job_id'),           # Job ID
+                job_data.get('company_name'),     # Company Name
+                job_data.get('job_role'),         # Job Role
+                job_data.get('location'),         # Location
+                job_data.get('eligibility'),      # Eligibility
+                job_data.get('email'),           # Contact Email
+                job_data.get('phone'),           # Contact Phone
+                job_data.get('recruiter_name'),   # Recruiter Name (not split)
+                job_data.get('application_link'), # Application Link
+                job_data.get('application_method'), # Application Method
+                job_data.get('jd_text'),         # Job Description
+                job_data.get('email_subject'),   # Email Subject
+                job_data.get('email_body'),      # Email Body
+                job_data.get('status', 'pending'), # Status
+                job_data.get('created_at')       # Created At
             ]
             
             # Find the next empty row and update it to prevent column shifting issues

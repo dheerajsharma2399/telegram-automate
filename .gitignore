@@ -37,6 +37,8 @@ Thumbs.db
 # Logs and databases
 # ==================
 *.log
+bot.log
+monitor.log
 *.csv
 jobs.db
 
@@ -49,3 +51,36 @@ jobs.db
 # ========================
 render.exe
 google script.txt
+
+# Test files and documentation created during development
+# =======================================================
+test_*.py
+*_test.py
+integration_*.py
+simple_*_test.py
+separated_flow_test.py
+integration_guide.py
+email_integration_example.py
+EMAIL_GENERATION_ACTION_PLAN.md
+FINAL_EMAIL_GENERATION_SUMMARY.md
+GOOGLE_SHEETS_FIX_SUMMARY.md
+
+# Data files and exports
+# ======================
+data/
+*.csv
+!data/processed_jobs_*.csv
+
+# Backup and temporary files
+# ===========================
+*.bak
+*.tmp
+*.temp
+*~
+
+# Documentation files (keep core README)
+# ======================================
+*.md
+!README.md
+!LICENSE
+monitor.log
