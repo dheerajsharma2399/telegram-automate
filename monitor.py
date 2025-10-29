@@ -19,18 +19,17 @@ logging.basicConfig(
     ]
 )
 
+from telethon.sessions import StringSession
+
 class TelegramMonitor:
     def __init__(self, api_id: str, api_hash: str, phone: str, group_usernames, db: Database):
-        """group_usernames may be a single string/ID or an iterable of strings/IDs."""
         self.api_id = int(api_id)
         self.api_hash = api_hash
         self.phone = phone
-        # Normalize to list
         if isinstance(group_usernames, (str, int)):
             self.group_usernames = [group_usernames]
         else:
             self.group_usernames = list(group_usernames or [])
-        # try to convert numeric strings to ints where possible
         cleaned = []
         for g in self.group_usernames:
             try:
@@ -39,13 +38,15 @@ class TelegramMonitor:
                 cleaned.append(g)
         self.group_usernames = cleaned
         self.db = db
-        self.client = TelegramClient('telegram_monitor', self.api_id, self.api_hash)
+        session_string = self.db.get_config('telegram_session')
+        if session_string:
+            self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
+        else:
+            self.client = TelegramClient(StringSession(), self.api_id, self.api_hash)
         self._handler_registered = False
-        # initial groups (may be overridden by DB-stored config)
         self.initial_group_usernames = group_usernames
 
     async def start(self):
-        """Starts the Telegram client and listens for new messages in the specified group."""
         logging.info("Starting Telegram monitor...")
         await self.client.connect()
 
@@ -54,6 +55,8 @@ class TelegramMonitor:
             await self.client.send_code_request(self.phone)
             try:
                 await self.client.sign_in(self.phone, input('Enter code: '))
+                session_string = self.client.session.save()
+                self.db.set_config('telegram_session', session_string)
             except Exception as e:
                 logging.error(f"Failed to sign in: {e}")
                 return

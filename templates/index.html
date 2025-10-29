@@ -40,6 +40,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">Logs</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="setup-tab" data-bs-toggle="tab" data-bs-target="#setup" type="button" role="tab">Setup</button>
+            </li>
         </ul>
 
         <!-- Tab Content -->
@@ -132,6 +135,40 @@
                             <h4>Monitor Logs (monitor.py)</h4>
                             <div id="monitor-logs" class="log-box">Loading...</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setup -->
+            <div class="tab-pane fade" id="setup" role="tabpanel">
+                <div class="py-4">
+                    <h4>Telegram API Setup</h4>
+                    <div id="setup-form-container">
+                        <div class="mb-3">
+                            <label for="api-id" class="form-label">API ID</label>
+                            <input type="text" class="form-control" id="api-id" placeholder="Your Telegram API ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="api-hash" class="form-label">API Hash</label>
+                            <input type="text" class="form-control" id="api-hash" placeholder="Your Telegram API Hash">
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="phone" placeholder="Your phone number with country code">
+                        </div>
+                        <button class="btn btn-primary" onclick="sendTelegramDetails()">Send Code</button>
+                    </div>
+                    <div id="otp-form-container" style="display: none;">
+                        <hr class="my-4">
+                        <div class="mb-3">
+                            <label for="otp" class="form-label">OTP Code</label>
+                            <input type="text" class="form-control" id="otp" placeholder="Enter the code you received">
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">2FA Password (if any)</label>
+                            <input type="password" class="form-control" id="password" placeholder="Your two-factor authentication password">
+                        </div>
+                        <button class="btn btn-success" onclick="sendOtp()">Sign In</button>
                     </div>
                 </div>
             </div>
@@ -251,6 +288,68 @@
         document.getElementById('queue-tab').addEventListener('click', fetchQueue);
         document.getElementById('logs-tab').addEventListener('click', fetchLogs);
         document.getElementById('pending-tab').addEventListener('click', () => { fetchPendingCommands(); fetchMonitoredGroups(); });
+        document.getElementById('setup-tab').addEventListener('click', () => {});
+
+        // --- Telegram Setup Functions ---
+        async function sendTelegramDetails() {
+            const apiId = document.getElementById('api-id').value;
+            const apiHash = document.getElementById('api-hash').value;
+            const phone = document.getElementById('phone').value;
+
+            if (!apiId || !apiHash || !phone) {
+                alert('Please fill in all Telegram details.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/telegram/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_id: apiId, api_hash: apiHash, phone: phone })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    document.getElementById('setup-form-container').style.display = 'none';
+                    document.getElementById('otp-form-container').style.display = 'block';
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Failed to send details: ${error}`);
+            }
+        }
+
+        async function sendOtp() {
+            const otp = document.getElementById('otp').value;
+            const password = document.getElementById('password').value;
+            const phone = document.getElementById('phone').value; // We need phone again to identify the session
+
+            if (!otp) {
+                alert('Please enter the OTP.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/telegram/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone, code: otp, password: password })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    // Optionally, redirect or refresh
+                    window.location.reload();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`Failed to sign in: ${error}`);
+            }
+        }
 
         // --- Pending / Groups functions ---
         async function fetchPendingCommands() {

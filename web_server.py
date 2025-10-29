@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from flask import Flask, render_template, jsonify, request
 import requests
 from database import Database
@@ -388,6 +389,71 @@ except Exception:
 @app.route("/")
 def index():
     return render_template("index.html")
+from telethon.sessions import StringSession
+
+# In-memory store for Telegram client sessions during setup
+telegram_clients = {}
+
+@app.route("/api/telegram/setup", methods=["POST"])
+def telegram_setup():
+    data = request.json
+    api_id = data.get("api_id")
+    api_hash = data.get("api_hash")
+    phone = data.get("phone")
+
+    if not all([api_id, api_hash, phone]):
+        return jsonify({"error": "API ID, API Hash, and Phone are required."}), 400
+
+    try:
+        client = TelegramClient(StringSession(), int(api_id), api_hash)
+        
+        async def do_send_code():
+            await client.connect()
+            await client.send_code_request(phone)
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(do_send_code())
+
+        telegram_clients[phone] = client
+
+        return jsonify({"message": "OTP code sent to your Telegram account."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/telegram/signin", methods=["POST"])
+def telegram_signin():
+    data = request.json
+    phone = data.get("phone")
+    code = data.get("code")
+    password = data.get("password")
+
+    if not phone or not code:
+        return jsonify({"error": "Phone and OTP code are required."}), 400
+
+    client = telegram_clients.get(phone)
+    if not client:
+        return jsonify({"error": "No active setup process found for this phone number. Please start over."}), 400
+
+    try:
+        async def do_sign_in():
+            if password:
+                await client.sign_in(phone, code, password=password)
+            else:
+                await client.sign_in(phone, code)
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(do_sign_in())
+
+        session_string = client.session.save()
+        db.set_config("telegram_session", session_string)
+
+        # Clean up
+        del telegram_clients[phone]
+
+        return jsonify({"message": "Successfully signed in! The application is now configured."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
