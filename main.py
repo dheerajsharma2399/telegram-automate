@@ -154,13 +154,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     stats = db.get_stats(days)
     message = f"📊 *Statistics for the last {days} days*\n\n"
-    message += "*Jobs by Application Method:*
-"
+    message += "*Jobs by Application Method:*"
     for method, count in stats["by_method"].items():
         message += f"  - {method.capitalize()}: {count}\n"
     
-    message += "\n*Top 5 Companies:*
-"
+    message += "\n*Top 5 Companies:*"
     for company, count in stats["top_companies"].items():
         message += f"  - {company}: {count} jobs\n"
 
