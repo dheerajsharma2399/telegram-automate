@@ -2,11 +2,13 @@ import sqlite3
 from datetime import datetime
 from contextlib import contextmanager
 from typing import List, Dict, Optional
+import logging
 
 class Database:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.init_database()
+        self.logger = logging.getLogger(__name__)
     
     @contextmanager
     def get_connection(self):
@@ -189,7 +191,7 @@ class Database:
             cursor.execute('SELECT value FROM bot_config WHERE key = ?', (key,))
             row = cursor.fetchone()
             return row['value'] if row else None
-
+    
     def set_config(self, key: str, value: str):
         """Set config value"""
         with self.get_connection() as conn:
@@ -238,7 +240,7 @@ class Database:
                     raw_message_id, job_id, first_name, last_name, email,
                     company_name, job_role, location, eligibility,
                     application_method, jd_text, email_subject, email_body, status, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 job_data.get('raw_message_id'),
                 job_data.get('job_id'),
@@ -256,7 +258,9 @@ class Database:
                 job_data.get('status'),
                 job_data.get('updated_at')
             ))
-            return cursor.lastrowid
+            last_row_id = cursor.lastrowid
+            self.logger.info(f"add_processed_job: job_id={job_data.get('job_id')}, lastrowid={last_row_id}")
+            return last_row_id
     
     def mark_job_synced(self, job_id: str):
         """Mark job as synced to Google Sheets"""
@@ -368,3 +372,10 @@ class Database:
                 SET email_body = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE job_id = ?
             ''', (email_body, job_id))
+
+    def get_jobs_without_email_body(self) -> List[Dict]:
+        """Get all processed jobs that do not have an email body."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM processed_jobs WHERE email_body IS NULL OR email_body == "" ORDER BY created_at ASC')
+            return [dict(row) for row in cursor.fetchall()]

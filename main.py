@@ -61,10 +61,6 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
             for job_data in parsed_jobs:
                 processed_data = llm_processor.process_job_data(job_data, message["id"])
                 job_id = db.add_processed_job(processed_data)
-                
-                if sheets_sync and sheets_sync.client:
-                    if sheets_sync.sync_job(processed_data):
-                        db.mark_job_synced(processed_data['job_id'])
             
             db.update_message_status(message["id"], "processed")
             logger.info(f"Processed message {message['id']} and found {len(parsed_jobs)} jobs.")
@@ -158,11 +154,13 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     stats = db.get_stats(days)
     message = f"📊 *Statistics for the last {days} days*\n\n"
-    message += "*Jobs by Application Method:*\n"
+    message += "*Jobs by Application Method:*
+"
     for method, count in stats["by_method"].items():
         message += f"  - {method.capitalize()}: {count}\n"
     
-    message += "\n*Top 5 Companies:*\n"
+    message += "\n*Top 5 Companies:*
+"
     for company, count in stats["top_companies"].items():
         message += f"  - {company}: {count} jobs\n"
 
@@ -232,7 +230,7 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         unsynced_jobs = db.get_unsynced_jobs()
         if not unsynced_jobs:
-            await update.message.reply_text("All jobs are already synced with Google Sheets.")
+            await update.message.reply_text("No jobs to sync. All jobs are already synced with Google Sheets.")
             return
 
         synced_count = 0
@@ -263,7 +261,7 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
     await update.message.reply_text("🧠 Generating email bodies... this may take a moment.")
 
     try:
-        # Fetch jobs to generate for: unsynced or specified
+        # Fetch jobs to generate for: jobs without email body or specified
         jobs = []
         if target_ids:
             # query the DB for these job_ids
@@ -273,7 +271,7 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
                 cur.execute(q, target_ids)
                 jobs = [dict(r) for r in cur.fetchall()]
         else:
-            jobs = db.get_unsynced_jobs()
+            jobs = db.get_jobs_without_email_body()
 
         if not jobs:
             await update.message.reply_text("No jobs found to generate emails for.")

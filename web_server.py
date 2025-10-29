@@ -202,24 +202,6 @@ def api_remove_monitored_group():
         logging.exception('Failed to remove monitored group')
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/sheets/generate_email_bodies', methods=['POST'])
-def api_sheets_generate_email_bodies():
-    """Trigger generation of email bodies by reading JD Text from the main sheet and writing back email_body."""
-    try:
-        if not llm_processor:
-            return jsonify({'error': 'LLM processor not configured on server'}), 500
-
-        payload = request.get_json(force=True) or {}
-        sheet = payload.get('sheet', 'email')
-        limit = payload.get('limit')
-
-        summary = sheets_sync.generate_email_bodies_from_sheet(llm_processor, db=db, sheet_name=sheet, limit=limit)
-        return jsonify({'message': 'Sheet generation complete', 'summary': summary})
-    except Exception as e:
-        logging.exception('Failed to trigger sheets email generation')
-        return jsonify({'error': str(e)}), 500
-
 @app.route("/api/queue")
 def api_queue():
     """API endpoint to get the unprocessed message queue."""
@@ -273,58 +255,8 @@ def api_generate_emails():
         # Optionally accept a list of job_ids to target; for now we trigger general generation
         payload = request.get_json(force=True) or {}
         job_ids = payload.get('job_ids')
-        run_now = bool(payload.get('run_now'))
 
-        # If run_now requested, attempt synchronous generation on the server
-        if run_now:
-            if llm_processor is None:
-                return jsonify({'error': 'LLM processor not configured on server'}), 500
-
-            # Determine target jobs
-            try:
-                if job_ids:
-                    # fetch specified jobs
-                    with db.get_connection() as conn:
-                        cur = conn.cursor()
-                        q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['?']*len(job_ids))})"
-                        cur.execute(q, job_ids)
-                        jobs = [dict(r) for r in cur.fetchall()]
-                else:
-                    jobs = db.get_unsynced_jobs()
-
-                if not jobs:
-                    return jsonify({'message': 'No jobs found to generate emails for.'})
-
-                generated = 0
-                for job in jobs:
-                    try:
-                        jd = job.get('jd_text') or ''
-                        email_body = None
-                        try:
-                            email_body = llm_processor.generate_email_body(job, jd)
-                        except Exception:
-                            email_body = None
-
-                        if email_body:
-                            db.update_job_email_body(job['job_id'], email_body)
-                            generated += 1
-                            # Optionally sync immediately to sheets
-                            try:
-                                if sheets_sync and sheets_sync.client:
-                                    sheets_sync.sync_job({**job, 'email_body': email_body})
-                                    db.mark_job_synced(job['job_id'])
-                            except Exception:
-                                pass
-
-                    except Exception as e:
-                        logging.exception(f"Failed to generate email for job {job.get('job_id')}: {e}")
-
-                return jsonify({'message': f'Generated email bodies for {generated} jobs.'})
-            except Exception as e:
-                logging.exception('Synchronous generation failed')
-                return jsonify({'error': str(e)}), 500
-
-        # Otherwise enqueue the command for the bot poller to execute
+        # enqueue the command for the bot poller to execute
         cmd = '/generate_emails'
         if job_ids:
             cmd = f"/generate_emails {','.join(job_ids)}"
@@ -390,7 +322,7 @@ except Exception:
 def index():
     return render_template("index.html")
 from telethon.sessions import StringSession
-from telethon import TelegramClient
+from telethon import TelegramClient, errors
 from flask import session
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret")
