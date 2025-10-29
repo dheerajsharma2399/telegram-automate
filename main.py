@@ -124,7 +124,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📨 Unprocessed Messages: *{unprocessed_count}*\n"
         f"✅ Processed Jobs (Today): *{jobs_today['total']}*\n"
         f"  - 📧 With Email: *{jobs_today['with_email']}*\n"
-        f"  - 🔗 Without Email: *{jobs_today['without_email']}*"
+        f"  - 🔗 Without Email: *{jobs_today['without_email']}*\n"
     )
     await update.message.reply_text(message, parse_mode='Markdown')
 
