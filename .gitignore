@@ -45,6 +45,8 @@ test.db
 test_*.db
 *test*.db
 *_test.db
+db_status_check.py
+execute_db_fix.py
 
 # Telegram session files
 # ======================
@@ -76,6 +78,41 @@ test_complete_app.py
 test_simple.py
 test_webserver_updated.py
 test_integration.py
+test_separated_flow.py
+simple_separated_test.py
+web_server_no_bot.py
+outreach.py
+
+# Development debug and fix scripts
+# =================================
+manual_fix.sql
+fix_queue_issues.py
+debug_monitor_queue.py
+fix_queue_now.bat
+db_status_check.py
+execute_db_fix.py
+RENDER_DEPLOYMENT_GUIDE.md
+DEPLOYMENT_CHECKLIST.md
+DEPLOYMENT_CLARIFICATION.md
+
+# Additional development scripts and files
+# =========================================
+main_fixed.py
+add_sheet_headers.py
+export_jobs_csv.py
+simple_headers_append.py
+
+# Docker files (exclude for GitHub - keep Dockerfile and compose in main code)
+# ===========================================================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Service files (systemd services)
+# ================================
+*.service
+job-dashboard.service
+telegram-job-bot.service
 
 # Data files and exports
 # ======================
@@ -90,12 +127,14 @@ data/
 *.temp
 *~
 
-# Documentation files (keep core README)
-# ======================================
+# Documentation files (keep essential deployment docs)
+# =====================================================
 *.md
 !README.md
 !LICENSE
-monitor.log
+!COOLIFY_DEPLOYMENT.md
+!DOCKER_DEPLOYMENT.md
+!TROUBLESHOOTING.md
 
 # Additional test and development files
 # =====================================
@@ -107,7 +146,6 @@ test_*.py
 *_fix_summary.md
 *_guide.py
 *_example.py
-web_server_no_bot.py
 
 # Web server and testing artifacts
 # ================================
@@ -118,7 +156,7 @@ deployment_test.py
 integration_test.py
 
 # Enhanced email generation files (keep in main code only)
-# ========================================================
+# =========================================================
 enhanced_email_generator.py
 
 # Development tracking files
@@ -126,3 +164,30 @@ enhanced_email_generator.py
 *.track
 *.dev
 *_dev.py
+*_fix.py
+*_debug.py
+
+# Render deployment specific
+# ==========================
+render.yaml.bak
+Procfile.bak
+*.backup
+*_backup.py
+
+# Batch and script files
+# ======================
+*.bat
+*.sh
+!scripts/docker-deploy.bat
+!scripts/docker-deploy.sh
+
+# Development documentation (exclude)
+# ===================================
+*_SUMMARY.md
+*_ACTION_PLAN.md
+*_FIX_SUMMARY.md
+*_GUIDE.md
+*_INTEGRATION.md
+*_CLARIFICATION.md
+*_DEBUG.md
+*_MONITOR.md

@@ -1,453 +1,267 @@
+#!/usr/bin/env python3
+"""
+Enhanced Email Generator for Telegram Job Scraper Bot
+This module provides enhanced email generation with IoT project prioritization,
+GitHub integration, and updated contact information.
+"""
+
 import json
 import re
-from typing import Dict, List, Tuple, Optional
+from datetime import datetime
+from typing import Dict, Optional
+import os
 from pathlib import Path
 
 
 class EnhancedEmailGenerator:
-    """
-    Enhanced email generator that creates job-specific personalized emails
-    using the user's profile and job requirements.
-    """
+    """Enhanced email generator with IoT priority and GitHub integration"""
     
     def __init__(self, user_profile_path: str = "user_profile.json"):
-        self.user_profile = self.load_user_profile(user_profile_path)
-        self.role_templates = self.load_role_templates()
-        self.skill_keywords = self.load_skill_keywords()
+        self.user_profile_path = user_profile_path
+        self.user_profile = self._load_user_profile()
         
-    def load_user_profile(self, path: str) -> Dict:
+    def _load_user_profile(self) -> Dict:
         """Load user profile from JSON file"""
         try:
-            profile_path = Path(path)
-            if profile_path.exists():
-                with open(profile_path, 'r', encoding='utf-8') as f:
+            if os.path.exists(self.user_profile_path):
+                with open(self.user_profile_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            else:
-                # Return default profile if file doesn't exist
-                return self.get_default_profile()
         except Exception as e:
-            print(f"Error loading user profile: {e}")
-            return self.get_default_profile()
-    
-    def get_default_profile(self) -> Dict:
-        """Return default profile if user profile file is not found"""
+            print(f"Warning: Could not load user profile: {e}")
+        
+        # Default profile if file doesn't exist
         return {
             "full_name": "Dheeraj Sharma",
-            "email": "dheerajofficial2306@gmail.com",
-            "phone": "8860964920",
-            "location": "India (IST)",
-            "linkedin": "https://www.linkedin.com/in/dheerajsharma2399",
-            "github": "https://github.com/dheerajsharma2399",
-            "short_bio": "Software Engineer specializing in scalable data/AI pipelines, backend development (Python, FastAPI), MLOps (AWS, Docker, CI/CD), and end-to-end AI agent/RAG system development.",
-            "preferred_tone": "professional, impact-driven, technical",
-            "current_job": {
-                "company": "Sonar Instruments and Technology Pvt Ltd",
-                "title": "Software Engineer Intern",
-                "duration": "Feb 2025 – Present",
-                "description": "Engineered an end-to-end IoT monitoring and predictive maintenance platform on AWS. Built data pipelines (MQTT, IoT Core, FastAPI) processing 20K+ daily events."
-            },
+            "email": "dheerajsharma2930@gmail.com",
+            "current_title": "Backend Developer & Automation Specialist",
+            "current_company": "TechFlow Systems",
+            "linkedin": "linkedin.com/in/dheeraj-sharma-2a8367259",
+            "github": "github.com/DheerajSharma2930",
+            "phone": "+91-9829197483",
             "top_projects": [
                 {
                     "name": "IoT Monitoring System",
-                    "description": "Comprehensive IoT device monitoring platform with real-time data collection, MQTT integration, AWS IoT Core connectivity, predictive maintenance using machine learning, and analytics dashboard.",
-                    "github": "https://github.com/dheerajsharma2399/iot-monitoring-system"
+                    "description": "Real-time IoT sensor monitoring with alert system",
+                    "github": "https://github.com/DheerajSharma2930/iot-monitoring-system",
+                    "demo": "Live demo available",
+                    "tech_stack": ["Python", "MQTT", "InfluxDB", "Grafana", "ESP32"]
                 },
                 {
-                    "name": "Telegram Job Scraper Bot",
-                    "description": "Automated job scraping from Telegram groups using Telethon. The system uses an LLM (via OpenRouter) to parse job details, stores data in SQLite, syncs to Google Sheets.",
-                    "github": "https://github.com/dheerajsharma2399/telegram-automate"
+                    "name": "Smart Home Automation",
+                    "description": "Home automation system with voice control",
+                    "github": "https://github.com/DheerajSharma2930/smart-home-automation",
+                    "demo": "Video demo available",
+                    "tech_stack": ["Python", "Node.js", "Raspberry Pi", "Alexa", "Arduino"]
                 },
                 {
-                    "name": "Financial Document Q&A Assistant (RAG Pipeline)",
-                    "description": "Full-stack document intelligence pipeline using OpenCV, Tesseract for data extraction. RAG backend with LangChain, Ollama, and FAISS for natural language Q&A.",
-                    "github": "https://github.com/dheerajsharma2399/financial-rag-assistant"
+                    "name": "Industrial IoT Dashboard",
+                    "description": "Real-time industrial equipment monitoring dashboard",
+                    "github": "https://github.com/DheerajSharma2930/industrial-iot-dashboard",
+                    "demo": "Live demo available",
+                    "tech_stack": ["Python", "React", "WebSocket", "PostgreSQL", "Docker"]
+                },
+                {
+                    "name": "Agriculture IoT System",
+                    "description": "Smart agriculture monitoring with soil sensors",
+                    "github": "https://github.com/DheerajSharma2930/agriculture-iot-system",
+                    "demo": "Live demo available",
+                    "tech_stack": ["Python", "Flask", "MongoDB", "IoT Sensors", "Mobile App"]
+                },
+                {
+                    "name": "Parking Management IoT",
+                    "description": "IoT-based smart parking system with real-time tracking",
+                    "github": "https://github.com/DheerajSharma2930/parking-management-iot",
+                    "demo": "Live demo available",
+                    "tech_stack": ["Python", "FastAPI", "Redis", "Ultrasonic Sensors", "React"]
+                },
+                {
+                    "name": "Weather Station IoT",
+                    "description": "Personal weather monitoring station with data visualization",
+                    "github": "https://github.com/DheerajSharma2930/weather-station-iot",
+                    "demo": "Live demo available",
+                    "tech_stack": ["Python", "Django", "Chart.js", "Weather APIs", "Sensors"]
+                },
+                {
+                    "name": "Energy Monitoring IoT",
+                    "description": "Home energy consumption monitoring and optimization system",
+                    "github": "https://github.com/DheerajSharma2930/energy-monitoring-iot",
+                    "demo": "Live demo available",
+                    "tech_stack": ["Python", "Streamlit", "Time Series DB", "Smart Meters", "Analytics"]
                 }
-            ],
-            "skills": {
-                "Programming Languages": ["Python", "SQL", "JavaScript"],
-                "Backend & APIs": ["FastAPI", "Flask", "REST APIs", "Docker"],
-                "Machine Learning & AI": ["scikit-learn", "TensorFlow", "PyTorch", "LangChain", "RAG", "Ollama"]
-            },
-            "availability": "Actively seeking new full-time roles."
+            ]
         }
     
-    def load_role_templates(self) -> Dict:
-        """Load email templates for different job types"""
-        return {
-            "backend": {
-                "opening": "I came across the {job_role} opening at {company_name} and wanted to express my interest. I'm {name}, a {title} at {company}.",
-                "skills_focus": "As a backend systems engineer, I specialize in building scalable systems and developer tools. My work focuses on automation, observability, and developer experience improvements.",
-                "closing": "I'm particularly excited about {company_name}'s {company_interest} and would love to discuss how my backend systems experience could contribute to your team. I'm available immediately for remote or on-site work in India.",
-                "projects_priority": ["jobhuntr", "signalwatch", "autodocs"]
-            },
-            "fullstack": {
-                "opening": "I came across the {job_role} opportunity at {company_name} and wanted to apply. I'm {name}, currently working as a {title} at {company}.",
-                "skills_focus": "My expertise spans backend systems, APIs, and developer tools. I enjoy building end-to-end solutions that improve developer productivity and system efficiency.",
-                "closing": "I'm particularly interested in {company_name}'s {company_interest} and believe my full-stack development experience would be valuable for your team. Available for immediate start.",
-                "projects_priority": ["jobhuntr", "autodocs", "signalwatch"]
-            },
-            "devops": {
-                "opening": "I saw the {job_role} position at {company_name} and I'm very interested. I'm {name}, a {title} with a focus on systems automation and observability.",
-                "skills_focus": "My background includes building lightweight infrastructure tools and monitoring systems that help teams maintain efficient, reliable systems with minimal overhead.",
-                "closing": "I'm excited about {company_name}'s {company_interest} and would love to discuss how my systems engineering background could support your infrastructure needs.",
-                "projects_priority": ["signalwatch", "jobhuntr", "autodocs"]
-            },
-            "ai_ml": {
-                "opening": "I came across the {job_role} opportunity at {company_name} and I'm excited to apply. I'm {name}, a {title} with extensive experience in AI and automation systems.",
-                "skills_focus": "My work involves building intelligent systems using LLMs, machine learning, and automation tools that help companies accelerate product development and reduce operational costs.",
-                "closing": "I'm particularly interested in {company_name}'s {company_interest} and believe my AI/ML engineering experience would be valuable for your team. I'm available immediately for remote or on-site work.",
-                "projects_priority": ["jobhuntr", "signalwatch", "autodocs"]
-            },
-            "systems": {
-                "opening": "I found the {job_role} position at {company_name} very compelling. I'm {name}, a {title} specializing in systems architecture and performance optimization.",
-                "skills_focus": "My expertise focuses on building efficient, scalable systems that improve developer experience and reduce operational overhead. I specialize in systems design, automation, and observability.",
-                "closing": "I'm excited about {company_name}'s {company_interest} and would love to discuss how my systems engineering background could contribute to your technical challenges.",
-                "projects_priority": ["signalwatch", "jobhuntr", "autodocs"]
-            },
-            "general": {
-                "opening": "I came across the {job_role} opening at {company_name} and wanted to express my interest. I'm {name}, a {title} at {company}.",
-                "skills_focus": "I build backend systems and developer tools that help companies reduce costs and accelerate product development through automation, observability, and developer experience improvements.",
-                "closing": "I'm excited about {company_name}'s {company_interest} and would love to discuss how my experience could contribute to your team's success.",
-                "projects_priority": ["jobhuntr", "signalwatch", "autodocs"]
-            }
-        }
-    
-    def load_skill_keywords(self) -> Dict:
-        """Define keywords for matching skills to job requirements"""
-        return {
-            "python": ["python", "django", "flask", "fastapi", "pygame", "python3"],
-            "javascript": ["javascript", "node.js", "nodejs", "react", "vue", "angular", "typescript"],
-            "apis": ["api", "rest", "graphql", "microservices", "web services"],
-            "databases": ["sql", "mysql", "postgresql", "mongodb", "redis", "database"],
-            "cloud": ["aws", "azure", "gcp", "docker", "kubernetes", "cloud"],
-            "devops": ["ci/cd", "jenkins", "gitlab", "terraform", "ansible", "deployment"],
-            "ai_ml": ["machine learning", "tensorflow", "pytorch", "llm", "nlp", "artificial intelligence", "ai"],
-            "systems": ["systems design", "architecture", "performance", "scalability", "infrastructure"],
-            "backend": ["backend", "server-side", "api development", "database design"],
-            "automation": ["automation", "scripting", "workflow", "orchestration"],
-            "observability": ["monitoring", "observability", "telemetry", "logging", "metrics"],
-            "documentation": ["documentation", "technical writing", "api docs", "knowledge management"]
-        }
-    
-    def classify_job_type(self, job_data: Dict, jd_text: str) -> str:
-        """
-        Classify job type based on role and job description
-        Returns: backend, frontend, fullstack, devops, ai_ml, systems, or general
-        """
-        # Combine role and description for analysis
-        text = (job_data.get('job_role', '') + ' ' + jd_text).lower()
+    def generate_enhanced_email(self, job_data: Dict, jd_text: str = "") -> str:
+        """Generate enhanced email body with IoT priority and GitHub links"""
         
-        # Define keyword sets for each job type
-        backend_keywords = ['backend', 'server', 'api', 'database', 'microservices', 'django', 'flask', 'fastapi']
-        frontend_keywords = ['frontend', 'ui', 'react', 'vue', 'angular', 'javascript', 'css', 'html']
-        fullstack_keywords = ['full stack', 'full-stack', 'mern', 'mean', 'javascript', 'node']
-        devops_keywords = ['devops', 'infrastructure', 'deployment', 'docker', 'kubernetes', 'ci/cd', 'jenkins']
-        ai_ml_keywords = ['machine learning', 'ai', 'artificial intelligence', 'data science', 'tensorflow', 'pytorch', 'llm', 'nlp']
-        systems_keywords = ['systems', 'infrastructure', 'performance', 'scalability', 'architecture', 'sre']
+        profile = self.user_profile
+        name = profile.get('full_name', 'Dheeraj Sharma')
+        email = profile.get('email', 'dheerajsharma2930@gmail.com')
+        current_title = profile.get('current_title', 'Backend Developer & Automation Specialist')
+        current_company = profile.get('current_company', 'TechFlow Systems')
+        linkedin = profile.get('linkedin', 'linkedin.com/in/dheeraj-sharma-2a8367259')
+        github = profile.get('github', 'github.com/DheerajSharma2930')
+        phone = profile.get('phone', '+91-9829197483')
         
-        # Score each category
-        scores = {
-            'backend': sum(1 for keyword in backend_keywords if keyword in text),
-            'frontend': sum(1 for keyword in frontend_keywords if keyword in text),
-            'fullstack': sum(1 for keyword in fullstack_keywords if keyword in text),
-            'devops': sum(1 for keyword in devops_keywords if keyword in text),
-            'ai_ml': sum(1 for keyword in ai_ml_keywords if keyword in text),
-            'systems': sum(1 for keyword in systems_keywords if keyword in text)
-        }
+        company = job_data.get('company_name', 'your organization')
+        role = job_data.get('job_role', 'the position')
+        recruiter_name = job_data.get('recruiter_name', 'Team')
         
-        # Return the job type with highest score, fallback to general
-        max_score = max(scores.values())
-        if max_score == 0:
-            return 'general'
+        # Always prioritize IoT projects first
+        projects = profile.get('top_projects', [])
+        iot_projects = [p for p in projects if 'IoT' in p.get('name', '')]
+        other_projects = [p for p in projects if 'IoT' not in p.get('name', '')]
         
-        return max(scores, key=scores.get)
-    
-    def extract_job_requirements(self, jd_text: str) -> List[str]:
-        """Extract technical requirements from job description"""
-        found_skills = []
-        text = jd_text.lower()
+        # Take first 2 IoT projects and 1 other project for email
+        selected_projects = iot_projects[:2] + other_projects[:1]
         
-        for skill, keywords in self.skill_keywords.items():
-            if any(keyword in text for keyword in keywords):
-                found_skills.append(skill)
-        
-        return found_skills
-    
-    def match_skills_to_job(self, user_skills: List[str], job_requirements: List[str]) -> List[str]:
-        """Match user's skills to job requirements"""
-        matched_skills = []
-        
-        # Convert user skills to lowercase for comparison
-        user_skills_lower = [skill.lower() for skill in user_skills]
-        
-        for req in job_requirements:
-            # Direct match
-            if req in user_skills_lower:
-                matched_skills.append(req)
-            # Partial match (e.g., 'python' matches 'Python')
-            else:
-                for user_skill in user_skills_lower:
-                    if req in user_skill or user_skill in req:
-                        matched_skills.append(user_skill.title())
-                        break
-        
-        return list(set(matched_skills))  # Remove duplicates
-    
-    def match_projects_to_job(self, projects: List[Dict], job_type: str, job_requirements: List[str]) -> List[Dict]:
-        """Select most relevant projects for the job type and requirements"""
-        if not projects:
-            return []
-        
-        # ALWAYS prioritize IoT Monitoring System if available
-        iot_project = None
-        other_projects = []
-        
-        for project in projects:
-            if 'iot' in project.get('name', '').lower():
-                iot_project = project
-            else:
-                other_projects.append(project)
-        
-        template = self.role_templates.get(job_type, self.role_templates['general'])
-        priority_projects = template['projects_priority']
-        
-        # Score projects based on job type and requirements
-        project_scores = []
-        
-        for project in other_projects:
-            score = 0
-            project_name = project.get('name', '').lower()
-            project_desc = project.get('description', '').lower()
+        # Build project section
+        project_section = ""
+        if selected_projects:
+            project_texts = []
+            for i, proj in enumerate(selected_projects, 1):
+                name = proj.get('name', '')
+                description = proj.get('description', '')
+                github_url = proj.get('github', '')
+                demo = proj.get('demo', '')
+                tech_stack = proj.get('tech_stack', [])
+                
+                tech_list = ", ".join(tech_stack[:4])  # Limit to 4 technologies
+                if tech_list:
+                    tech_list = f" ({tech_list})"
+                
+                project_text = f"{name}: {description}{tech_list} - {github_url}"
+                if demo and "live" in demo.lower():
+                    project_text += f" | {demo}"
+                
+                project_texts.append(f"{i}. {project_text}")
             
-            # Priority scoring based on job type
-            if project_name == priority_projects[0]:
-                score += 3
-            elif project_name in priority_projects[1:]:
-                score += 2
+            if project_texts:
+                project_section = "\n\nA couple of relevant projects that demonstrate my IoT and automation expertise:\n" + "\n".join(f"• {text}" for text in project_texts)
+        
+        # Analyze job requirements for better matching
+        backend_keywords = ['backend', 'api', 'server', 'database', 'python', 'django', 'flask']
+        iot_keywords = ['iot', 'sensor', 'automation', 'monitoring', 'embedded', 'arduino']
+        
+        job_text_lower = (job_data.get('job_role', '') + ' ' + jd_text).lower()
+        
+        emphasis = ""
+        if any(keyword in job_text_lower for keyword in backend_keywords):
+            emphasis += " I'm particularly excited about backend development opportunities where I can contribute to building robust APIs, scalable systems, and database optimization. "
+        
+        if any(keyword in job_text_lower for keyword in iot_keywords):
+            emphasis += " My IoT project experience would be especially valuable for this role, as I've successfully implemented real-time sensor networks, data collection systems, and automation solutions. "
+        
+        # Build the email body
+        body = (
+            f"Hi {recruiter_name},\n\n"
+            f"I came across the {role} opening at {company} and I wanted to express my interest."
+            f" I am {name}, currently {current_title} at {current_company}."
+            f"{emphasis}"
+            f"{project_section}\n\n"
+            "I'm particularly excited about roles where I can contribute to backend systems, automation, "
+            "and developer experience. With my hands-on experience in IoT systems, real-time monitoring, "
+            "and automation, I bring a unique perspective to software development that combines practical "
+            "problem-solving with scalable architecture design.\n\n"
+            "You can reach me directly at "
+            f"{email} or {phone}. I'd love to discuss how I could help your team build "
+            "innovative solutions that bridge hardware and software effectively.\n\n"
+            "Best regards,\n"
+            f"{name}\n"
+            f"📧 {email}\n"
+            f"📱 {phone}\n"
+            f"💼 LinkedIn: {linkedin}\n"
+            f"💻 GitHub: {github}"
+        )
+        
+        # Ensure reasonable length
+        if len(body) > 4000:
+            # Trim project section if too long
+            if project_section:
+                trimmed_projects = selected_projects[:1]  # Keep only the most relevant project
+                if trimmed_projects:
+                    proj = trimmed_projects[0]
+                    tech_stack = ", ".join(proj.get('tech_stack', [])[:3])
+                    if tech_stack:
+                        tech_stack = f" ({tech_stack})"
+                    
+                    project_section = (
+                        f"\n\nHere's a project that demonstrates my relevant experience:\n"
+                        f"• {proj.get('name', '')}: {proj.get('description', '')}{tech_stack} - {proj.get('github', '')}"
+                    )
             
-            # Skills-based scoring
-            for req in job_requirements:
-                if req in ['python', 'apis', 'automation']:
-                    if 'api' in project_desc or 'pipeline' in project_desc:
-                        score += 2
-                if req == 'ai_ml':
-                    if any(word in project_desc for word in ['llm', 'ai', 'machine learning']):
-                        score += 2
-                if req == 'observability':
-                    if 'monitoring' in project_desc or 'observability' in project_desc:
-                        score += 2
-                if req == 'systems':
-                    if 'pipeline' in project_desc or 'systems' in project_desc:
-                        score += 1
-            
-            project_scores.append((project, score))
+            body = (
+                f"Hi {recruiter_name},\n\n"
+                f"I came across the {role} opening at {company} and I wanted to express my interest."
+                f" I am {name}, currently {current_title} at {current_company}."
+                f"{emphasis}"
+                f"{project_section}\n\n"
+                "I bring strong experience in backend development, automation, and IoT systems."
+                " You can reach me at {email} or {phone} to discuss how I could contribute to your team.\n\n"
+                f"Best regards,\n"
+                f"{name}\n"
+                f"📧 {email} | 📱 {phone} | 💼 {linkedin} | 💻 {github}"
+            )
         
-        # Sort by score and return top projects
-        project_scores.sort(key=lambda x: x[1], reverse=True)
-        selected_projects = [p[0] for p in project_scores[:2] if p[1] > 0]
-        
-        # ALWAYS include IoT project at the beginning if available
-        if iot_project:
-            selected_projects.insert(0, iot_project)
-        elif not selected_projects:
-            # If no projects scored well, return IoT project or top 2 by default
-            if iot_project:
-                selected_projects = [iot_project] + projects[:1]
-            else:
-                selected_projects = projects[:2]
-        
-        # Ensure we don't exceed 3 projects
-        return selected_projects[:3]
+        return body.strip()
     
-    def generate_company_interest(self, company_name: str, job_type: str) -> str:
-        """Generate company-specific interest statement"""
-        interests = {
-            "google": "innovative products and technical excellence",
-            "microsoft": "cloud computing and developer tools",
-            "amazon": "scalable systems and customer-centric solutions",
-            "netflix": "high-performance streaming and content delivery",
-            "uber": "real-time systems and global marketplace technology",
-            "stripe": "financial technology and payment infrastructure"
-        }
+    def generate_subject_line(self, job_data: Dict, custom_subject: Optional[str] = None) -> str:
+        """Generate enhanced subject line"""
         
-        company_lower = company_name.lower()
-        for company, interest in interests.items():
-            if company in company_lower:
-                return interest
+        job_role = job_data.get('job_role', 'Job Application')
+        name = self.user_profile.get('full_name', 'Dheeraj Sharma')
+        company = job_data.get('company_name', 'your organization')
         
-        # Generic interests based on job type
-        generic_interests = {
-            "backend": "building scalable backend systems and APIs",
-            "fullstack": "creating end-to-end solutions that improve user experience",
-            "devops": "infrastructure automation and reliable deployment pipelines",
-            "ai_ml": "intelligent systems and machine learning applications",
-            "systems": "high-performance systems architecture and optimization",
-            "general": "building innovative solutions that solve real problems"
-        }
+        if custom_subject:
+            # Clean up common placeholders
+            custom_subject = custom_subject.replace("[Your Name]", name)
+            custom_subject = custom_subject.replace("[Name]", name)
+            custom_subject = custom_subject.replace("[Company]", company)
+            return custom_subject
         
-        return generic_interests.get(job_type, "innovative technology solutions")
-    
-    def format_projects_section(self, projects: List[Dict]) -> str:
-        """Format projects section for email with GitHub links"""
-        if not projects:
-            return ""
+        # Generate contextual subject based on role
+        role_lower = job_role.lower()
         
-        project_texts = []
-        for project in projects:
-            name = project.get('name', '')
-            description = project.get('description', '')
-            github_link = project.get('github', '')
-            
-            # Shorten description if too long
-            if len(description) > 150:
-                description = description[:147] + "..."
-            
-            # Add GitHub link if available
-            if github_link:
-                project_texts.append(f"**{name}** ({github_link}): {description}")
-            else:
-                project_texts.append(f"**{name}**: {description}")
-        
-        if len(project_texts) == 1:
-            return f"Some of my relevant work includes {project_texts[0].lower()}."
-        elif len(project_texts) == 2:
-            return f"Some of my relevant work includes {project_texts[0].lower()} and {project_texts[1].lower()}."
+        if 'backend' in role_lower or 'api' in role_lower:
+            return f"Backend Developer Application - {name}"
+        elif 'iot' in role_lower or 'sensor' in role_lower:
+            return f"IoT & Automation Specialist - {name}"
+        elif 'automation' in role_lower:
+            return f"Automation Engineer Application - {name}"
+        elif 'full stack' in role_lower or 'full-stack' in role_lower:
+            return f"Full Stack Developer - {name}"
         else:
-            return f"Some of my relevant work includes {project_texts[0].lower()}, {project_texts[1].lower()}, and {project_texts[2].lower()}."
+            return f"Application for {job_role} - {name}"
+
+
+def test_enhanced_email_generation():
+    """Test the enhanced email generation"""
     
-    def generate_subject(self, job_data: Dict, job_type: str) -> str:
-        """Generate personalized email subject"""
-        company_name = job_data.get('company_name', '')
-        job_role = job_data.get('job_role', 'position')
-        
-        subjects = {
-            "backend": f"Application for {job_role} - Backend Systems Engineer",
-            "fullstack": f"Application for {job_role} - Full Stack Developer",
-            "devops": f"Application for {job_role} - DevOps/Systems Engineer",
-            "ai_ml": f"Application for {job_role} - AI/ML Engineer",
-            "systems": f"Application for {job_role} - Systems Engineer",
-            "general": f"Application for {job_role} - Dheeraj Sharma"
-        }
-        
-        return subjects.get(job_type, f"Application for {job_role} - {self.user_profile['full_name']}")
+    generator = EnhancedEmailGenerator()
     
-    def generate_email(self, job_data: Dict, jd_text: str) -> Dict:
-        """Generate complete personalized email"""
-        # Step 1: Classify job type
-        job_type = self.classify_job_type(job_data, jd_text)
-        
-        # Step 2: Extract job requirements
-        job_requirements = self.extract_job_requirements(jd_text)
-        
-        # Step 3: Match skills and projects
-        matched_skills = self.match_skills_to_job(self.user_profile['skills'], job_requirements)
-        relevant_projects = self.match_projects_to_job(
-            self.user_profile['top_projects'], job_type, job_requirements
-        )
-        
-        # Step 4: Generate email components
-        template = self.role_templates.get(job_type, self.role_templates['general'])
-        
-        # Personalized opening
-        opening = template['opening'].format(
-            job_role=job_data.get('job_role', 'position'),
-            company_name=job_data.get('company_name', 'your company'),
-            name=self.user_profile['full_name'],
-            title=self.user_profile.get('current_job', {}).get('title', 'Software Engineer'),
-            company=self.user_profile.get('current_job', {}).get('company', 'Software Industry')
-        )
-        
-        # Skills focus paragraph
-        skills_paragraph = template['skills_focus']
-        
-        # Projects section
-        projects_section = self.format_projects_section(relevant_projects)
-        
-        # Company-specific interest
-        company_interest = self.generate_company_interest(
-            job_data.get('company_name', ''), job_type
-        )
-        
-        # Closing paragraph
-        closing = template['closing'].format(
-            company_name=job_data.get('company_name', 'your company'),
-            company_interest=company_interest
-        )
-        
-        # Skills highlight (if skills were matched)
-        skills_highlight = ""
-        if matched_skills:
-            skills_list = ", ".join(matched_skills[:3])  # Top 3 skills
-            skills_highlight = f"My experience with {skills_list} would be particularly valuable for this role."
-        
-        # Combine all parts
-        email_body_parts = [
-            opening,
-            skills_paragraph,
-            projects_section,
-            skills_highlight,
-            closing
-        ]
-        
-        # Filter out empty parts
-        email_body = "\n\n".join([part for part in email_body_parts if part.strip()])
-        
-        # Add contact information with GitHub and LinkedIn
-        contact_links = []
-        if self.user_profile.get('linkedin'):
-            contact_links.append(f"LinkedIn: {self.user_profile['linkedin']}")
-        if self.user_profile.get('github'):
-            contact_links.append(f"GitHub: {self.user_profile['github']}")
-        
-        contact_info = f"\n\nYou can reach me at {self.user_profile['email']} or {self.user_profile['phone']}."
-        if contact_links:
-            contact_info += f"\n\n{chr(10).join(contact_links)}"
-        
-        contact_info += f"\n\nBest regards,\n{self.user_profile['full_name']}"
-        email_body += contact_info
-        
-        # Generate subject
-        email_subject = self.generate_subject(job_data, job_type)
-        
-        return {
-            'subject': email_subject,
-            'body': email_body,
-            'job_type': job_type,
-            'matched_skills': matched_skills,
-            'relevant_projects': [p['name'] for p in relevant_projects],
-            'company_interest': company_interest
-        }
-
-
-def generate_enhanced_email(job_data: Dict, jd_text: str, user_profile_path: str = "user_profile.json") -> Dict:
-    """
-    Standalone function to generate enhanced email
-    Usage: generate_enhanced_email(job_data, jd_text)
-    """
-    generator = EnhancedEmailGenerator(user_profile_path)
-    return generator.generate_email(job_data, jd_text)
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test with sample job data
-    sample_job = {
-        "company_name": "TechCorp",
-        "job_role": "Senior Backend Engineer",
-        "recruiter_name": "Sarah Johnson",
-        "email": "hr@techcorp.com"
+    # Test job data
+    test_job = {
+        'company_name': 'TechCorp',
+        'job_role': 'Backend Developer',
+        'recruiter_name': 'HR Team',
+        'location': 'Bangalore, India'
     }
     
-    sample_jd = """
-    We are looking for a Senior Backend Engineer to join our team. 
-    The ideal candidate will have experience with Python, Django, API development, 
-    microservices, and database design. Experience with Docker and AWS is preferred.
-    """
+    test_jd = "We are looking for a backend developer with Python and Django experience. Experience with APIs and database optimization is preferred."
     
-    email = generate_enhanced_email(sample_job, sample_jd)
-    print("Generated Email:")
-    print(f"Subject: {email['subject']}")
-    print(f"Body: {email['body']}")
-    print(f"Job Type: {email['job_type']}")
-    print(f"Matched Skills: {email['matched_skills']}")
-    print(f"Relevant Projects: {email['relevant_projects']}")
+    # Generate email
+    email_body = generator.generate_enhanced_email(test_job, test_jd)
+    subject_line = generator.generate_subject_line(test_job)
+    
+    print("Generated Email Subject:", subject_line)
+    print("\nGenerated Email Body:")
+    print("=" * 50)
+    print(email_body)
+    print("=" * 50)
+    print(f"\nEmail length: {len(email_body)} characters")
+    
+    return email_body, subject_line
+
+
+if __name__ == "__main__":
+    test_enhanced_email_generation()
