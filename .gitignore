@@ -41,6 +41,10 @@ bot.log
 monitor.log
 *.csv
 jobs.db
+test.db
+test_*.db
+*test*.db
+*_test.db
 
 # Telegram session files
 # ======================
@@ -61,9 +65,17 @@ simple_*_test.py
 separated_flow_test.py
 integration_guide.py
 email_integration_example.py
+enhanced_email_generator.py
+GITIGNORE_SUMMARY.md
+DEPLOYMENT_FIX.md
+FINAL_UPDATE_SUMMARY.md
 EMAIL_GENERATION_ACTION_PLAN.md
 FINAL_EMAIL_GENERATION_SUMMARY.md
 GOOGLE_SHEETS_FIX_SUMMARY.md
+test_complete_app.py
+test_simple.py
+test_webserver_updated.py
+test_integration.py
 
 # Data files and exports
 # ======================
@@ -84,3 +96,33 @@ data/
 !README.md
 !LICENSE
 monitor.log
+
+# Additional test and development files
+# =====================================
+*test*.py
+*_test.py
+test_*.py
+*_summary.md
+*_action_plan.md
+*_fix_summary.md
+*_guide.py
+*_example.py
+web_server_no_bot.py
+
+# Web server and testing artifacts
+# ================================
+*.session
+*.session-journal
+web_server_test.py
+deployment_test.py
+integration_test.py
+
+# Enhanced email generation files (keep in main code only)
+# ========================================================
+enhanced_email_generator.py
+
+# Development tracking files
+# ==========================
+*.track
+*.dev
+*_dev.py

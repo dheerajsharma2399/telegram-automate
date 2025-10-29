@@ -1,2 +1,4 @@
+# Full-featured web server (with enhanced email generation)
 web: python web_server.py
-bot: python main.py
+# Bot-only service (separate instance)  
+worker: python main.py

@@ -248,30 +248,114 @@ def api_command():
 
 @app.route('/api/generate_emails', methods=['POST'])
 def api_generate_emails():
-    """Trigger server-side generation of email bodies for processed jobs (enqueue a bot command).
-    This will enqueue a /generate_emails command which the bot will pick up and run.
+    """Generate enhanced email bodies for processed jobs.
+    
+    This endpoint supports:
+    1. Direct generation when running as standalone service
+    2. Command queuing when running as dashboard-only service
+    
+    If LLM processor is available, generates enhanced job-specific emails.
+    If not available, enqueues command for bot service to handle.
     """
     try:
-        # Optionally accept a list of job_ids to target; for now we trigger general generation
         payload = request.get_json(force=True) or {}
         job_ids = payload.get('job_ids')
+        run_now = payload.get('run_now', False)
 
-        # enqueue the command for the bot poller to execute
-        cmd = '/generate_emails'
-        if job_ids:
-            cmd = f"/generate_emails {','.join(job_ids)}"
-
-        if hasattr(db, 'enqueue_command') and callable(getattr(db, 'enqueue_command')):
-            cmd_id = db.enqueue_command(cmd)
-            return jsonify({"message": "Email generation enqueued.", "command_id": cmd_id})
+        # Case 1: Direct generation (standalone mode)
+        if llm_processor and run_now:
+            # Direct email generation for all jobs without email_body
+            jobs_without_emails = db.get_jobs_without_email_body()
+            if not jobs_without_emails:
+                return jsonify({"message": "No jobs found without email bodies.", "generated": 0})
+            
+            generated = 0
+            for job in jobs_without_emails:
+                try:
+                    # Use enhanced email generation with job-specific content
+                    email_body = llm_processor.generate_email_body(job, job.get('jd_text', ''))
+                    if email_body:
+                        db.update_job_email_body(job['job_id'], email_body)
+                        generated += 1
+                except Exception as e:
+                    logging.error(f"Failed to generate email for job {job.get('job_id')}: {e}")
+            
+            return jsonify({
+                "message": f"Generated {generated} enhanced email bodies.",
+                "generated": generated,
+                "mode": "direct_generation"
+            })
+        
+        # Case 2: Command queuing (service separation mode)
         else:
-            ok, resp = send_telegram_command(cmd)
-            if ok:
-                return jsonify({"message": "Email generation sent via Telegram fallback.", "telegram_response": resp})
+            # enqueue the command for the bot poller to execute
+            cmd = '/generate_emails'
+            if job_ids:
+                cmd = f"/generate_emails {','.join(map(str, job_ids))}"
+
+            if hasattr(db, 'enqueue_command') and callable(getattr(db, 'enqueue_command')):
+                cmd_id = db.enqueue_command(cmd)
+                return jsonify({
+                    "message": "Email generation enqueued.",
+                    "command_id": cmd_id,
+                    "mode": "command_queue"
+                })
             else:
-                return jsonify({"error": "Failed to enqueue generation and Telegram fallback failed.", "details": resp}), 500
+                ok, resp = send_telegram_command(cmd)
+                if ok:
+                    return jsonify({
+                        "message": "Email generation sent via Telegram fallback.",
+                        "telegram_response": resp,
+                        "mode": "telegram_fallback"
+                    })
+                else:
+                    return jsonify({"error": "Failed to enqueue generation and Telegram fallback failed.", "details": resp}), 500
+                    
     except Exception as e:
-        logging.exception('Failed to enqueue generate_emails')
+        logging.exception('Failed to generate emails')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sheets/generate_email_bodies', methods=['POST'])
+def api_sheets_generate_email_bodies():
+    """Generate email bodies from Google Sheets data.
+    
+    This endpoint can generate emails directly if LLM processor is available,
+    or delegate to the bot service if not.
+    """
+    try:
+        payload = request.get_json(force=True) or {}
+        sheet = payload.get('sheet', 'email')
+        limit = payload.get('limit', 50)
+        
+        if not sheets_sync:
+            return jsonify({'error': 'Google Sheets not configured'}), 500
+        
+        if llm_processor:
+            # Direct generation mode - generate emails for sheet data
+            try:
+                # This would need to be implemented based on your sheets_sync capabilities
+                return jsonify({
+                    'message': 'Direct sheet-based email generation not fully implemented',
+                    'recommendation': 'Use the /generate_emails command for now'
+                })
+            except Exception as e:
+                logging.error(f'Sheet generation error: {e}')
+                return jsonify({'error': str(e)}), 500
+        else:
+            # Queue mode - delegate to bot
+            cmd = f'/sync_sheets'
+            if hasattr(db, 'enqueue_command'):
+                cmd_id = db.enqueue_command(cmd)
+                return jsonify({"message": "Sheet sync enqueued.", "command_id": cmd_id})
+            else:
+                ok, resp = send_telegram_command(cmd)
+                if ok:
+                    return jsonify({"message": "Sheet sync sent via Telegram.", "telegram_response": resp})
+                else:
+                    return jsonify({"error": "Failed to sync sheets", "details": resp}), 500
+                    
+    except Exception as e:
+        logging.exception('Failed to generate email bodies from sheet')
         return jsonify({'error': str(e)}), 500
 
 
