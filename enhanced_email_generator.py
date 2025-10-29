@@ -33,30 +33,42 @@ class EnhancedEmailGenerator:
         """Return default profile if user profile file is not found"""
         return {
             "full_name": "Dheeraj Sharma",
-            "email": "deepakgp2128@gmail.com",
-            "phone": "(+91) 98330 19396",
-            "current_title": "Senior Software Engineer",
-            "current_company": "Dattra Systems",
-            "summary": "I build backend systems and developer tools. I help companies reduce costs and accelerate product development through automation, observability, and developer experience improvements.",
+            "email": "dheerajofficial2306@gmail.com",
+            "phone": "8860964920",
+            "location": "India (IST)",
+            "linkedin": "https://www.linkedin.com/in/dheerajsharma2399",
+            "github": "https://github.com/dheerajsharma2399",
+            "short_bio": "Software Engineer specializing in scalable data/AI pipelines, backend development (Python, FastAPI), MLOps (AWS, Docker, CI/CD), and end-to-end AI agent/RAG system development.",
+            "preferred_tone": "professional, impact-driven, technical",
+            "current_job": {
+                "company": "Sonar Instruments and Technology Pvt Ltd",
+                "title": "Software Engineer Intern",
+                "duration": "Feb 2025 – Present",
+                "description": "Engineered an end-to-end IoT monitoring and predictive maintenance platform on AWS. Built data pipelines (MQTT, IoT Core, FastAPI) processing 20K+ daily events."
+            },
             "top_projects": [
                 {
-                    "name": "Jobhuntr",
-                    "description": "An automated Telegram-to-Google-Sheets pipeline that extracts job postings from Telegram groups, parses them using LLMs, and prepares outreach emails."
+                    "name": "IoT Monitoring System",
+                    "description": "Comprehensive IoT device monitoring platform with real-time data collection, MQTT integration, AWS IoT Core connectivity, predictive maintenance using machine learning, and analytics dashboard.",
+                    "github": "https://github.com/dheerajsharma2399/iot-monitoring-system"
                 },
                 {
-                    "name": "SignalWatch", 
-                    "description": "A lightweight observability agent that collects and forwards telemetry to a hosted analytics service with minimal overhead."
+                    "name": "Telegram Job Scraper Bot",
+                    "description": "Automated job scraping from Telegram groups using Telethon. The system uses an LLM (via OpenRouter) to parse job details, stores data in SQLite, syncs to Google Sheets.",
+                    "github": "https://github.com/dheerajsharma2399/telegram-automate"
                 },
                 {
-                    "name": "AutoDocs",
-                    "description": "A documentation generator that converts code comments and API specs into well-structured markdown and HTML documentation."
+                    "name": "Financial Document Q&A Assistant (RAG Pipeline)",
+                    "description": "Full-stack document intelligence pipeline using OpenCV, Tesseract for data extraction. RAG backend with LangChain, Ollama, and FAISS for natural language Q&A.",
+                    "github": "https://github.com/dheerajsharma2399/financial-rag-assistant"
                 }
             ],
-            "education": "B.Tech in Computer Science",
-            "skills": ["Python", "AsyncIO", "Systems Design", "APIs", "Google Apps Script", "LLMs"],
-            "availability": "Immediate",
-            "location": "India",
-            "linkedin": "https://www.linkedin.com/in/dheeraj-sharma/"
+            "skills": {
+                "Programming Languages": ["Python", "SQL", "JavaScript"],
+                "Backend & APIs": ["FastAPI", "Flask", "REST APIs", "Docker"],
+                "Machine Learning & AI": ["scikit-learn", "TensorFlow", "PyTorch", "LangChain", "RAG", "Ollama"]
+            },
+            "availability": "Actively seeking new full-time roles."
         }
     
     def load_role_templates(self) -> Dict:
@@ -186,13 +198,23 @@ class EnhancedEmailGenerator:
         if not projects:
             return []
         
+        # ALWAYS prioritize IoT Monitoring System if available
+        iot_project = None
+        other_projects = []
+        
+        for project in projects:
+            if 'iot' in project.get('name', '').lower():
+                iot_project = project
+            else:
+                other_projects.append(project)
+        
         template = self.role_templates.get(job_type, self.role_templates['general'])
         priority_projects = template['projects_priority']
         
         # Score projects based on job type and requirements
         project_scores = []
         
-        for project in projects:
+        for project in other_projects:
             score = 0
             project_name = project.get('name', '').lower()
             project_desc = project.get('description', '').lower()
@@ -220,12 +242,22 @@ class EnhancedEmailGenerator:
             
             project_scores.append((project, score))
         
-        # Sort by score and return top 2-3 projects
+        # Sort by score and return top projects
         project_scores.sort(key=lambda x: x[1], reverse=True)
-        selected_projects = [p[0] for p in project_scores[:3] if p[1] > 0]
+        selected_projects = [p[0] for p in project_scores[:2] if p[1] > 0]
         
-        # If no projects scored well, return top 2 by default
-        return selected_projects if selected_projects else projects[:2]
+        # ALWAYS include IoT project at the beginning if available
+        if iot_project:
+            selected_projects.insert(0, iot_project)
+        elif not selected_projects:
+            # If no projects scored well, return IoT project or top 2 by default
+            if iot_project:
+                selected_projects = [iot_project] + projects[:1]
+            else:
+                selected_projects = projects[:2]
+        
+        # Ensure we don't exceed 3 projects
+        return selected_projects[:3]
     
     def generate_company_interest(self, company_name: str, job_type: str) -> str:
         """Generate company-specific interest statement"""
@@ -256,7 +288,7 @@ class EnhancedEmailGenerator:
         return generic_interests.get(job_type, "innovative technology solutions")
     
     def format_projects_section(self, projects: List[Dict]) -> str:
-        """Format projects section for email"""
+        """Format projects section for email with GitHub links"""
         if not projects:
             return ""
         
@@ -264,12 +296,17 @@ class EnhancedEmailGenerator:
         for project in projects:
             name = project.get('name', '')
             description = project.get('description', '')
+            github_link = project.get('github', '')
             
             # Shorten description if too long
             if len(description) > 150:
                 description = description[:147] + "..."
             
-            project_texts.append(f"**{name}**: {description}")
+            # Add GitHub link if available
+            if github_link:
+                project_texts.append(f"**{name}** ({github_link}): {description}")
+            else:
+                project_texts.append(f"**{name}**: {description}")
         
         if len(project_texts) == 1:
             return f"Some of my relevant work includes {project_texts[0].lower()}."
@@ -316,8 +353,8 @@ class EnhancedEmailGenerator:
             job_role=job_data.get('job_role', 'position'),
             company_name=job_data.get('company_name', 'your company'),
             name=self.user_profile['full_name'],
-            title=self.user_profile['current_title'],
-            company=self.user_profile['current_company']
+            title=self.user_profile.get('current_job', {}).get('title', 'Software Engineer'),
+            company=self.user_profile.get('current_job', {}).get('company', 'Software Industry')
         )
         
         # Skills focus paragraph
@@ -355,8 +392,18 @@ class EnhancedEmailGenerator:
         # Filter out empty parts
         email_body = "\n\n".join([part for part in email_body_parts if part.strip()])
         
-        # Add contact information
-        contact_info = f"\n\nYou can reach me at {self.user_profile['email']} or {self.user_profile['phone']}.\n\nBest regards,\n{self.user_profile['full_name']}\n{self.user_profile['linkedin']}"
+        # Add contact information with GitHub and LinkedIn
+        contact_links = []
+        if self.user_profile.get('linkedin'):
+            contact_links.append(f"LinkedIn: {self.user_profile['linkedin']}")
+        if self.user_profile.get('github'):
+            contact_links.append(f"GitHub: {self.user_profile['github']}")
+        
+        contact_info = f"\n\nYou can reach me at {self.user_profile['email']} or {self.user_profile['phone']}."
+        if contact_links:
+            contact_info += f"\n\n{chr(10).join(contact_links)}"
+        
+        contact_info += f"\n\nBest regards,\n{self.user_profile['full_name']}"
         email_body += contact_info
         
         # Generate subject

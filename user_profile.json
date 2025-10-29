@@ -1,27 +1,78 @@
 {
   "full_name": "Dheeraj Sharma",
-  "email": "deepakgp2128@gmail.com",
-  "phone": "(+91) 98330 19396",
-  "current_title": "Senior Software Engineer",
-  "current_company": "Dattra Systems",
-  "summary": "I build backend systems and developer tools. I help companies reduce costs and accelerate product development through automation, observability, and developer experience improvements.",
+  "email": "dheerajofficial2306@gmail.com",
+  "phone": "8860964920",
+  "location": "India (IST)",
+  "linkedin": "https://www.linkedin.com/in/dheerajsharma2399",
+  "github": "https://github.com/dheerajsharma2399",
+  "portfolio": null,
+  "short_bio": "Software Engineer specializing in scalable data/AI pipelines, backend development (Python, FastAPI), MLOps (AWS, Docker, CI/CD), and end-to-end AI agent/RAG system development.",
+  "preferred_tone": "professional, impact-driven, technical",
+  "current_job": {
+    "company": "Sonar Instruments and Technology Pvt Ltd",
+    "title": "Software Engineer Intern",
+    "duration": "Feb 2025 – Present",
+    "description": "Engineered an end-to-end IoT monitoring and predictive maintenance platform on AWS. Built data pipelines (MQTT, IoT Core, FastAPI) processing 20K+ daily events. Deployed ML models (TensorFlow, scikit-learn) that reduced downtime by 25% and lifted F1 score by 12%. Automated MLOps CI/CD with Docker and GitHub Actions, cutting release time by 40%."
+  },
   "top_projects": [
     {
-      "name": "Jobhuntr",
-      "description": "An automated Telegram-to-Google-Sheets pipeline that extracts job postings from Telegram groups, parses them using LLMs, and prepares outreach emails."
+      "name": "End-to-End ML Pipeline for Scrap Material Classification",
+      "description": "Built a complete MLOps pipeline using PyTorch (ResNet18) to classify scrap materials from the TrashNet dataset. The system was designed for real-time edge deployment (e.g., NVIDIA Jetson) by exporting the model to ONNX and TorchScript. Includes a Tkinter GUI and a conveyor belt simulation for demonstration.",
+      "github": "https://github.com/dheerajsharma2399/scrap-material-classification"
     },
     {
-      "name": "SignalWatch",
-      "description": "A lightweight observability agent that collects and forwards telemetry to a hosted analytics service with minimal overhead."
+      "name": "Financial Document Q&A Assistant (RAG Pipeline)",
+      "description": "Developed a full-stack document intelligence pipeline to parse PDF/Excel reports, using OpenCV and Tesseract for data extraction. Architected a local-first Retrieval-Augmented Generation (RAG) backend with LangChain, Ollama (Mistral, nomic-embed-text), and FAISS to enable natural language Q&A, reducing manual data analysis time by over 80%.",
+      "github": "https://github.com/dheerajsharma2399/financial-rag-assistant"
     },
     {
-      "name": "AutoDocs",
-      "description": "A documentation generator that converts code comments and API specs into well-structured markdown and HTML documentation."
+      "name": "AI Task Planning Agent",
+      "description": "Built an intelligent agent that transforms natural language goals into actionable, step-by-step plans. The system integrates multiple LLM providers (Ollama, OpenRouter, Gemini) and external tools (Web Search, Weather API) for data enrichment, with a Streamlit UI and SQLite persistence.",
+      "github": "https://github.com/dheerajsharma2399/ai-task-planning-agent"
+    },
+    {
+      "name": "Voice Data AI/ML Project (Emotion/Speaker ID)",
+      "description": "A full-stack audio ML pipeline using librosa for feature extraction (MFCC, spectrograms) and TensorFlow/PyTorch for model training (CNNs, RNNs) on the RAVDESS dataset. The system is served via a FastAPI backend and includes a Streamlit app for real-time recording and prediction.",
+      "github": "https://github.com/dheerajsharma2399/voice-emotion-classification"
+    },
+    {
+      "name": "Telegram Job Scraper Bot",
+      "description": "Automated job scraping from Telegram groups using Telethon. The system uses an LLM (via OpenRouter) to parse job details, stores data in SQLite, syncs to Google Sheets (gspread), and is monitored by a Flask web dashboard. Deployed on Render.",
+      "github": "https://github.com/dheerajsharma2399/telegram-automate"
+    },
+    {
+      "name": "Bitcoin Sentiment & Trader Performance Analysis",
+      "description": "Developed classifiers predicting profitable trades with 82% accuracy on 50K+ records. Integrated a LangChain agent for real-time risk alerts to cut exposure by 30%.",
+      "github": "https://github.com/dheerajsharma2399/bitcoin-sentiment-analysis"
+    },
+    {
+      "name": "IoT Monitoring System",
+      "description": "Comprehensive IoT device monitoring platform with real-time data collection, MQTT integration, AWS IoT Core connectivity, predictive maintenance using machine learning, and analytics dashboard for connected devices and sensors.",
+      "github": "https://github.com/dheerajsharma2399/iot-monitoring-system"
     }
   ],
-  "education": "B.Tech in Computer Science",
-  "skills": ["Python", "AsyncIO", "Systems Design", "APIs", "Google Apps Script", "LLMs"],
-  "availability": "Immediate",
-  "location": "India",
-  "linkedin": "https://www.linkedin.com/in/dheeraj-sharma/"
+  "education": [
+    {
+      "degree": "Master of Computer Applications",
+      "university": "Manipal University, Jaipur",
+      "duration": "Aug 2023 – Aug 2025",
+      "details": "CGPA: 8.74"
+    },
+    {
+      "degree": "Bachelor of Computer Applications",
+      "university": "Chaudhary Charan Singh University",
+      "duration": "Jul 2019 – Jul 2022",
+      "details": null
+    }
+  ],
+  "skills": {
+    "Programming Languages": ["Python", "SQL", "JavaScript"],
+    "Backend & APIs": ["FastAPI", "Flask", "REST APIs", "Docker", "GitHub Actions", "OOP"],
+    "Data Engineering": ["pandas", "NumPy", "PySpark", "Databricks", "ETL Pipelines", "Power BI"],
+    "Automation & Tooling": ["n8n", "Telethon", "gspread", "Streamlit", "Tkinter"],
+    "Cloud & DevOps": ["AWS (EC2, S3, Lambda, SageMaker, IoT Core)", "Azure", "Render", "Kafka", "CI/CD"],
+    "Machine Learning & AI": ["scikit-learn", "TensorFlow", "PyTorch", "TorchVision", "LangChain", "RAG", "Ollama", "OpenRouter", "FAISS", "OpenCV", "Tesseract", "librosa", "torchaudio", "ONNX", "Hugging Face", "MLflow"],
+    "Databases": ["PostgreSQL", "MySQL", "SQLite"]
+  },
+  "availability": "Actively seeking new full-time roles."
 }
