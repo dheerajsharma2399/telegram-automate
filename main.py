@@ -568,9 +568,7 @@ def main():
         application.run_polling(
             drop_pending_updates=True,
             allowed_updates=['message', 'callback_query', 'edited_message'],
-            timeout=10,
-            read_timeout=10,
-            write_timeout=10
+            timeout=10
         )
     except KeyboardInterrupt:
         logger.info("Bot stopped by user.")
