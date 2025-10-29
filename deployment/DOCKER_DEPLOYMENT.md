@@ -10,24 +10,24 @@ This comprehensive guide covers deploying the Telegram Job Scraper Bot using Doc
 - **Docker**: Version 20.10+ installed
 - **Docker Compose**: Version 2.0+ installed
 - **Server**: 2+ CPU cores, 4GB+ RAM, 20GB+ storage
-- **Ports**: 8080 (web dashboard), 5000 (alternative)
+- **Ports**: 8080 (web dashboard)
 
 ### Required Files
 
 Ensure these files exist in your project root:
 ```bash
 Dockerfile
-docker-compose.yml
+docker-compose.yml (or docker-compose.yaml)
 .env.example
 requirements.txt
 ```
 
-## 🏗️ Dockerfile Configuration
+## 🏗️ Unified Dockerfile Configuration
 
-### Web Dashboard Dockerfile
+### Single Production Dockerfile
 
 ```dockerfile
-# Multi-stage build for web dashboard
+# Multi-stage build for production
 FROM python:3.11-slim as builder
 
 # Install build dependencies
@@ -85,66 +85,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 # Expose port
 EXPOSE 8080
 
-# Start web dashboard
+# Default command starts web dashboard
+# Use 'python main.py' for bot service
 CMD ["python", "web_server.py"]
-```
-
-### Bot Service Dockerfile
-
-```dockerfile
-# Multi-stage build for bot service
-FROM python:3.11-slim as builder
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /app
-
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
-
-# Production stage
-FROM python:3.11-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN groupadd -r telegram && useradd -r -g telegram telegram
-
-# Set working directory
-WORKDIR /app
-
-# Copy Python packages from builder
-COPY --from=builder /root/.local /home/telegram/.local
-
-# Copy application code
-COPY . .
-
-# Create data directories
-RUN mkdir -p data logs && \
-    chown -R telegram:telegram /app
-
-# Switch to non-root user
-USER telegram
-
-# Add local bin to PATH
-ENV PATH=/home/telegram/.local/bin:$PATH
-
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV FLASK_ENV=production
-
-# Expose no ports (background service)
-
-# Start bot service
-CMD ["python", "main.py"]
 ```
 
 ## 📦 Docker Compose Configuration
@@ -152,98 +95,115 @@ CMD ["python", "main.py"]
 ### Production docker-compose.yml
 
 ```yaml
+# Docker Compose configuration for Telegram Job Scraper Bot
+# Production-ready deployment with web dashboard and Telegram bot
+# Compatible with Coolify, Docker, and other platforms
+
 version: '3.8'
 
 services:
+  # Web Dashboard Service
   web-dashboard:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - TELEGRAM_API_ID=${TELEGRAM_API_ID}
-        - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
     container_name: telegram-job-dashboard
     ports:
       - "8080:8080"
     environment:
-      - FLASK_ENV=production
-      - PORT=8080
-      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
-      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - AUTHORIZED_USER_IDS=${AUTHORIZED_USER_IDS}
-      - ADMIN_USER_ID=${ADMIN_USER_ID}
+      # Database Configuration
       - DATABASE_PATH=/app/data/jobs.db
+      
+      # Flask Configuration
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - PORT=8080
+      
+      # Security Configuration
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-super-secret}
+      
+      # Telegram Configuration (for API calls)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ADMIN_USER_ID=${ADMIN_USER_ID}
+      
+      # LLM Configuration
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-4o-mini}
+      
+      # Google Sheets Configuration
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
       - SPREADSHEET_ID=${SPREADSHEET_ID}
+      
+      # Telegram API Configuration
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
     volumes:
+      # Persistent data storage
       - ./data:/app/data
       - ./logs:/app/logs
-    working_dir: /app
+      - ./user_profile.json:/app/user_profile.json:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     networks:
       - telegram-network
-    depends_on:
-      - database
 
+  # Telegram Bot Service
   telegram-bot:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: telegram-job-bot
     environment:
-      - FLASK_ENV=production
+      # Database Configuration
+      - DATABASE_PATH=/app/data/jobs.db
+      
+      # Telegram API Configuration
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE=${TELEGRAM_PHONE}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_GROUP_USERNAME=${TELEGRAM_GROUP_USERNAME}
+      - TELEGRAM_GROUP_USERNAMES=${TELEGRAM_GROUP_USERNAMES}
+      
+      # Authorization
       - AUTHORIZED_USER_IDS=${AUTHORIZED_USER_IDS}
       - ADMIN_USER_ID=${ADMIN_USER_ID}
-      - DATABASE_PATH=/app/data/jobs.db
+      
+      # LLM Configuration
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-4o-mini}
+      
+      # Processing Configuration
+      - BATCH_SIZE=10
+      - PROCESSING_INTERVAL_MINUTES=5
+      - MAX_RETRIES=3
+      
+      # Google Sheets Configuration
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
       - SPREADSHEET_ID=${SPREADSHEET_ID}
     volumes:
+      # Persistent data storage
       - ./data:/app/data
       - ./logs:/app/logs
-    working_dir: /app
+      - ./user_profile.json:/app/user_profile.json:ro
     restart: unless-stopped
     networks:
       - telegram-network
     depends_on:
       - web-dashboard
-      - database
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
-  database:
-    image: alpine:latest
-    container_name: telegram-job-db
-    command: sh -c "touch /data/jobs.db && tail -f /dev/null"
-    volumes:
-      - ./data:/data
-    restart: unless-stopped
-    networks:
-      - telegram-network
-
-volumes:
-  data:
-    driver: local
-  logs:
-    driver: local
-
+# Network configuration
 networks:
   telegram-network:
     driver: bridge
+    internal: false
 ```
 
 ### Development docker-compose.dev.yml
@@ -370,6 +330,9 @@ docker-compose restart
 # View logs
 docker-compose logs -f [service_name]
 
+# Check status
+docker-compose ps
+
 # Scale services (if needed)
 docker-compose up -d --scale telegram-bot=2
 ```
@@ -491,18 +454,6 @@ docker system df
 
 # Monitor container health
 docker-compose ps
-```
-
-### Log Aggregation
-
-```yaml
-services:
-  web-dashboard:
-    logging:
-      driver: syslog
-      options:
-        syslog-address: "tcp://log-server:514"
-        tag: "telegram-job-bot.web"
 ```
 
 ## 🔄 CI/CD Integration
@@ -665,6 +616,36 @@ Before production deployment:
 - [ ] Health checks implemented
 - [ ] Security scan completed
 - [ ] Documentation updated
+
+## 🏗️ Coolify-Specific Configuration
+
+### 1. Docker Compose Import
+
+Coolify can automatically detect and import the `docker-compose.yml` file:
+
+1. **Create New Project**
+2. **Choose "Docker Compose"**
+3. **Import from repository**
+4. **Select `docker-compose.yml`**
+5. **Configure environment variables**
+
+### 2. Service Configuration
+
+The unified Docker Compose configuration works perfectly with Coolify:
+
+- **Web Dashboard**: Port 8080 exposed
+- **Bot Service**: Background service
+- **Health Checks**: Built-in monitoring
+- **Resource Limits**: Configurable in Coolify
+
+### 3. Environment Variables
+
+Set all required environment variables in Coolify's project settings:
+
+- **Telegram Credentials**: API ID, Hash, Bot Token
+- **Authorization**: User IDs for access control
+- **LLM Configuration**: OpenRouter API key
+- **Google Sheets**: Credentials and spreadsheet ID
 
 ---
 

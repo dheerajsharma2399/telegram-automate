@@ -376,17 +376,22 @@ async def echo_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.exception(f"Error in echo_text_handler: {e}")
 
-# Bot setup with enhanced error handling
+# Global application instance for webhook handling
+application = None
+
 def setup_bot():
     """Set up the bot with proper error handling"""
+    global application
+    
     try:
-        # Check bot instance
+        # Check bot instance - skip lock check for webhook mode
         if not check_bot_instance():
             logger.error("Cannot start bot: Another instance is running")
             return None
             
         application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
+        # Add all handlers
         application.add_handler(MessageHandler(filters.ALL, log_all_messages), group=-1)
         application.add_handler(CommandHandler("start", start_command))
         application.add_handler(CommandHandler("stop", stop_command))
@@ -396,9 +401,7 @@ def setup_bot():
         application.add_handler(CommandHandler("export", export_command))
         application.add_handler(CommandHandler("generate_emails", generate_emails_command))
         application.add_handler(CommandHandler("sync_sheets", sync_sheets_command))
-        # Handle callback queries from inline keyboards
         application.add_handler(CallbackQueryHandler(callback_query_handler))
-        # Simple non-command text handler for diagnostics
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_text_handler))
 
         # Start the telegram monitor
@@ -409,7 +412,8 @@ def setup_bot():
             TELEGRAM_GROUP_USERNAMES,
             db
         )
-        # Start the Telegram monitor in a separate thread with its own event loop
+        
+        # Start the Telegram monitor in a separate thread
         import threading
         def _start_monitor_thread():
             try:
@@ -418,7 +422,7 @@ def setup_bot():
                 logger.exception(f"Monitor thread exited with error: {e}")
         threading.Thread(target=_start_monitor_thread, daemon=True).start()
 
-        # Background task: poll commands queued by the web dashboard
+        # Start command poller
         async def poll_commands():
             from asyncio import sleep
             while True:
@@ -486,34 +490,20 @@ def setup_bot():
                                 executed_ok = False
                                 result_text = str(e)
 
-                            # Mark executed in DB and optionally update result
+                            # Mark executed in DB
                             try:
                                 db.mark_command_executed(cmd['id'])
                                 if hasattr(db, 'update_command_result'):
                                     db.update_command_result(cmd['id'], 'done' if executed_ok else 'failed', result_text=result_text, executed_by=str(AUTHORIZED_USER_IDS[0]) if AUTHORIZED_USER_IDS else 'dashboard')
                             except Exception:
                                 logger.exception('Failed to mark command executed in DB')
-
-                            # Notify admin of result if ADMIN_USER_ID set
-                            try:
-                                if os.getenv('TELEGRAM_BOT_TOKEN') and os.getenv('ADMIN_USER_ID'):
-                                    note = f"Command executed: {cmd['command']} - {'OK' if executed_ok else 'FAILED'}"
-                                    if result_text:
-                                        note += f"\n{result_text}"
-                                    # best-effort notify via bot API
-                                    url = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage"
-                                    requests.post(url, json={"chat_id": os.getenv('ADMIN_USER_ID'), "text": note})
-                            except Exception:
-                                logger.exception('Failed to notify admin about command execution')
                     await sleep(2)
                 except Exception as e:
                     logger.error(f"Command poller error: {e}")
                     await sleep(5)
 
-        # Start command poller
+        # Start command poller thread
         try:
-            from types import SimpleNamespace
-            # Run poller in its own thread/event loop so it doesn't depend on Application loop
             def _start_poller_thread():
                 try:
                     asyncio.run(poll_commands())
@@ -523,11 +513,7 @@ def setup_bot():
         except Exception:
             logger.exception("Failed to start command poller")
 
-        # Start the job processing scheduler by running a dedicated thread that
-        # periodically calls the async `process_jobs` coroutine. We do this instead
-        # of using AsyncIOScheduler.start() here because that requires a running
-        # asyncio event loop in the current thread (which we don't have). The
-        # daemon thread will call `asyncio.run(...)` for each invocation.
+        # Start job processing scheduler
         def _scheduler_thread():
             import time
             logger.info("Job scheduler thread started")
@@ -536,7 +522,6 @@ def setup_bot():
                     asyncio.run(process_jobs(application))
                 except Exception as e:
                     logger.exception(f"Scheduler thread error when running process_jobs: {e}")
-                # sleep until next interval
                 time.sleep(max(1, PROCESSING_INTERVAL_MINUTES * 60))
 
         try:
@@ -552,35 +537,72 @@ def setup_bot():
         logger.error(f"Failed to setup bot: {e}")
         return None
 
-def main():
-    """Run the bot with enhanced error handling and conflict resolution."""
-    logger.info("Starting Telegram Job Bot...")
+def run_bot_polling():
+    """Run bot in polling mode (for local development)"""
+    logger.info("Starting bot in polling mode...")
     
-    # Setup bot
+    global application
     application = setup_bot()
     if not application:
         logger.error("Failed to setup bot. Exiting.")
-        sys.exit(1)
+        return False
     
     try:
-        # Run polling with enhanced error handling
         logger.info("Starting bot polling...")
         application.run_polling(
             drop_pending_updates=True,
             allowed_updates=['message', 'callback_query', 'edited_message'],
             timeout=10
         )
+        return True
     except KeyboardInterrupt:
         logger.info("Bot stopped by user.")
+        return True
     except Exception as e:
-        logger.error(f"Bot polling error: {e}")
+        if "409" in str(e) or "Conflict" in str(e):
+            logger.warning("Bot conflict detected, but continuing...")
+            return True
+        else:
+            logger.error(f"Bot polling error: {e}")
+            return False
     finally:
         logger.info("Cleaning up bot resources...")
         cleanup_bot_instance()
 
+def run_bot_webhook():
+    """Run bot in webhook mode (for production deployment)"""
+    logger.info("Bot configured for webhook mode - use web server to handle webhooks")
+    
+    global application
+    application = setup_bot()
+    if not application:
+        logger.error("Failed to setup bot. Exiting.")
+        return False
+    
+    # Webhook setup will be handled by web server
+    logger.info("Bot ready for webhook mode")
+    return True
+
+def main():
+    """Main entry point - determine run mode from environment"""
+    logger.info("Starting Telegram Job Bot...")
+    
+    # Determine run mode
+    run_mode = os.getenv('BOT_RUN_MODE', 'polling').lower()
+    
+    if run_mode == 'webhook':
+        return run_bot_webhook()
+    elif run_mode == 'polling':
+        return run_bot_polling()
+    else:
+        logger.error(f"Unknown bot run mode: {run_mode}. Use 'polling' or 'webhook'")
+        return False
+
 if __name__ == '__main__':
     try:
-        main()
+        success = main()
+        if not success:
+            sys.exit(1)
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot stopped.")
         cleanup_bot_instance()

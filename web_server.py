@@ -35,6 +35,33 @@ try:
 except Exception:
     sheets_sync = None
 
+# Bot application for webhook mode
+bot_application = None
+
+def setup_bot_webhook():
+    """Setup bot for webhook mode"""
+    global bot_application
+    try:
+        # Import the main module and setup bot
+        import main
+        bot_application = main.setup_bot()
+        if bot_application:
+            logging.info("Bot application loaded for webhook mode")
+            return True
+        else:
+            logging.error("Failed to setup bot application")
+            return False
+    except Exception as e:
+        logging.error(f"Failed to setup bot webhook: {e}")
+        return False
+
+# Initialize bot if webhook mode is enabled
+if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
+    try:
+        setup_bot_webhook()
+    except Exception as e:
+        logging.error(f"Bot webhook initialization failed: {e}")
+
 logging.basicConfig(level=logging.INFO)
 
 # --- Helper Functions ---
@@ -316,6 +343,88 @@ def api_jobs_stats():
         logging.error(f"Failed to fetch job stats: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+# --- Telegram Webhook Endpoint ---
+
+@app.route("/webhook", methods=["POST"])
+def telegram_webhook():
+    """Handle incoming Telegram webhook updates"""
+    try:
+        # Check if bot application is available
+        if not bot_application:
+            logging.error("Bot application not available for webhook")
+            return jsonify({"error": "Bot not initialized"}), 500
+        
+        # Get the update data
+        update_data = request.get_json(force=True)
+        if not update_data:
+            return jsonify({"error": "No update data"}), 400
+        
+        # Process the update asynchronously
+        from telegram import Update
+        update = Update.de_json(update_data, bot_application.bot)
+        
+        # Process the update
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            loop.run_until_complete(bot_application.process_update(update))
+            logging.info(f"Processed webhook update: {update.update_id}")
+            return jsonify({"status": "ok"})
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        logging.error(f"Error processing webhook: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/setup_webhook", methods=["POST"])
+def setup_webhook():
+    """Setup webhook URL for the bot"""
+    try:
+        if not bot_application:
+            return jsonify({"error": "Bot application not available"}), 500
+        
+        # Get webhook URL from request or environment
+        data = request.get_json(force=True) or {}
+        webhook_url = data.get('webhook_url')
+        
+        if not webhook_url:
+            # Construct webhook URL from service URL
+            service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
+            if service_url:
+                webhook_url = f"{service_url}/webhook"
+            else:
+                return jsonify({"error": "No webhook URL provided and unable to construct it"}), 400
+        
+        # Setup webhook
+        bot_application.bot.set_webhook(
+            url=webhook_url,
+            allowed_updates=['message', 'callback_query', 'edited_message']
+        )
+        
+        logging.info(f"Webhook set to: {webhook_url}")
+        return jsonify({"message": f"Webhook set to {webhook_url}"})
+        
+    except Exception as e:
+        logging.error(f"Failed to setup webhook: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/remove_webhook", methods=["POST"])
+def remove_webhook():
+    """Remove webhook and switch to polling"""
+    try:
+        if not bot_application:
+            return jsonify({"error": "Bot application not available"}), 500
+        
+        bot_application.bot.delete_webhook()
+        logging.info("Webhook removed")
+        return jsonify({"message": "Webhook removed successfully"})
+        
+    except Exception as e:
+        logging.error(f"Failed to remove webhook: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/generate_emails', methods=['POST'])
 def api_generate_emails():

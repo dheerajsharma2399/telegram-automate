@@ -1,0 +1,109 @@
+# Docker Compose configuration for Telegram Job Scraper Bot
+# Production-ready deployment with web dashboard and Telegram bot
+# Compatible with Coolify, Docker, and other platforms
+
+version: '3.8'
+
+services:
+  # Web Dashboard Service
+  web-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram-job-dashboard
+    ports:
+      - "8080:8080"
+    environment:
+      # Database Configuration
+      - DATABASE_PATH=/app/data/jobs.db
+      
+      # Flask Configuration
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - PORT=8080
+      
+      # Security Configuration
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-super-secret}
+      
+      # Telegram Configuration (for API calls)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ADMIN_USER_ID=${ADMIN_USER_ID}
+      
+      # LLM Configuration
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-4o-mini}
+      
+      # Google Sheets Configuration
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
+      - SPREADSHEET_ID=${SPREADSHEET_ID}
+      
+      # Telegram API Configuration
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+    volumes:
+      # Persistent data storage
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./user_profile.json:/app/user_profile.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - telegram-network
+
+  # Telegram Bot Service
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram-job-bot
+    environment:
+      # Database Configuration
+      - DATABASE_PATH=/app/data/jobs.db
+      
+      # Telegram API Configuration
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE=${TELEGRAM_PHONE}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_GROUP_USERNAME=${TELEGRAM_GROUP_USERNAME}
+      - TELEGRAM_GROUP_USERNAMES=${TELEGRAM_GROUP_USERNAMES}
+      
+      # Authorization
+      - AUTHORIZED_USER_IDS=${AUTHORIZED_USER_IDS}
+      - ADMIN_USER_ID=${ADMIN_USER_ID}
+      
+      # LLM Configuration
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-4o-mini}
+      
+      # Processing Configuration
+      - BATCH_SIZE=10
+      - PROCESSING_INTERVAL_MINUTES=5
+      - MAX_RETRIES=3
+      
+      # Google Sheets Configuration
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
+      - SPREADSHEET_ID=${SPREADSHEET_ID}
+    volumes:
+      # Persistent data storage
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./user_profile.json:/app/user_profile.json:ro
+    restart: unless-stopped
+    networks:
+      - telegram-network
+    depends_on:
+      - web-dashboard
+
+# Network configuration
+networks:
+  telegram-network:
+    driver: bridge
+    internal: false
