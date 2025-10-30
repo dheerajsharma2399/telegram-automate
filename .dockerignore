@@ -63,9 +63,14 @@ coverage.xml
 
 # Documentation
 docs/
+
+# Keep README.md but exclude other markdown files during build
+# (They can be included separately if needed)
+README.md
 *.md
-README*
-!README.md
+
+# Except keep essential files
+# !README.md - already included above
 
 # Development and debugging
 *.log
@@ -83,10 +88,12 @@ tmp/
 temp/
 
 # Docker files (prevent recursive docker builds)
-Dockerfile*
 docker-compose*.yaml
 docker-compose*.yml
 .dockerignore
+
+# Keep Dockerfile - it's needed for the build
+# Note: Dockerfile can be explicitly copied in build commands
 
 # Data files (these should be mounted as volumes)
 data/

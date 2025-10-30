@@ -1,41 +1,22 @@
-# Multi-stage Dockerfile for Telegram Bot Service
-FROM python:3.11-slim as builder
+# Telegram Bot Only - For Multi-Service Deployment
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Production stage
-FROM python:3.11-slim as runtime
-
-# Create app directory
-WORKDIR /app
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy installed packages from builder
-COPY --from=builder /root/.local /root/.local
-
-# Copy application code
+# Copy application files
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs
+# Create data directory
+RUN mkdir -p /app/data
 
-# Set environment variables
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONPATH=/app
+# Set environment variables for bot
+ENV CONTAINER_TYPE=bot
+ENV BOT_RUN_MODE=polling
+ENV FLASK_ENV=production
 
-# Run the Telegram bot service
+# Start command - Telegram bot only
 CMD ["python", "main.py"]

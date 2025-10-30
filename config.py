@@ -28,7 +28,9 @@ GOOGLE_CREDENTIALS_JSON = os.getenv('GOOGLE_CREDENTIALS_JSON')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 
 # Database Configuration
-DATABASE_PATH = 'jobs.db'
+DATABASE_TYPE = os.getenv('DATABASE_TYPE', 'sqlite')
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'jobs.db')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Processing Configuration
 BATCH_SIZE = 10
