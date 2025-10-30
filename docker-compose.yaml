@@ -13,13 +13,13 @@ services:
       - BOT_RUN_MODE=webhook
       
       # Web Server Configuration
-      - PORT=8888
+      - PORT=9000  # Changed from 8888 to avoid conflict with user's Telegram website
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       
-      # External Database Configuration
+      # External Database Configuration (will be set via environment variable)
       - DATABASE_TYPE=postgresql
-      - DATABASE_URL=postgresql://***REMOVED***@supabase-db:5432/postgres
+      # DATABASE_URL will be provided via environment variable (DATABASE_URL env var)
       
       # All other environment variables
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
@@ -40,7 +40,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     ports:
-      - "8888:8888"
+      - "9000:9000"  # Changed from 8888 to avoid conflict with user's Telegram website
     networks:
       - telegram_scraper_network
     deploy:
