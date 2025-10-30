@@ -1,6 +1,5 @@
-# Docker Compose configuration for Telegram Job Scraper Bot
-# Production-ready deployment with web dashboard and Telegram bot
-# Compatible with Coolify, Docker, and other platforms
+# Production-ready Docker Compose configuration for Telegram Job Scraper Bot
+# Supports web dashboard, Telegram bot, and complete monitoring setup
 
 version: '3.8'
 
@@ -10,10 +9,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
     container_name: telegram-job-dashboard
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
+      # Container type identification
+      - CONTAINER_TYPE=web
+      
       # Database Configuration
       - DATABASE_PATH=/app/data/jobs.db
       
@@ -23,7 +28,7 @@ services:
       - PORT=8080
       
       # Security Configuration
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-super-secret}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-super-secret-production-key}
       
       # Telegram Configuration (for API calls)
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
@@ -41,28 +46,53 @@ services:
       # Telegram API Configuration
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      
+      # Processing Configuration
+      - BATCH_SIZE=10
+      - PROCESSING_INTERVAL_MINUTES=5
+      - MAX_RETRIES=3
+      
+      # Python Environment
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
       # Persistent data storage
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - jobs_data:/app/data
+      - logs_data:/app/logs
+      - sessions_data:/app/sessions
       - ./user_profile.json:/app/user_profile.json:ro
-    restart: unless-stopped
+      - ./config.py:/app/config.py:ro
+    networks:
+      - telegram-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    networks:
-      - telegram-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 
   # Telegram Bot Service
   telegram-bot:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
     container_name: telegram-job-bot
+    restart: unless-stopped
     environment:
+      # Container type identification
+      - CONTAINER_TYPE=bot
+      - SKIP_DB_WAIT=true
+      
       # Database Configuration
       - DATABASE_PATH=/app/data/jobs.db
       
@@ -91,19 +121,136 @@ services:
       # Google Sheets Configuration
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
       - SPREADSHEET_ID=${SPREADSHEET_ID}
+      
+      # Bot Configuration
+      - BOT_RUN_MODE=polling
+      
+      # Python Environment
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
       # Persistent data storage
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - jobs_data:/app/data
+      - logs_data:/app/logs
+      - sessions_data:/app/sessions
       - ./user_profile.json:/app/user_profile.json:ro
+      - ./config.py:/app/config.py:ro
+    networks:
+      - telegram-network
+    depends_on:
+      web-dashboard:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Monitoring Service (optional)
+  job-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: telegram-job-monitor
     restart: unless-stopped
+    environment:
+      # Container type identification
+      - CONTAINER_TYPE=monitor
+      - SKIP_DB_WAIT=true
+      
+      # Database Configuration
+      - DATABASE_PATH=/app/data/jobs.db
+      
+      # Telegram API Configuration
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE=${TELEGRAM_PHONE}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_GROUP_USERNAMES=${TELEGRAM_GROUP_USERNAMES}
+      
+      # LLM Configuration
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      
+      # Processing Configuration
+      - BATCH_SIZE=20
+      - PROCESSING_INTERVAL_MINUTES=3
+      
+      # Python Environment
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      # Persistent data storage
+      - jobs_data:/app/data
+      - logs_data:/app/logs
+      - sessions_data:/app/sessions
+      - ./user_profile.json:/app/user_profile.json:ro
+      - ./config.py:/app/config.py:ro
+    networks:
+      - telegram-network
+    depends_on:
+      web-dashboard:
+        condition: service_healthy
+    profiles:
+      - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Nginx Reverse Proxy (optional for production)
+  nginx:
+    image: nginx:alpine
+    container_name: telegram-job-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - logs_data:/var/log/nginx
     networks:
       - telegram-network
     depends_on:
       - web-dashboard
+    profiles:
+      - production
+
+# Named volumes for persistent data
+volumes:
+  jobs_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  
+  logs_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  
+  sessions_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./sessions
 
 # Network configuration
 networks:
   telegram-network:
     driver: bridge
-    internal: false
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.driver.mtu: "1500"

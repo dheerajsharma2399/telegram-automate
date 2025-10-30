@@ -47,13 +47,13 @@ class GoogleSheetsSync:
             self.sheet_email_exp = self._get_or_create_worksheet(spreadsheet, "email-exp")    # Irrelevant jobs with email
             self.sheet_other_exp = self._get_or_create_worksheet(spreadsheet, "non-email-exp")  # Irrelevant jobs with link/phone
             
-            print(f"✓ Google Sheets connected: {spreadsheet.url}")
+            print("Google Sheets connected: " + spreadsheet.url)
             
         except gspread.exceptions.SpreadsheetNotFound:
-            print(f"✗ Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
+            print("Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
             self.client = None
         except Exception as e:
-            print(f"✗ Google Sheets setup failed: {str(e)}")
+            print("Google Sheets setup failed: " + str(e))
             self.client = None
     
     def _get_or_create_worksheet(self, spreadsheet, sheet_name: str):
@@ -138,5 +138,5 @@ class GoogleSheetsSync:
             return True
             
         except Exception as e:
-            print(f"  ✗ Google Sheets sync error: {str(e)}")
+            print("  Google Sheets sync error: " + str(e))
             return False

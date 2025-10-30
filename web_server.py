@@ -19,6 +19,7 @@ from sheets_sync import GoogleSheetsSync
 from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID
 
 app = Flask(__name__)
+application = app  # Gunicorn expects 'application'
 db = Database(os.getenv("DATABASE_PATH", "jobs.db"))
 
 # LLM processor and sheets sync available to web endpoints (optional)
@@ -689,4 +690,12 @@ def telegram_signin():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    # Create Flask application instance for Gunicorn
+    application = app
+    
+    # Development server (if running directly)
+    if os.getenv('FLASK_ENV', 'production') == 'development':
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
+    else:
+        # Production server warning removed - using Gunicorn
+        pass
