@@ -564,10 +564,10 @@ def api_sheets_generate_email_bodies():
 def _signal_handler(signum, frame):
     """On SIGTERM/SIGINT, attempt graceful shutdown by calling the shutdown endpoint."""
     try:
-        # Determine the port the app is likely running on. The app.run() uses PORT env or 8080 by default.
+        # Determine the port the app is likely running on. The app.run() uses PORT env or 8888 by default.
         port = os.environ.get('PORT') or os.environ.get('FLASK_RUN_PORT') or os.environ.get('PORT', None)
         if not port:
-            port = '8080'
+            port = '8888'
         url = f"http://127.0.0.1:{port}/_shutdown"
         payload = {'token': ADMIN_USER_ID}
         try:
@@ -721,7 +721,7 @@ if __name__ == "__main__":
     
     # Development server (if running directly)
     if os.getenv('FLASK_ENV', 'production') == 'development':
-        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
+        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8888)), debug=True)
     else:
         # Production server warning removed - using Gunicorn
         pass

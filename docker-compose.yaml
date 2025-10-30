@@ -64,13 +64,13 @@ services:
       # Flask Configuration (for web service)
       - FLASK_ENV=production
       - FLASK_DEBUG=0
-      - PORT=8080
+      - PORT=8888
       
       # Python Environment
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     ports:
-      - "8080:8080"
+      - "8888:8888"
     volumes:
       - ./data:/app
     working_dir: /tmp
