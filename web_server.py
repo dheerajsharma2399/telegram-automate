@@ -720,24 +720,39 @@ if __name__ == "__main__":
     # Create Flask application instance for Gunicorn
     application = app
     
-    # Development server (if running directly)
-    if os.getenv('FLASK_ENV', 'production') == 'development':
+    # Get port from environment
+    port = int(os.environ.get("PORT", 8888))
+    
+    # Start the web server (always run, whether dev or production)
+    try:
+        logging.info(f"Starting web server on port {port}...")
+        logging.info(f"Environment: {os.environ.get('FLASK_ENV', 'production')}")
+        logging.info(f"Service Type: {os.environ.get('CONTAINER_TYPE', 'web')}")
+        
         # Setup SSL context for HTTPS if enabled
         ssl_context = None
         if os.getenv('HTTPS_ENABLED', 'false').lower() == 'true':
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ssl_context.load_cert_chain(
-                os.getenv('SSL_CERT_PATH', '/etc/ssl/certs/telegram-bot.crt'),
-                os.getenv('SSL_KEY_PATH', '/etc/ssl/private/telegram-bot.key')
-            )
-            logging.info("HTTPS enabled - SSL context loaded")
+            try:
+                ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ssl_context.load_cert_chain(
+                    os.getenv('SSL_CERT_PATH', '/etc/ssl/certs/telegram-bot.crt'),
+                    os.getenv('SSL_KEY_PATH', '/etc/ssl/private/telegram-bot.key')
+                )
+                logging.info("HTTPS enabled - SSL context loaded")
+            except Exception as e:
+                logging.warning(f"Failed to setup SSL context: {e}")
+                ssl_context = None
+        
+        logging.info(f"Access URL: http://localhost:{port}")
+        logging.info(f"Health Check: http://localhost:{port}/health")
+        logging.info(f"API Status: http://localhost:{port}/api/status")
         
         app.run(
             host="0.0.0.0", 
-            port=int(os.environ.get("PORT", 8888)), 
-            debug=True,
+            port=port, 
+            debug=os.getenv('FLASK_ENV', 'production') == 'development',
             ssl_context=ssl_context
         )
-    else:
-        # Production server warning removed - using Gunicorn
-        pass
+    except Exception as e:
+        logging.error(f"Failed to start web server: {e}")
+        raise

@@ -104,7 +104,6 @@ simple_headers_append.py
 
 # Docker files (exclude for GitHub - keep Dockerfile and compose in main code)
 # ===========================================================================
-Dockerfile*
 docker-compose*.yml
 .dockerignore
 

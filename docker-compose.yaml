@@ -8,23 +8,7 @@ services:
     image: python:3.11-slim
     container_name: telegram-job-bot
     restart: unless-stopped
-    command: >
-      bash -c "
-        pip install --no-cache-dir -r https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/requirements.txt &&
-        cd /tmp &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/main.py &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/web_server.py &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/config.py &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/database.py &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/llm_processor.py &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/sheets_sync.py &&
-        wget -q https://raw.githubusercontent.com/dheerajsharma2399/telegram-automate/main/monitor.py &&
-        if [ '$CONTAINER_TYPE' = 'web' ]; then
-          echo 'Starting web dashboard...' && python web_server.py
-        else
-          echo 'Starting Telegram bot...' && python main.py
-        fi
-      "
+    command: python web_server.py
     environment:
       # Container type identification
       - CONTAINER_TYPE=${CONTAINER_TYPE:-bot}
