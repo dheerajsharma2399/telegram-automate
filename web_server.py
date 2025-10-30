@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import ssl
 from flask import Flask, render_template, jsonify, request
 import requests
 from database import Database
@@ -721,7 +722,22 @@ if __name__ == "__main__":
     
     # Development server (if running directly)
     if os.getenv('FLASK_ENV', 'production') == 'development':
-        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8888)), debug=True)
+        # Setup SSL context for HTTPS if enabled
+        ssl_context = None
+        if os.getenv('HTTPS_ENABLED', 'false').lower() == 'true':
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_context.load_cert_chain(
+                os.getenv('SSL_CERT_PATH', '/etc/ssl/certs/telegram-bot.crt'),
+                os.getenv('SSL_KEY_PATH', '/etc/ssl/private/telegram-bot.key')
+            )
+            logging.info("HTTPS enabled - SSL context loaded")
+        
+        app.run(
+            host="0.0.0.0", 
+            port=int(os.environ.get("PORT", 8888)), 
+            debug=True,
+            ssl_context=ssl_context
+        )
     else:
         # Production server warning removed - using Gunicorn
         pass
