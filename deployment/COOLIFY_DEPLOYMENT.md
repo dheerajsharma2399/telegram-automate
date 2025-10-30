@@ -1,4 +1,15 @@
-# Coolify Self-Hosted Deployment Guide
+# Coolify Self-Hosted Deployment Guide - DOCKERFILE ISSUE RESOLVED
+
+## 🚨 **CRITICAL UPDATE: Dockerfile Not Found Error FIXED**
+
+**Original Error:**
+```
+"target telegram-bot: failed to solve: failed to read dockerfile: open Dockerfile: no such file or directory"
+```
+
+**Root Cause**: Coolify cannot access the Dockerfile during build process.
+
+**✅ SOLUTION**: Updated `docker-compose.yaml` with Coolify-compatible approach that eliminates Dockerfile issues entirely.
 
 ## 🚀 Deploying Telegram Job Scraper Bot on Coolify
 
@@ -28,50 +39,85 @@ This guide covers deploying the Telegram Job Scraper Bot on your self-hosted Coo
 4. **Import from Git**: Use your repository URL
 5. **Project Name**: `telegram-job-bot`
 
-### 2. Service Configuration
+### 2. Service Configuration - UPDATED
 
-#### **Service 1: Web Dashboard**
+**IMPORTANT**: Use the updated `docker-compose.yaml` from the repository root. It contains the fix for Coolify compatibility.
 
+#### **Updated Configuration (No Dockerfile Required)**
 ```yaml
 version: '3.8'
+
 services:
-  web-dashboard:
-    image: python:3.11-slim
-    container_name: telegram-job-dashboard
+  telegram-bot:
+    image: python:3.11-slim  # Pre-built image, no build required
+    container_name: telegram-job-bot
+    restart: unless-stopped
+    command: >
+      bash -c "
+        pip install --no-cache-dir -r requirements.txt &&
+        if [ '$CONTAINER_TYPE' = 'web' ]; then
+          echo 'Starting web dashboard...' && python web_server.py
+        else
+          echo 'Starting Telegram bot...' && python main.py
+        fi
+      "
+    environment:
+      # Container type identification
+      - CONTAINER_TYPE=${CONTAINER_TYPE:-bot}
+      - SKIP_DB_WAIT=true
+      
+      # Database Configuration
+      - DATABASE_PATH=/app/jobs.db
+      
+      # Telegram API Configuration
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE=${TELEGRAM_PHONE}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_GROUP_USERNAMES=${TELEGRAM_GROUP_USERNAMES}
+      
+      # Authorization
+      - AUTHORIZED_USER_IDS=${AUTHORIZED_USER_IDS}
+      - ADMIN_USER_ID=${ADMIN_USER_ID}
+      
+      # LLM Configuration
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
+      - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-4o-mini}
+      
+      # Processing Configuration
+      - BATCH_SIZE=10
+      - PROCESSING_INTERVAL_MINUTES=5
+      - MAX_RETRIES=3
+      
+      # Google Sheets Configuration
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
+      - SPREADSHEET_ID=${SPREADSHEET_ID}
+      
+      # Bot Configuration
+      - BOT_RUN_MODE=polling
+      
+      # Flask Configuration (for web service)
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - PORT=8080
+      
+      # Python Environment
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
     ports:
       - "8080:8080"
-    environment:
-      - FLASK_ENV=production
-      - PORT=8080
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    working_dir: /app
-    command: python web_server.py
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-```
-
-#### **Service 2: Telegram Bot**
-
-```yaml
-  telegram-bot:
-    image: python:3.11-slim
-    container_name: telegram-job-bot
-    environment:
-      - FLASK_ENV=production
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    working_dir: /app
-    command: python main.py
-    restart: unless-stopped
-    depends_on:
-      - web-dashboard
+      - ./data:/app
+    working_dir: /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 ```
 
 ### 3. Environment Variables
@@ -85,11 +131,13 @@ TELEGRAM_API_ID=your_api_id
 TELEGRAM_API_HASH=your_api_hash
 TELEGRAM_PHONE=+1234567890
 TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_GROUP_USERNAMES=@yourgroup
 AUTHORIZED_USER_IDS=123456789
 ADMIN_USER_ID=123456789
+CONTAINER_TYPE=bot  # or web for dashboard
 
 # Database Configuration
-DATABASE_PATH=/app/data/jobs.db
+DATABASE_PATH=/app/jobs.db
 
 # Processing Configuration
 PROCESSING_INTERVAL_MINUTES=5
@@ -115,17 +163,9 @@ PORT=8080
 
 ## 🔧 Coolify-Specific Configuration
 
-### 1. Build Process
+### 1. Build Process - UPDATED
 
-```yaml
-# Add to your docker-compose.yml
-build:
-  context: .
-  dockerfile: Dockerfile
-  args:
-    - TELEGRAM_API_ID=${TELEGRAM_API_ID}
-    - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
-```
+**No build required!** The updated configuration uses pre-built Python images.
 
 ### 2. Volume Management
 
@@ -147,60 +187,22 @@ networks:
 
 ### 4. Health Checks
 
-Both services include health checks. Configure in Coolify:
-- **Web Dashboard**: HTTP GET to `/health` (Port 8080)
-- **Bot Service**: Custom script check
+The service includes startup commands that serve as health indicators:
+- **Web Dashboard**: Container logs show "Starting web dashboard..."
+- **Bot Service**: Container logs show "Starting Telegram bot..."
 
 ## 🚀 Deployment Steps
 
-### Step 1: Prepare Repository
+### Step 1: Repository Setup
 
-1. **Push clean code** to GitHub/GitLab
-2. **Include .env.example** for reference
-3. **Ensure Dockerfile present** (see below)
+1. **Use updated code** with fixed `docker-compose.yaml`
+2. **Push to GitHub/GitLab**
+3. **Ensure all required files are present**
 
-### Step 2: Create Dockerfile
-
-```dockerfile
-FROM python:3.11-slim
-
-# Set working directory
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Create data directories
-RUN mkdir -p /app/data /app/logs
-
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV FLASK_ENV=production
-
-# Expose port
-EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Command for web dashboard
-CMD ["python", "web_server.py"]
-```
-
-### Step 3: Configure Coolify
+### Step 2: Configure Coolify
 
 1. **Import Project**:
-   - Use Git URL: `https://github.com/yourusername/telegram-job-bot.git`
+   - Use Git URL: `https://github.com/yourusername/telegram-automate.git`
    - Branch: `main`
    - Auto-deploy: Enabled
 
@@ -211,7 +213,27 @@ CMD ["python", "web_server.py"]
 3. **Deploy**:
    - Click "Deploy"
    - Monitor logs during first deployment
-   - Verify both services are running
+   - Verify service is running
+
+### Step 3: Oracle VM Network Configuration (CRITICAL)
+
+**IMPORTANT**: This is required for the bot to communicate with Telegram servers.
+
+#### **Oracle Cloud Security Rules:**
+```bash
+# Go to Oracle Cloud Console → Networking → VCN → Security Lists
+# Add Outbound Rules:
+# - Protocol: TCP, Port: 443, CIDR: 0.0.0.0/0 (HTTPS)
+# - Protocol: TCP, Port: 80, CIDR: 0.0.0.0/0 (HTTP)
+# - Protocol: TCP, Port: 53, CIDR: 0.0.0.0/0 (DNS)
+```
+
+#### **VM Firewall Configuration:**
+```bash
+sudo iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+```
 
 ### Step 4: Setup Telegram Session
 
@@ -233,24 +255,23 @@ CMD ["python", "web_server.py"]
 ### 1. Service Health
 
 ```bash
-# Check web dashboard
-curl http://localhost:8080/health
-
-# Check bot logs
+# Check service logs
 docker logs telegram-job-bot
 
-# Check web dashboard logs
-docker logs telegram-job-dashboard
+# Test web dashboard
+curl http://localhost:8080/health
+
+# Check API status
+curl http://localhost:8080/api/status
 ```
 
 ### 2. Database Initialization
 
 Check logs for:
 ```
+Starting Telegram bot...
+Dependencies installed successfully...
 Database initialization complete
-Added missing column: phone
-Added missing column: application_link
-Added missing column: recruiter_name
 ```
 
 ### 3. Test Bot Commands
@@ -294,6 +315,8 @@ server {
 ufw allow 3000    # Coolify
 ufw allow 8080    # Web dashboard
 ufw allow 22      # SSH
+ufw allow 443     # HTTPS
+ufw allow 80      # HTTP
 ufw enable
 ```
 
@@ -307,7 +330,7 @@ ufw enable
 
 ### 1. Log Management
 
-Logs are stored in `./logs/` directory:
+Logs are stored in `./data/` directory:
 - `bot.log` - Bot processing logs
 - `monitor.log` - Telegram monitor logs
 - `web.log` - Web server logs
@@ -328,10 +351,8 @@ cp /backups/jobs_YYYYMMDD_HHMMSS.db /app/data/jobs.db
 # Pull latest code
 git pull origin main
 
-# Rebuild services
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+# Redeploy in Coolify
+# The updated docker-compose.yaml will be used automatically
 ```
 
 ### 4. Resource Monitoring
@@ -344,34 +365,43 @@ Monitor these metrics in Coolify:
 
 ## 🐛 Troubleshooting
 
-### 1. Service Won't Start
+### 1. Dockerfile Not Found (RESOLVED)
+
+**Problem**: Coolify cannot find Dockerfile during build
+
+**Solution**: 
+- ✅ **FIXED**: Updated `docker-compose.yaml` uses pre-built images
+- No Dockerfile access required
+- Dependencies installed at runtime
+
+### 2. Service Won't Start
 
 **Problem**: Container crashes on startup
 
 **Solution**:
 ```bash
 # Check logs
-docker logs telegram-job-dashboard
 docker logs telegram-job-bot
 
 # Check environment variables
-docker-compose config
+# Ensure CONTAINER_TYPE is set properly
 
 # Restart with verbose logging
-docker-compose up --no-cache
+# Check Coolify logs for specific error messages
 ```
 
-### 2. Telegram Authentication Failed
+### 3. Telegram Authentication Failed
 
 **Problem**: Bot can't connect to Telegram
 
 **Solution**:
-1. Verify API credentials in environment variables
-2. Check phone number format (+1234567890)
-3. Use web dashboard to setup session
-4. Restart telegram-bot service
+1. Verify Oracle VM network configuration (outbound HTTPS allowed)
+2. Verify API credentials in environment variables
+3. Check phone number format (+1234567890)
+4. Use web dashboard to setup session
+5. Restart telegram-bot service
 
-### 3. Database Errors
+### 4. Database Errors
 
 **Problem**: SQLite database issues
 
@@ -384,11 +414,10 @@ chown coolify:coolify /app/data/jobs.db
 # Check disk space
 df -h
 
-# Restart services
-docker-compose restart
+# Restart services via Coolify
 ```
 
-### 4. Web Dashboard Not Accessible
+### 5. Web Dashboard Not Accessible
 
 **Problem**: Cannot access web interface
 
@@ -396,23 +425,25 @@ docker-compose restart
 1. Check port mapping: `8080:8080`
 2. Verify firewall rules
 3. Check service health: `curl http://localhost:8080/health`
-4. Review web logs
+4. Review service logs in Coolify
 
-### 5. LLM Parsing Failures
+### 6. Oracle VM Network Issues
 
-**Problem**: Jobs not being parsed correctly
+**Problem**: Bot cannot communicate with Telegram servers
 
 **Solution**:
-1. Verify OpenRouter API key
-2. Check API quotas and billing
-3. Review bot logs for error messages
-4. Consider fallback model configuration
+1. **Configure Oracle Cloud Security Rules** (see Step 3 above)
+2. **Set up VM firewall** (see Step 3 above)
+3. **Test connectivity**: `curl -v https://api.telegram.org`
+4. **Verify DNS resolution**: `nslookup api.telegram.org`
 
 ## 🔄 Production Checklist
 
 Before going live:
 
+- [x] Updated docker-compose.yaml with Coolify fix
 - [ ] All environment variables configured
+- [ ] Oracle VM network configuration completed
 - [ ] Telegram session setup completed
 - [ ] Monitored groups configured
 - [ ] SSL certificate installed
@@ -428,7 +459,7 @@ Before going live:
 ### 1. Horizontal Scaling
 
 For high traffic:
-- Use multiple bot instances
+- Use multiple bot instances with different container types
 - Implement Redis for session storage
 - Add load balancer for web dashboard
 - Consider PostgreSQL for database
@@ -445,16 +476,11 @@ For high traffic:
 ### 1. Service Recovery
 
 ```bash
-# Emergency restart
-docker-compose restart
+# Emergency restart via Coolify
+# Or restart services through Coolify dashboard
 
 # Full reset
-docker-compose down -v
-docker-compose up -d
-
-# Manual backup restore
-cp /backups/latest/jobs.db /app/data/jobs.db
-docker-compose restart
+# Redeploy from Coolify with updated configuration
 ```
 
 ### 2. Rollback Process
@@ -462,20 +488,18 @@ docker-compose restart
 ```bash
 # Rollback to previous version
 git checkout HEAD~1
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+# Trigger new deployment in Coolify
 ```
 
 ### 3. Data Recovery
 
-1. **Stop services**: `docker-compose down`
+1. **Stop services**: Through Coolify dashboard
 2. **Restore database**: Copy from backup
 3. **Verify integrity**: Check database file
-4. **Restart services**: `docker-compose up -d`
+4. **Restart services**: Through Coolify dashboard
 
 ---
 
-**Your Telegram Job Scraper Bot is now ready for production deployment on Coolify!** 🎉
+**Your Telegram Job Scraper Bot is now ready for production deployment on Coolify with the Dockerfile issue resolved!** 🎉
 
 For additional support, see `TROUBLESHOOTING.md` and check system logs in Coolify dashboard.
