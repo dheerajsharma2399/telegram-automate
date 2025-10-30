@@ -46,53 +46,68 @@ class TelegramMonitor:
         logging.info("Starting Telegram monitor loop...")
         
         while True:
-            session_string = self.db.get_config('telegram_session')
-            if session_string:
-                if not self.client or not self.client.is_connected():
-                    logging.info("Session found, initializing and connecting client...")
-                    self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
-                    try:
-                        await self.client.connect()
-                        if not await self.client.is_user_authorized():
-                            logging.warning("Session is invalid or expired. Clearing from DB.")
-                            self.db.set_config('telegram_session', '')
-                            await self.client.disconnect()
+            try:
+                session_string = self.db.get_telegram_session()
+                
+                if session_string:
+                    logging.info("Restoring Telegram session from database...")
+                    if not self.client or not self.client.is_connected():
+                        self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
+                        try:
+                            await self.client.connect()
+                            if not await self.client.is_user_authorized():
+                                logging.warning("Stored session is invalid or expired. Clearing from database.")
+                                self.db.set_telegram_session('')
+                                self.db.set_telegram_login_status('session_expired')
+                                await self.client.disconnect()
+                                self.client = None
+                                await asyncio.sleep(30)
+                                continue
+                            
+                            # Update login status to connected
+                            self.db.set_telegram_login_status('connected')
+                            logging.info("Successfully restored Telegram session and connected.")
+                            
+                        except Exception as e:
+                            logging.error(f"Failed to connect with stored session: {e}")
+                            self.db.set_telegram_session('')
+                            self.db.set_telegram_login_status('connection_failed')
                             self.client = None
-                            continue # Restart the loop
-                    except Exception as e:
-                        logging.error(f"Failed to connect with stored session: {e}")
-                        self.db.set_config('telegram_session', '') # Clear potentially corrupt session
-                        self.client = None
-                        await asyncio.sleep(30)
-                        continue
+                            await asyncio.sleep(30)
+                            continue
 
-                logging.info("Client connected and authorized. Setting up message handlers.")
-                try:
-                    await self._ensure_handler_registered()
-
-                    async def _refresh_loop():
-                        while True:
-                            try:
-                                await asyncio.sleep(60)
-                                await self._ensure_handler_registered()
-                            except asyncio.CancelledError:
-                                break
-                            except Exception as e:
-                                logging.error(f"Error in monitor refresh loop: {e}")
-
-                    refresher = asyncio.create_task(_refresh_loop())
+                    logging.info("Client connected and authorized. Setting up message handlers.")
                     try:
-                        await self.client.run_until_disconnected()
-                        logging.info("Client disconnected. Will attempt to reconnect.")
+                        await self._ensure_handler_registered()
+
+                        async def _refresh_loop():
+                            while True:
+                                try:
+                                    await asyncio.sleep(60)
+                                    await self._ensure_handler_registered()
+                                except asyncio.CancelledError:
+                                    break
+                                except Exception as e:
+                                    logging.error(f"Error in monitor refresh loop: {e}")
+
+                        refresher = asyncio.create_task(_refresh_loop())
+                        try:
+                            await self.client.run_until_disconnected()
+                            logging.info("Client disconnected. Will attempt to reconnect.")
+                        finally:
+                            refresher.cancel()
+                    except Exception as e:
+                        logging.error(f"Error during monitor execution: {e}")
                     finally:
-                        refresher.cancel()
-                except Exception as e:
-                    logging.error(f"Error during monitor execution: {e}")
-                finally:
-                    await self.stop()
-            else:
-                logging.info("No active Telegram session found. Waiting for setup via web UI.")
-                await asyncio.sleep(30) # Wait before checking for a session again
+                        await self.stop()
+                else:
+                    logging.info("No active Telegram session found in database. Waiting for setup via web UI.")
+                    self.db.set_telegram_login_status('not_authenticated')
+                    await asyncio.sleep(30) # Wait before checking for a session again
+                    
+            except Exception as e:
+                logging.error(f"Error in monitor start loop: {e}")
+                await asyncio.sleep(30)
 
     async def stop(self):
         """Stops the Telegram client."""
@@ -157,6 +172,30 @@ class TelegramMonitor:
         self._handler_registered = True
         self._last_groups = cleaned
         logging.info(f"Message handler registered for {len(entities)} groups.")
+    
+    async def save_session_to_db(self):
+        """Save current session string to database"""
+        try:
+            if self.client and self.client.is_connected():
+                session_string = self.client.session.save()
+                self.db.set_telegram_session(session_string)
+                self.db.set_telegram_login_status('connected')
+                logging.info("Telegram session saved to database")
+                return True
+        except Exception as e:
+            logging.error(f"Failed to save Telegram session to database: {e}")
+        return False
+    
+    async def clear_session_from_db(self):
+        """Clear session from database"""
+        try:
+            self.db.set_telegram_session('')
+            self.db.set_telegram_login_status('not_authenticated')
+            logging.info("Telegram session cleared from database")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to clear Telegram session from database: {e}")
+            return False
 
 if __name__ == "__main__":
     db = Database("jobs.db")

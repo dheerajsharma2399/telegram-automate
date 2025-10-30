@@ -151,6 +151,8 @@ def api_status():
             "monitoring_status": db.get_config("monitoring_status"),
             "unprocessed_count": db.get_unprocessed_count(),
             "jobs_today": db.get_jobs_today_stats(),
+            "telegram_status": db.get_telegram_login_status(),
+            "telegram_session_exists": bool(db.get_telegram_session()),
         }
         return jsonify(status)
     except Exception as e:
@@ -464,13 +466,13 @@ def api_generate_emails():
 
         # Case 1: Direct generation (standalone mode)
         if llm_processor and run_now:
-            # Direct email generation for all jobs without email_body
-            jobs_without_emails = db.get_jobs_without_email_body()
-            if not jobs_without_emails:
-                return jsonify({"message": "No jobs found without email bodies.", "generated": 0})
+            # FIXED: Direct email generation ONLY for email sheet jobs without email_body
+            email_jobs_without_emails = db.get_email_jobs_needing_generation()
+            if not email_jobs_without_emails:
+                return jsonify({"message": "No jobs found in the 'email' sheet that need email body generation.", "generated": 0})
             
             generated = 0
-            for job in jobs_without_emails:
+            for job in email_jobs_without_emails:
                 try:
                     # Use enhanced email generation with job-specific content
                     email_body = llm_processor.generate_email_body(job, job.get('jd_text', ''))
@@ -481,7 +483,7 @@ def api_generate_emails():
                     logging.error(f"Failed to generate email for job {job.get('job_id')}: {e}")
             
             return jsonify({
-                "message": f"Generated {generated} enhanced email bodies.",
+                "message": f"Generated {generated} email bodies for 'email' sheet jobs.",
                 "generated": generated,
                 "mode": "direct_generation"
             })
@@ -678,7 +680,8 @@ def telegram_signin():
 
 
         session_string = client.session.save()
-        db.set_config("telegram_session", session_string)
+        db.set_telegram_session(session_string)
+        db.set_telegram_login_status('connected')
 
         # Clean up
         del telegram_clients[phone]
@@ -686,6 +689,29 @@ def telegram_signin():
         session.pop("phone_code_hash", None)
 
         return jsonify({"message": "Successfully signed in! The application is now configured."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/telegram/clear_session", methods=["POST"])
+def api_clear_telegram_session():
+    """Clear Telegram session from database"""
+    try:
+        db.set_telegram_session('')
+        db.set_telegram_login_status('not_authenticated')
+        return jsonify({"message": "Telegram session cleared successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/telegram/status")
+def api_telegram_status():
+    """Get detailed Telegram connection status"""
+    try:
+        status = {
+            "login_status": db.get_telegram_login_status(),
+            "session_exists": bool(db.get_telegram_session()),
+            "authorized": db.get_telegram_login_status() == 'connected'
+        }
+        return jsonify(status)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

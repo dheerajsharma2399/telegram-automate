@@ -262,7 +262,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Failed to export CSV: {e}")
 
 async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /sync_sheets command"""
+    """Handle /sync_sheets command with enhanced logging and debugging"""
     if not is_authorized(update.effective_user.id):
         await update.message.reply_text("❌ Unauthorized access.")
         return
@@ -279,13 +279,44 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("No jobs to sync. All jobs are already synced with Google Sheets.")
             return
 
+        logger.info(f"Starting sync for {len(unsynced_jobs)} unsynced jobs")
+        await update.message.reply_text(f"📊 Found {len(unsynced_jobs)} jobs to sync. Starting process...")
+
         synced_count = 0
-        for job in unsynced_jobs:
-            if sheets_sync.sync_job(job):
-                db.mark_job_synced(job['job_id'])
-                synced_count += 1
+        failed_count = 0
         
-        await update.message.reply_text(f"✅ Synced {synced_count} jobs to Google Sheets.")
+        for i, job in enumerate(unsynced_jobs, 1):
+            job_id = job.get('job_id', f'job_{i}')
+            company = job.get('company_name', 'Unknown Company')
+            role = job.get('job_role', 'Unknown Role')
+            
+            try:
+                logger.info(f"Syncing job {i}/{len(unsynced_jobs)}: {job_id}")
+                await update.message.reply_text(f"🔄 Syncing job {i}/{len(unsynced_jobs)}: {company} - {role}")
+                
+                if sheets_sync.sync_job(job):
+                    db.mark_job_synced(job_id)
+                    synced_count += 1
+                    logger.info(f"Successfully synced job {job_id}")
+                else:
+                    failed_count += 1
+                    logger.warning(f"Failed to sync job {job_id}")
+                    
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"Error syncing job {job_id}: {e}")
+                await update.message.reply_text(f"❌ Failed to sync job {i}: {company} - {e}")
+        
+        # Final status message
+        if synced_count > 0:
+            await update.message.reply_text(
+                f"✅ Sync completed!\n\n"
+                f"📊 Results:\n"
+                f"✅ Synced: {synced_count} jobs\n"
+                f"{f'❌ Failed: {failed_count} jobs' if failed_count > 0 else '🎉 All jobs synced successfully'}"
+            )
+        else:
+            await update.message.reply_text(f"❌ No jobs were synced successfully. Please check the logs for details.")
 
     except Exception as e:
         logger.error(f"Failed to sync with Google Sheets: {e}")
@@ -307,20 +338,21 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
     await update.message.reply_text("🧠 Generating email bodies... this may take a moment.")
 
     try:
-        # Fetch jobs to generate for: jobs without email body or specified
+        # Fetch jobs to generate for: ONLY email sheet jobs without email body or specified
         jobs = []
         if target_ids:
-            # query the DB for these job_ids
+            # query the DB for these job_ids (only jobs with email for email sheet)
             with db.get_connection() as conn:
                 cur = conn.cursor()
-                q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['?']*len(target_ids))})"
+                q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['?']*len(target_ids))}) AND email IS NOT NULL AND email != ''"
                 cur.execute(q, target_ids)
                 jobs = [dict(r) for r in cur.fetchall()]
         else:
-            jobs = db.get_jobs_without_email_body()
+            # Only get email sheet jobs that need email generation
+            jobs = db.get_email_jobs_needing_generation()
 
         if not jobs:
-            await update.message.reply_text("No jobs found to generate emails for.")
+            await update.message.reply_text("No jobs found in the 'email' sheet that need email body generation.")
             return
 
         generated = 0

@@ -142,21 +142,39 @@
             <!-- Setup -->
             <div class="tab-pane fade" id="setup" role="tabpanel">
                 <div class="py-4">
-                    <h4>Telegram API Setup</h4>
-                    <div id="setup-form-container">
-                        <button class="btn btn-primary" onclick="sendCode()">Send Code</button>
+                    <h4>Telegram Connection Status</h4>
+                    <div class="alert" id="telegram-status-alert">
+                        Loading...
                     </div>
-                    <div id="otp-form-container" style="display: none;">
-                        <hr class="my-4">
-                        <div class="mb-3">
-                            <label for="otp" class="form-label">OTP Code</label>
-                            <input type="text" class="form-control" id="otp" placeholder="Enter the code you received">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Setup Telegram Login</h5>
+                            <div id="setup-form-container">
+                                <button class="btn btn-primary" onclick="sendCode()">Send Code</button>
+                            </div>
+                            <div id="otp-form-container" style="display: none;">
+                                <div class="mb-3 mt-3">
+                                    <label for="otp" class="form-label">OTP Code</label>
+                                    <input type="text" class="form-control" id="otp" placeholder="Enter the code you received">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">2FA Password (if any)</label>
+                                    <input type="password" class="form-control" id="password" placeholder="Your two-factor authentication password">
+                                </div>
+                                <button class="btn btn-success" onclick="sendOtp()">Sign In</button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">2FA Password (if any)</label>
-                            <input type="password" class="form-control" id="password" placeholder="Your two-factor authentication password">
+                        <div class="col-md-6">
+                            <h5>Session Management</h5>
+                            <p class="text-muted">If you need to reset your Telegram login (e.g., new phone number), clear the session below.</p>
+                            <button class="btn btn-warning" onclick="clearTelegramSession()">Clear Telegram Session</button>
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    <strong>Note:</strong> You only need to log in once. The session is stored securely in the database and will be restored automatically on server restart.
+                                </small>
+                            </div>
                         </div>
-                        <button class="btn btn-success" onclick="sendOtp()">Sign In</button>
                     </div>
                 </div>
             </div>
@@ -190,7 +208,30 @@
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 const statusCards = document.getElementById('status-cards');
+                const telegramStatus = data.telegram_status || 'unknown';
+                const telegramEmoji = {
+                    'connected': '🟢',
+                    'not_authenticated': '🔴',
+                    'session_expired': '🟡',
+                    'connection_failed': '🟠'
+                }[telegramStatus] || '⚫';
+                
+                const telegramText = {
+                    'connected': 'Connected',
+                    'not_authenticated': 'Not Logged In',
+                    'session_expired': 'Session Expired',
+                    'connection_failed': 'Connection Failed'
+                }[telegramStatus] || 'Unknown';
+                
                 statusCards.innerHTML = `
+                    <div class="col-md-3">
+                        <div class="card status-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Telegram</h5>
+                                <p class="card-text fs-4">${telegramEmoji} ${telegramText}</p>
+                            </div>
+                        </div>
+                    </div>
                     <div class="col-md-3">
                         <div class="card status-card">
                             <div class="card-body">
@@ -276,7 +317,81 @@
         document.getElementById('queue-tab').addEventListener('click', fetchQueue);
         document.getElementById('logs-tab').addEventListener('click', fetchLogs);
         document.getElementById('pending-tab').addEventListener('click', () => { fetchPendingCommands(); fetchMonitoredGroups(); });
-        document.getElementById('setup-tab').addEventListener('click', () => {});
+        document.getElementById('setup-tab').addEventListener('click', () => { fetchTelegramStatus(); });
+
+        // --- Telegram Status Functions ---
+        async function fetchTelegramStatus() {
+            try {
+                const response = await fetch('/api/telegram/status');
+                const data = await response.json();
+                
+                const alert = document.getElementById('telegram-status-alert');
+                const status = data.login_status || 'unknown';
+                const authorized = data.authorized || false;
+                
+                if (status === 'connected') {
+                    alert.className = 'alert alert-success';
+                    alert.innerHTML = `
+                        <strong>🟢 Connected</strong><br>
+                        Your Telegram account is successfully authenticated. The bot can now monitor job postings.
+                    `;
+                } else if (status === 'not_authenticated') {
+                    alert.className = 'alert alert-warning';
+                    alert.innerHTML = `
+                        <strong>🔴 Not Authenticated</strong><br>
+                        Please complete the Telegram setup below to enable job monitoring.
+                    `;
+                } else if (status === 'session_expired') {
+                    alert.className = 'alert alert-info';
+                    alert.innerHTML = `
+                        <strong>🟡 Session Expired</strong><br>
+                        Your Telegram session has expired. Please log in again below.
+                    `;
+                } else {
+                    alert.className = 'alert alert-secondary';
+                    alert.innerHTML = `
+                        <strong>⚫ Unknown Status</strong><br>
+                        Unable to determine Telegram connection status.
+                    `;
+                }
+                
+                return data;
+            } catch (error) {
+                console.error("Failed to fetch Telegram status:", error);
+                const alert = document.getElementById('telegram-status-alert');
+                alert.className = 'alert alert-danger';
+                alert.innerHTML = `
+                    <strong>❌ Error</strong><br>
+                    Unable to fetch Telegram connection status: ${error.message}
+                `;
+            }
+        }
+        
+        async function clearTelegramSession() {
+            if (!confirm('Are you sure you want to clear your Telegram session? You will need to log in again.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/telegram/clear_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    alert('Telegram session cleared successfully. Please log in again.');
+                    document.getElementById('setup-form-container').style.display = 'block';
+                    document.getElementById('otp-form-container').style.display = 'none';
+                    fetchTelegramStatus();
+                    fetchStatus();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to clear session'));
+                }
+            } catch (error) {
+                alert('Failed to clear session: ' + error);
+            }
+        }
 
         // --- Telegram Setup Functions ---
         async function sendCode() {

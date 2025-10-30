@@ -118,7 +118,9 @@ class Database:
                 ('monitoring_status', 'stopped'),
                 ('last_processed_message_id', '0'),
                 ('total_messages_processed', '0'),
-                ('total_jobs_extracted', '0')
+                ('total_jobs_extracted', '0'),
+                ('telegram_session', ''),
+                ('telegram_login_status', 'not_authenticated')
             ''')
             
             # Commands queue (for dashboard -> bot communication)
@@ -406,6 +408,35 @@ class Database:
                 query = "SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' ORDER BY created_at DESC"
             
             cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_telegram_session(self) -> Optional[str]:
+        """Get stored Telegram session string"""
+        return self.get_config('telegram_session')
+    
+    def set_telegram_session(self, session_string: str):
+        """Store Telegram session string"""
+        self.set_config('telegram_session', session_string)
+    
+    def get_telegram_login_status(self) -> str:
+        """Get current Telegram login status"""
+        return self.get_config('telegram_login_status') or 'not_authenticated'
+    
+    def set_telegram_login_status(self, status: str):
+        """Set Telegram login status"""
+        self.set_config('telegram_login_status', status)
+    
+    def get_email_jobs_needing_generation(self) -> List[Dict]:
+        """Get email sheet jobs that need email body generation"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM processed_jobs
+                WHERE email IS NOT NULL
+                AND email != ''
+                AND (email_body IS NULL OR email_body = '')
+                ORDER BY created_at DESC
+            ''')
             return [dict(row) for row in cursor.fetchall()]
 
     def get_irrelevant_jobs(self, has_email: bool = None) -> List[Dict]:

@@ -1,6 +1,7 @@
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import logging
 from typing import Dict
 
 class GoogleSheetsSync:
@@ -11,6 +12,7 @@ class GoogleSheetsSync:
         self.sheet_email_exp = None  # NEW: Irrelevant jobs with email
         self.sheet_other_exp = None  # NEW: Irrelevant jobs with link/phone
         self.client = None
+        self.logger = logging.getLogger(__name__)
         if credentials_json and spreadsheet_id:
             self._setup_sheets(credentials_json)
     
@@ -87,56 +89,84 @@ class GoogleSheetsSync:
         return worksheet
     
     def sync_job(self, job_data: Dict) -> bool:
-        """Sync job to appropriate Google Sheet based on relevance and contact method"""
+        """Sync job to appropriate Google Sheet with robust field mapping"""
         if not self.client:
+            logger = logging.getLogger(__name__)
+            logger.error("Google Sheets client not initialized")
             return False
             
         try:
-            # Enhanced routing based on job_relevance and contact method
-            relevance = job_data.get('job_relevance', 'relevant')  # Default to relevant
+            logger = logging.getLogger(__name__)
+            logger.info(f"Syncing job {job_data.get('job_id', 'unknown')}")
+            
+            # COMPATIBILITY FIX: Handle missing fields gracefully
+            # Extract available fields with fallbacks
+            job_relevance = job_data.get('job_relevance', 'relevant')  # Default to relevant
+            experience_required = job_data.get('experience_required', 'Not specified')
+            phone = job_data.get('phone') or ''
+            recruiter_name = job_data.get('recruiter_name') or ''
+            application_link = job_data.get('application_link') or ''
+            
+            # Route to appropriate worksheet based on relevance and contact method
             has_email = bool(job_data.get('email'))
             
-            # Route to appropriate worksheet
-            if relevance == 'relevant':
+            if job_relevance == 'relevant':
                 if has_email:
                     worksheet = self.sheet_email        # Relevant + Email
+                    logger.info("Routing to 'email' sheet (relevant with email)")
                 else:
                     worksheet = self.sheet_other        # Relevant + Link/Phone
+                    logger.info("Routing to 'non-email' sheet (relevant without email)")
             else:  # irrelevant
                 if has_email:
                     worksheet = self.sheet_email_exp    # Irrelevant + Email
+                    logger.info("Routing to 'email-exp' sheet (irrelevant with email)")
                 else:
                     worksheet = self.sheet_other_exp    # Irrelevant + Link/Phone
+                    logger.info("Routing to 'non-email-exp' sheet (irrelevant without email)")
             
             if not worksheet:
+                logger.error(f"Target worksheet not available for relevance={job_relevance}, has_email={has_email}")
                 return False
             
-            # Enhanced data mapping with new relevance fields
+            # ROBUST DATA MAPPING with missing field handling
             row = [
-                job_data.get('job_id'),           # Job ID
-                job_data.get('company_name'),     # Company Name
-                job_data.get('job_role'),         # Job Role
-                job_data.get('location'),         # Location
-                job_data.get('eligibility'),      # Eligibility
-                job_data.get('email'),           # Contact Email
-                job_data.get('phone'),           # Contact Phone
-                job_data.get('recruiter_name'),   # Recruiter Name
-                job_data.get('application_link'), # Application Link
-                job_data.get('application_method'), # Application Method
-                job_data.get('jd_text'),         # Job Description
-                job_data.get('email_subject'),   # Email Subject
-                job_data.get('email_body'),      # Email Body
-                job_data.get('status', 'pending'), # Status
-                job_data.get('created_at'),      # Created At
-                job_data.get('experience_required'), # NEW: Experience requirements
-                job_data.get('job_relevance')    # NEW: Job relevance
+                job_data.get('job_id', ''),           # Job ID
+                job_data.get('company_name', ''),     # Company Name
+                job_data.get('job_role', ''),         # Job Role
+                job_data.get('location', ''),         # Location
+                job_data.get('eligibility', ''),      # Eligibility
+                job_data.get('email', ''),           # Contact Email
+                phone,                               # Contact Phone (with fallback)
+                recruiter_name,                      # Recruiter Name (with fallback)
+                application_link,                    # Application Link (with fallback)
+                job_data.get('application_method', ''), # Application Method
+                job_data.get('jd_text', ''),         # Job Description
+                job_data.get('email_subject', ''),   # Email Subject
+                job_data.get('email_body', ''),      # Email Body
+                job_data.get('status', 'pending'),   # Status
+                job_data.get('created_at', ''),      # Created At
+                experience_required,                 # NEW: Experience requirements (with fallback)
+                job_relevance                        # NEW: Job relevance (with fallback)
             ]
             
-            # Find the next empty row and update it to prevent column shifting issues
-            next_row = len(worksheet.get_all_values()) + 1
+            logger.info(f"Prepared row data: {len(row)} columns")
+            logger.debug(f"Row content: {row[:5]}...")  # Log first 5 columns for debugging
+            
+            # Find the next empty row
+            all_values = worksheet.get_all_values()
+            next_row = len(all_values) + 1
+            
+            logger.info(f"Writing to row {next_row} in worksheet")
+            
+            # Update the worksheet
             worksheet.update(f'A{next_row}', [row])
+            
+            logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
             return True
             
         except Exception as e:
-            print("  Google Sheets sync error: " + str(e))
+            logger = logging.getLogger(__name__)
+            logger.error(f"Google Sheets sync error for job {job_data.get('job_id', 'unknown')}: {str(e)}")
+            logger.error(f"Job data keys: {list(job_data.keys())}")
             return False
