@@ -52,7 +52,7 @@ def setup_bot_webhook():
             
         # Import the main module and setup bot
         import main
-        bot_application = main.setup_bot()
+        bot_application = main.setup_webhook_bot()
         if bot_application:
             logging.info("Bot application loaded for webhook mode")
             return True
@@ -184,6 +184,20 @@ def api_status():
             "telegram_session_exists": bool(db.get_telegram_session()),
         }
         return jsonify(status)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/bot/force_restart", methods=["POST"])
+def force_restart_bot():
+    """Deletes the bot lock file to allow restart."""
+    lock_file = os.path.join(tempfile.gettempdir(), 'telegram_bot.lock')
+    try:
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
+            return jsonify({"message": "Lock file removed. The bot worker should restart."})
+        else:
+            return jsonify({"message": "No lock file found."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

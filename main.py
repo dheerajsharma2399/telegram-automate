@@ -442,30 +442,40 @@ async def echo_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Global application instance for webhook handling
 application = None
 
+def setup_webhook_bot():
+    """Setup the bot application object for webhook mode, without starting background tasks."""
+    global application
+    if application:
+        return application
+
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # Add all handlers
+    application.add_handler(MessageHandler(filters.ALL, log_all_messages), group=-1)
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stop", stop_command))
+    application.add_handler(CommandHandler("status", status_command))
+    application.add_handler(CommandHandler("process", process_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("export", export_command))
+    application.add_handler(CommandHandler("generate_emails", generate_emails_command))
+    application.add_handler(CommandHandler("sync_sheets", sync_sheets_command))
+    application.add_handler(CallbackQueryHandler(callback_query_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_text_handler))
+    
+    return application
+
 def setup_bot():
-    """Set up the bot with proper error handling"""
+    """Set up the bot with proper error handling and start background tasks."""
     global application
     
     try:
-        # Check bot instance - skip lock check for webhook mode
+        # Check bot instance
         if not check_bot_instance():
             logger.error("Cannot start bot: Another instance is running")
             return None
             
-        application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-        # Add all handlers
-        application.add_handler(MessageHandler(filters.ALL, log_all_messages), group=-1)
-        application.add_handler(CommandHandler("start", start_command))
-        application.add_handler(CommandHandler("stop", stop_command))
-        application.add_handler(CommandHandler("status", status_command))
-        application.add_handler(CommandHandler("process", process_command))
-        application.add_handler(CommandHandler("stats", stats_command))
-        application.add_handler(CommandHandler("export", export_command))
-        application.add_handler(CommandHandler("generate_emails", generate_emails_command))
-        application.add_handler(CommandHandler("sync_sheets", sync_sheets_command))
-        application.add_handler(CallbackQueryHandler(callback_query_handler))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_text_handler))
+        application = setup_webhook_bot()
 
         # Start the telegram monitor
         monitor = TelegramMonitor(
