@@ -82,11 +82,14 @@ if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
                     service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
                     if service_url:
                         webhook_url = f"{service_url}/webhook"
+                        logging.info(f"Attempting to set webhook to: {webhook_url}")
                         bot_application.bot.set_webhook(
                             url=webhook_url,
                             allowed_updates=['message', 'callback_query', 'edited_message']
                         )
                         logging.info(f"Auto-configured webhook to: {webhook_url}")
+                    else:
+                        logging.warning("Could not determine service URL for webhook setup. Please set it manually via the API.")
                 except Exception as e:
                     logging.warning(f"Auto webhook setup failed: {e}")
             
@@ -432,6 +435,7 @@ def telegram_webhook():
         
         # Get the update data
         update_data = request.get_json(force=True)
+        logging.info(f"Received webhook update: {update_data}")
         if not update_data:
             return jsonify({"error": "No update data"}), 400
         
