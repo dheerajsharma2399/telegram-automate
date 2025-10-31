@@ -31,11 +31,15 @@ except Exception:
     llm_processor = None
 
 sheets_sync = None
-try:
-    if GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID:
-        sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID)
-except Exception:
-    sheets_sync = None
+
+def get_sheets_sync():
+    global sheets_sync
+    if sheets_sync is None and GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID:
+        try:
+            sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID)
+        except Exception:
+            pass
+    return sheets_sync
 
 # Bot application for webhook mode
 bot_application = None
@@ -572,6 +576,7 @@ def api_sheets_generate_email_bodies():
         sheet = payload.get('sheet', 'email')
         limit = payload.get('limit', 50)
         
+        sheets_sync = get_sheets_sync()
         if not sheets_sync:
             return jsonify({'error': 'Google Sheets not configured'}), 500
         
