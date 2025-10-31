@@ -245,6 +245,19 @@
                             </div>
                         </div>
                     </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>Set Webhook URL</h5>
+                            <p class="text-muted">If the bot is not responding to commands, you may need to set the webhook URL manually. Enter the full public URL of the application, ending with /webhook.</p>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="webhook-url" placeholder="https://your-app-url/webhook" value="http://home-server-telegrambot-47whkl-ba1148-152-67-7-111.traefik.me/webhook">
+                                <button class="btn btn-primary" onclick="setWebhook()">Set Webhook</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -591,6 +604,32 @@
                 }
             } catch (error) {
                 showToast(`Failed to sign in: ${error}`, 'error');
+            }
+        }
+
+        async function setWebhook() {
+            const webhookUrl = document.getElementById('webhook-url').value;
+            if (!webhookUrl) {
+                showToast('Please enter a webhook URL.', 'warning');
+                return;
+            }
+
+            try {
+                showToast('Setting webhook...', 'info');
+                const response = await fetch('/api/setup_webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webhook_url: webhookUrl })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to set webhook: ${error}`, 'error');
             }
         }
 
