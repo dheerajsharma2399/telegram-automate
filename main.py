@@ -80,7 +80,14 @@ def cleanup_bot_instance():
 # Initialize components
 db = Database(DATABASE_URL)
 llm_processor = LLMProcessor(OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL)
-sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID) if GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID else None
+sheets_sync = None
+
+def get_sheets_sync():
+    global sheets_sync
+    if sheets_sync is None and GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID:
+        sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID)
+    return sheets_sync
+
 scheduler = AsyncIOScheduler()
 
 # Authorization check
@@ -280,6 +287,7 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("❌ Unauthorized access.")
         return
 
+    sheets_sync = get_sheets_sync()
     if not (sheets_sync and sheets_sync.client):
         await update.message.reply_text("Google Sheets is not configured.")
         return
@@ -385,6 +393,7 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
                     db.update_job_email_body(job['job_id'], email_body)
                     
                     # AUTO-SYNC TO GOOGLE SHEETS
+                    sheets_sync = get_sheets_sync()
                     if sheets_sync and sheets_sync.client:
                         try:
                             # Get fresh job data for sheets sync (includes the new email body)
@@ -662,6 +671,12 @@ def run_bot_webhook():
     
     # Webhook setup will be handled by web server
     logger.info("Bot ready for webhook mode")
+
+    # Keep the main thread alive for the background threads to run
+    import time
+    while True:
+        time.sleep(3600) # Sleep for a long time
+
     return True
 
 def main():
