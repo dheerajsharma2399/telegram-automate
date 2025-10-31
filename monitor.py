@@ -54,11 +54,11 @@ class TelegramMonitor:
         if event.sender_id not in self.authorized_users:
             return
 
-        command_text = event.message.text.strip()
-        command = command_text.split()[0].lower()
+        command_parts = event.message.text.strip().split()
+        command = command_parts[0].lower()
         logging.info(f"Received command: '{command}' from user {event.sender_id}")
 
-        supported_commands = ['/status', '/start', '/stop', '/process', '/generate_emails', '/export', '/sync_sheets']
+        supported_commands = ['/status', '/start', '/stop', '/process', '/generate_emails', '/export', '/sync_sheets', '/stats']
 
         if command == '/status':
             try:
@@ -83,8 +83,33 @@ class TelegramMonitor:
                 logging.error(f"Error processing /status command: {e}")
                 await event.respond("Sorry, there was an error retrieving the status.")
         
+        elif command == '/stats':
+            try:
+                days = 7
+                if len(command_parts) > 1 and command_parts[1].isdigit():
+                    days = int(command_parts[1])
+                
+                stats = self.db.get_stats(days)
+                message = f"📊 **Statistics for the last {days} days**\n\n"
+                
+                if stats.get("by_method"):
+                    message += "**Jobs by Application Method:**\n"
+                    for method, count in stats["by_method"].items():
+                        message += f"  - {method.capitalize()}: {count}\n"
+                
+                if stats.get("top_companies"):
+                    message += "\n**Top 5 Companies:**\n"
+                    for company, count in stats["top_companies"].items():
+                        message += f"  - {company}: {count} jobs\n"
+                
+                await event.respond(message, parse_mode='markdown')
+            except Exception as e:
+                logging.error(f"Error processing /stats command: {e}")
+                await event.respond("Sorry, there was an error retrieving statistics.")
+
         elif command in supported_commands:
             try:
+                command_text = event.message.text.strip()
                 self.db.enqueue_command(command_text)
                 await event.respond(f"Command `{command_text}` has been queued for execution.", parse_mode='markdown')
             except Exception as e:
