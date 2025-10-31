@@ -262,6 +262,11 @@ class TelegramMonitor:
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
+                # Ignore commands from authorized users in job groups to prevent duplication
+                if event.sender_id in self.authorized_users and event.message.text.startswith('/'):
+                    logging.info(f"Ignoring command '{event.message.text}' in job group to avoid adding to raw messages.")
+                    return
+
                 try:
                     logging.info(f"New job message received: {event.message.id}")
                     self.db.add_raw_message(
