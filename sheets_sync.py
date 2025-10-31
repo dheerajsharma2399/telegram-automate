@@ -145,7 +145,7 @@ class GoogleSheetsSync:
                 job_data.get('email_subject', ''),   # Email Subject
                 job_data.get('email_body', ''),      # Email Body
                 job_data.get('status', 'pending'),   # Status
-                job_data.get('created_at', ''),      # Created At
+                str(job_data.get('created_at', '')),      # Created At (converted to string)
                 experience_required,                 # NEW: Experience requirements (with fallback)
                 job_relevance                        # NEW: Job relevance (with fallback)
             ]
