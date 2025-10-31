@@ -78,10 +78,15 @@ if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
                 import time
                 time.sleep(5)  # Wait for server to start
                 try:
-                    # Get webhook URL from service URL
-                    service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
-                    if service_url:
-                        webhook_url = f"{service_url}/webhook"
+                    # Prioritize WEBHOOK_URL environment variable
+                    webhook_url = os.getenv('WEBHOOK_URL')
+                    if not webhook_url:
+                        # Fallback to guessing from other service variables
+                        service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
+                        if service_url:
+                            webhook_url = f"{service_url}/webhook"
+
+                    if webhook_url:
                         logging.info(f"Attempting to set webhook to: {webhook_url}")
                         
                         async def do_set_webhook():
@@ -96,7 +101,7 @@ if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
                         
                         logging.info(f"Auto-configured webhook to: {webhook_url}")
                     else:
-                        logging.warning("Could not determine service URL for webhook setup. Please set it manually via the API.")
+                        logging.warning("Could not determine service URL for webhook setup. Please set WEBHOOK_URL environment variable or set it manually via the API.")
                 except Exception as e:
                     logging.warning(f"Auto webhook setup failed: {e}")
             
@@ -312,6 +317,7 @@ def api_logs():
         logs = {
             "bot_logs": read_log_file("bot.log"),
             "monitor_logs": read_log_file("monitor.log"),
+            "webhook_logs": read_log_file("webhook.log"),
         }
         return jsonify(logs)
     except Exception as e:
@@ -438,18 +444,31 @@ def process_webhook_async(update_data):
         logging.error(f"Error processing webhook: {e}")
         return False
 
+# --- Webhook Logger Setup ---
+webhook_logger = logging.getLogger('webhook')
+webhook_logger.setLevel(logging.INFO)
+webhook_handler = logging.FileHandler('webhook.log')
+webhook_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+webhook_logger.addHandler(webhook_handler)
+
+
 @app.route("/webhook", methods=["POST"])
 def telegram_webhook():
     """Handle incoming Telegram webhook updates"""
+    webhook_logger.info("--- WEBHOOK ENDPOINT HIT ---")
     try:
+        headers = {k: v for k, v in request.headers.items()}
+        webhook_logger.info(f"Request Headers: {headers}")
+        raw_body = request.get_data(as_text=True)
+        webhook_logger.info(f"Raw Request Body: {raw_body}")
+
         # Check if bot application is available
         if not bot_application:
-            logging.error("Bot application not available for webhook")
+            webhook_logger.error("Bot application not available for webhook")
             return jsonify({"error": "Bot not initialized"}), 500
         
-        # Get the update data
-        update_data = request.get_json(force=True)
-        logging.info(f"Received webhook update: {update_data}")
+        # Get the update data from the raw body
+        update_data = json.loads(raw_body)
         if not update_data:
             return jsonify({"error": "No update data"}), 400
         
@@ -458,12 +477,11 @@ def telegram_webhook():
         thread = threading.Thread(target=process_webhook_async, args=(update_data,))
         thread.start()
         
-        # Don't wait for completion - return immediately
-        logging.info(f"Webhook update queued for processing: {update_data.get('update_id', 'unknown')}")
+        webhook_logger.info(f"Webhook update queued for processing: {update_data.get('update_id', 'unknown')}")
         return jsonify({"status": "queued"})
             
     except Exception as e:
-        logging.error(f"Error processing webhook: {e}")
+        webhook_logger.error(f"Error processing webhook: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/setup_webhook", methods=["POST"])
