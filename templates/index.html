@@ -196,13 +196,17 @@
             <div class="tab-pane fade" id="logs" role="tabpanel">
                 <div class="py-4">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h4>Bot Logs (main.py)</h4>
                             <div id="bot-logs" class="log-box">Loading...</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h4>Monitor Logs (monitor.py)</h4>
                             <div id="monitor-logs" class="log-box">Loading...</div>
+                        </div>
+                        <div class="col-md-4">
+                            <h4>Webhook Logs (web_server.py)</h4>
+                            <div id="webhook-logs" class="log-box">Loading...</div>
                         </div>
                     </div>
                 </div>
@@ -428,6 +432,7 @@
                 const data = await response.json();
                 document.getElementById('bot-logs').textContent = data.bot_logs;
                 document.getElementById('monitor-logs').textContent = data.monitor_logs;
+                document.getElementById('webhook-logs').textContent = data.webhook_logs;
             } catch (error) {
                 console.error("Failed to fetch logs:", error);
             }
