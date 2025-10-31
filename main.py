@@ -108,7 +108,19 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
 
             for job_data in parsed_jobs:
                 processed_data = llm_processor.process_job_data(job_data, message["id"])
-                job_id = db.add_processed_job(processed_data)
+                
+                # Fix: Handle database method compatibility
+                try:
+                    job_id = db.add_processed_job(processed_data)
+                except AttributeError:
+                    # Fallback for compatibility - check alternative method names
+                    if hasattr(db, 'insert_processed_job'):
+                        job_id = db.insert_processed_job(processed_data)
+                    elif hasattr(db, 'save_processed_job'):
+                        job_id = db.save_processed_job(processed_data)
+                    else:
+                        logger.error("No compatible database method found for processed jobs")
+                        raise Exception("Database method not available")
             
             db.update_message_status(message["id"], "processed")
             logger.info(f"Processed message {message['id']} and found {len(parsed_jobs)} jobs.")

@@ -67,6 +67,27 @@ def setup_bot_webhook():
 if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
     try:
         setup_bot_webhook()
+        # Auto-setup webhook URL if bot was successfully loaded
+        if bot_application:
+            def auto_setup_webhook():
+                """Auto-setup webhook after web server starts"""
+                import time
+                time.sleep(5)  # Wait for server to start
+                try:
+                    # Get webhook URL from service URL
+                    service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
+                    if service_url:
+                        webhook_url = f"{service_url}/webhook"
+                        bot_application.bot.set_webhook(
+                            url=webhook_url,
+                            allowed_updates=['message', 'callback_query', 'edited_message']
+                        )
+                        logging.info(f"Auto-configured webhook to: {webhook_url}")
+                except Exception as e:
+                    logging.warning(f"Auto webhook setup failed: {e}")
+            
+            # Start auto-setup in background thread
+            threading.Thread(target=auto_setup_webhook, daemon=True).start()
     except Exception as e:
         logging.error(f"Bot webhook initialization failed: {e}")
 
