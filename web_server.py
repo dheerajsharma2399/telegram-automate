@@ -557,10 +557,12 @@ def api_generate_emails():
 
         # Case 1: Direct generation (standalone mode)
         if llm_processor and run_now:
-            # FIXED: Direct email generation ONLY for email sheet jobs without email_body
+            logging.info("Direct email generation triggered.")
             email_jobs_without_emails = db.get_email_jobs_needing_generation()
+            logging.info(f"Found {len(email_jobs_without_emails)} jobs needing email generation.")
+
             if not email_jobs_without_emails:
-                return jsonify({"message": "No jobs found in the 'email' sheet that need email body generation.", "generated": 0})
+                return jsonify({"message": "No jobs found that need an email body generated.", "generated": 0})
             
             generated = 0
             for job in email_jobs_without_emails:

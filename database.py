@@ -73,6 +73,7 @@ class Database:
                     job_role TEXT,
                     location TEXT,
                     eligibility TEXT,
+                    application_link TEXT,
                     application_method TEXT,
                     status TEXT DEFAULT 'pending',
                     updated_at TIMESTAMP,
@@ -343,9 +344,9 @@ class Database:
             cursor.execute("""
                 INSERT INTO processed_jobs (
                     raw_message_id, job_id, first_name, last_name, email,
-                    company_name, job_role, location, eligibility,
+                    company_name, job_role, location, eligibility, application_link,
                     application_method, jd_text, email_subject, email_body, status, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 job_data.get('raw_message_id'),
@@ -357,6 +358,7 @@ class Database:
                 job_data.get('job_role'),
                 job_data.get('location'),
                 job_data.get('eligibility'),
+                job_data.get('application_link'),
                 job_data.get('application_method'),
                 job_data.get('jd_text'),
                 job_data.get('email_subject'),
