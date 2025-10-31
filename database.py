@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PostgreSQL-compatible database wrapper for Telegram Job Scraper
-Fixes the "cannot convert dictionary update sequence element" error
+Pure PostgreSQL Database Wrapper for Telegram Job Scraper
+Optimized for Supabase with Telegram session storage
 """
 import os
 import logging
@@ -12,163 +12,173 @@ from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 
 class Database:
-    def __init__(self, db_path_or_url: str):
-        self.db_path_or_url = db_path_or_url
+    def __init__(self, db_url: str):
+        self.db_url = db_url
         self.logger = logging.getLogger(__name__)
-        
-        # Parse PostgreSQL connection string or use SQLite fallback
-        self.is_postgresql = db_path_or_url.startswith('postgresql://') or db_path_or_url.startswith('postgres://')
-        
-        if self.is_postgresql:
-            self._setup_postgresql()
-        else:
-            self._setup_sqlite()
-            
+        self._setup_postgresql()
         self.init_database()
     
     def _setup_postgresql(self):
-        """Setup PostgreSQL connection pool"""
+        """Setup PostgreSQL connection for Supabase"""
         try:
             self.pool = ThreadedConnectionPool(
                 1, 20, 
-                self.db_path_or_url,
+                self.db_url,
                 cursor_factory=RealDictCursor
             )
-            self.logger.info("PostgreSQL connection pool created")
+            self.logger.info("PostgreSQL connection pool created for Supabase")
         except Exception as e:
             self.logger.error(f"Failed to setup PostgreSQL pool: {e}")
             raise
     
-    def _setup_sqlite(self):
-        """Setup SQLite fallback"""
-        import sqlite3
-        self.is_postgresql = False
-        self.conn_class = sqlite3
-        self.row_class = sqlite3.Row
-        self.logger.info("Using SQLite fallback")
-    
     @contextmanager
     def get_connection(self):
-        """Get database connection with proper row handling"""
-        if self.is_postgresql:
-            conn = self.pool.getconn()
-            conn.autocommit = True
-            try:
-                yield conn
-            finally:
-                self.pool.putconn(conn)
-        else:
-            import sqlite3
-            conn = sqlite3.connect(self.db_path_or_url, timeout=10)
-            conn.row_factory = sqlite3.Row
-            try:
-                yield conn
-                conn.commit()
-            except Exception as e:
-                conn.rollback()
-                raise e
-            finally:
-                conn.close()
+        """Get PostgreSQL connection from pool"""
+        conn = self.pool.getconn()
+        conn.autocommit = True
+        try:
+            yield conn
+        finally:
+            self.pool.putconn(conn)
     
     def init_database(self):
-        """Initialize database with required tables"""
+        """Initialize all required tables in Supabase"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            if self.is_postgresql:
-                # Raw messages table (PostgreSQL)
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS raw_messages (
-                        id SERIAL PRIMARY KEY,
-                        message_id INTEGER UNIQUE NOT NULL,
-                        message_text TEXT NOT NULL,
-                        sender_id INTEGER,
-                        sent_at TIMESTAMP,
-                        status TEXT DEFAULT 'unprocessed',
-                        error_message TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                
-                # Processed jobs table (PostgreSQL)
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS processed_jobs (
-                        id SERIAL PRIMARY KEY,
-                        raw_message_id INTEGER,
-                        job_id TEXT UNIQUE NOT NULL,
-                        first_name TEXT,
-                        last_name TEXT,
-                        email TEXT,
-                        company_name TEXT,
-                        job_role TEXT,
-                        location TEXT,
-                        eligibility TEXT,
-                        application_method TEXT,
-                        status TEXT DEFAULT 'pending',
-                        updated_at TIMESTAMP,
-                        jd_text TEXT,
-                        email_subject TEXT,
-                        email_body TEXT,
-                        synced_to_sheets BOOLEAN DEFAULT FALSE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (raw_message_id) REFERENCES raw_messages(id)
-                    )
-                """)
-                
-                # Bot config table (PostgreSQL)
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS bot_config (
-                        key TEXT PRIMARY KEY,
-                        value TEXT,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                
-                # Commands queue table (PostgreSQL)
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS commands_queue (
-                        id SERIAL PRIMARY KEY,
-                        command TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        executed_at TIMESTAMP NULL,
-                        status TEXT DEFAULT 'pending',
-                        result_text TEXT,
-                        executed_by TEXT
-                    )
-                """)
-                
-                # Initialize default config
-                cursor.execute("""
-                    INSERT INTO bot_config (key, value) VALUES
-                    ('monitoring_status', 'stopped'),
-                    ('last_processed_message_id', '0'),
-                    ('total_messages_processed', '0'),
-                    ('total_jobs_extracted', '0')
-                    ON CONFLICT (key) DO NOTHING
-                """)
-                
-            else:
-                # SQLite fallback - simplified version
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS raw_messages (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        message_id INTEGER UNIQUE NOT NULL,
-                        message_text TEXT NOT NULL,
-                        sender_id INTEGER,
-                        sent_at TIMESTAMP,
-                        status TEXT DEFAULT 'unprocessed',
-                        error_message TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS bot_config (
-                        key TEXT PRIMARY KEY,
-                        value TEXT,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
+            # Raw messages table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS raw_messages (
+                    id SERIAL PRIMARY KEY,
+                    message_id INTEGER UNIQUE NOT NULL,
+                    message_text TEXT NOT NULL,
+                    sender_id INTEGER,
+                    sent_at TIMESTAMP,
+                    status TEXT DEFAULT 'unprocessed',
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Processed jobs table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS processed_jobs (
+                    id SERIAL PRIMARY KEY,
+                    raw_message_id INTEGER,
+                    job_id TEXT UNIQUE NOT NULL,
+                    first_name TEXT,
+                    last_name TEXT,
+                    email TEXT,
+                    company_name TEXT,
+                    job_role TEXT,
+                    location TEXT,
+                    eligibility TEXT,
+                    application_method TEXT,
+                    status TEXT DEFAULT 'pending',
+                    updated_at TIMESTAMP,
+                    jd_text TEXT,
+                    email_subject TEXT,
+                    email_body TEXT,
+                    synced_to_sheets BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (raw_message_id) REFERENCES raw_messages(id)
+                )
+            """)
+            
+            # Bot config table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bot_config (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Commands queue table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS commands_queue (
+                    id SERIAL PRIMARY KEY,
+                    command TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    executed_at TIMESTAMP NULL,
+                    status TEXT DEFAULT 'pending',
+                    result_text TEXT,
+                    executed_by TEXT
+                )
+            """)
+            
+            # Telegram authentication table (NEW - for session storage)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS telegram_auth (
+                    id SERIAL PRIMARY KEY,
+                    session_string TEXT,
+                    login_status TEXT DEFAULT 'not_authenticated',
+                    phone_number TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Initialize default config
+            cursor.execute("""
+                INSERT INTO bot_config (key, value) VALUES
+                ('monitoring_status', 'stopped'),
+                ('last_processed_message_id', '0'),
+                ('total_messages_processed', '0'),
+                ('total_jobs_extracted', '0')
+                ON CONFLICT (key) DO NOTHING
+            """)
+            
+            # Initialize Telegram auth record
+            cursor.execute("""
+                INSERT INTO telegram_auth (id, login_status) 
+                VALUES (1, 'not_authenticated')
+                ON CONFLICT (id) DO NOTHING
+            """)
+            
+            self.logger.info("All tables initialized in Supabase")
+    
+    # === TELEGRAM SESSION MANAGEMENT (NEW METHODS) ===
+    
+    def get_telegram_session(self) -> Optional[str]:
+        """Get stored Telegram session string from Supabase"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT session_string FROM telegram_auth WHERE id = 1")
+            result = cursor.fetchone()
+            return result['session_string'] if result and result['session_string'] else None
+    
+    def set_telegram_session(self, session_string: str):
+        """Store Telegram session string in Supabase"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE telegram_auth 
+                SET session_string = %s, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = 1
+            """, (session_string,))
+            self.logger.info("Telegram session updated in Supabase")
+    
+    def get_telegram_login_status(self) -> str:
+        """Get Telegram login status from Supabase"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT login_status FROM telegram_auth WHERE id = 1")
+            result = cursor.fetchone()
+            return result['login_status'] if result else 'not_authenticated'
+    
+    def set_telegram_login_status(self, status: str):
+        """Set Telegram login status in Supabase"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE telegram_auth 
+                SET login_status = %s, updated_at = CURRENT_TIMESTAMP 
+                WHERE id = 1
+            """, (status,))
+            self.logger.info(f"Telegram login status updated: {status}")
+    
+    # === MESSAGE MANAGEMENT ===
     
     def add_raw_message(self, message_id: int, message_text: str, 
                        sender_id: int, sent_at) -> int:
@@ -186,7 +196,7 @@ class Database:
             return result['id'] if result else None
     
     def get_unprocessed_messages(self, limit: int = 10) -> List[Dict]:
-        """Get unprocessed messages - Fixed for PostgreSQL"""
+        """Get unprocessed messages"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -195,9 +205,47 @@ class Database:
                 ORDER BY created_at ASC
                 LIMIT %s
             """, (limit,))
-            
-            # Return as list of dictionaries
             return [dict(row) for row in cursor.fetchall()]
+    
+    def update_message_status(self, message_id: int, status: str, 
+                            error_message: str = None):
+        """Update message processing status"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE raw_messages 
+                SET status = %s, error_message = %s
+                WHERE id = %s
+            """, (status, error_message, message_id))
+    
+    def get_unprocessed_count(self) -> int:
+        """Get count of unprocessed messages"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM raw_messages WHERE status = 'unprocessed'")
+            result = cursor.fetchone()
+            return result['count'] if result else 0
+    
+    def get_jobs_today_stats(self) -> Dict:
+        """Get statistics of jobs processed today"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    COUNT(id) as total,
+                    SUM(CASE WHEN application_method = 'email' THEN 1 ELSE 0 END) as with_email,
+                    SUM(CASE WHEN application_method != 'email' THEN 1 ELSE 0 END) as without_email
+                FROM processed_jobs
+                WHERE DATE(created_at) = DATE('now')
+            """)
+            stats = cursor.fetchone()
+            return {
+                "total": stats["total"] or 0,
+                "with_email": stats["with_email"] or 0,
+                "without_email": stats["without_email"] or 0,
+            }
+    
+    # === CONFIG MANAGEMENT ===
     
     def get_config(self, key: str) -> Optional[str]:
         """Get config value"""
@@ -219,8 +267,10 @@ class Database:
                 updated_at = EXCLUDED.updated_at
             """, (key, value))
     
+    # === COMMAND QUEUE MANAGEMENT ===
+    
     def get_pending_commands(self, limit: int = 10) -> List[Dict]:
-        """Retrieve pending commands for the bot to execute."""
+        """Retrieve pending commands"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -272,12 +322,15 @@ class Database:
                 WHERE id = %s
             """, (status, result_text, executed_by, command_id))
     
-    def get_unprocessed_count(self) -> int:
-        """Get count of unprocessed messages"""
+    def cancel_command(self, command_id: int) -> bool:
+        """Cancel (mark done/cancelled) a pending command by id."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM raw_messages WHERE status = 'unprocessed'")
-            result = cursor.fetchone()
-            return result['count'] if result else 0
-    
-    # Add other methods as needed...
+            cursor.execute('SELECT id FROM commands_queue WHERE id = %s AND status = "pending"', (command_id,))
+            if not cursor.fetchone():
+                return False
+            cursor.execute("""
+                UPDATE commands_queue SET status = 'cancelled', executed_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (command_id,))
+            return True

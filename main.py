@@ -77,7 +77,7 @@ def cleanup_bot_instance():
         logger.error(f"Could not remove lock file: {e}")
 
 # Initialize components
-db = Database(DATABASE_PATH)
+db = Database(DATABASE_URL)
 llm_processor = LLMProcessor(OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL)
 sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID) if GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID else None
 scheduler = AsyncIOScheduler()

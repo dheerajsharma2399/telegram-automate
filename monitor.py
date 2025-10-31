@@ -8,7 +8,7 @@ from config import (
     TELEGRAM_GROUP_USERNAME,
 )
 from database import Database
-from config import TELEGRAM_GROUP_USERNAMES
+from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -198,7 +198,7 @@ class TelegramMonitor:
             return False
 
 if __name__ == "__main__":
-    db = Database("jobs.db")
+    db = Database(DATABASE_URL)
     monitor = TelegramMonitor(
         TELEGRAM_API_ID,
         TELEGRAM_API_HASH,
