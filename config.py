@@ -38,7 +38,7 @@ if not DATABASE_URL:
 
 # Processing Configuration
 BATCH_SIZE = 10
-PROCESSING_INTERVAL_MINUTES = 5
+PROCESSING_INTERVAL_MINUTES = 10
 MAX_RETRIES = 3
 
 # IMPROVED System Prompt for LLM - ALIGNED with proper Google Sheets headers
