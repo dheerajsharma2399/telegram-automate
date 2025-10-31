@@ -44,6 +44,12 @@ def setup_bot_webhook():
     """Setup bot for webhook mode"""
     global bot_application
     try:
+        # Check if token exists first
+        from config import TELEGRAM_BOT_TOKEN
+        if not TELEGRAM_BOT_TOKEN:
+            logging.error("TELEGRAM_BOT_TOKEN not configured - skipping bot initialization")
+            return False
+            
         # Import the main module and setup bot
         import main
         bot_application = main.setup_bot()
