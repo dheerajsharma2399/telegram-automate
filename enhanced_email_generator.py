@@ -46,48 +46,7 @@ class EnhancedEmailGenerator:
                     "demo": "Live demo available",
                     "tech_stack": ["Python", "MQTT", "InfluxDB", "Grafana", "ESP32"]
                 },
-                {
-                    "name": "Smart Home Automation",
-                    "description": "Home automation system with voice control",
-                    "github": "https://github.com/DheerajSharma2930/smart-home-automation",
-                    "demo": "Video demo available",
-                    "tech_stack": ["Python", "Node.js", "Raspberry Pi", "Alexa", "Arduino"]
-                },
-                {
-                    "name": "Industrial IoT Dashboard",
-                    "description": "Real-time industrial equipment monitoring dashboard",
-                    "github": "https://github.com/DheerajSharma2930/industrial-iot-dashboard",
-                    "demo": "Live demo available",
-                    "tech_stack": ["Python", "React", "WebSocket", "PostgreSQL", "Docker"]
-                },
-                {
-                    "name": "Agriculture IoT System",
-                    "description": "Smart agriculture monitoring with soil sensors",
-                    "github": "https://github.com/DheerajSharma2930/agriculture-iot-system",
-                    "demo": "Live demo available",
-                    "tech_stack": ["Python", "Flask", "MongoDB", "IoT Sensors", "Mobile App"]
-                },
-                {
-                    "name": "Parking Management IoT",
-                    "description": "IoT-based smart parking system with real-time tracking",
-                    "github": "https://github.com/DheerajSharma2930/parking-management-iot",
-                    "demo": "Live demo available",
-                    "tech_stack": ["Python", "FastAPI", "Redis", "Ultrasonic Sensors", "React"]
-                },
-                {
-                    "name": "Weather Station IoT",
-                    "description": "Personal weather monitoring station with data visualization",
-                    "github": "https://github.com/DheerajSharma2930/weather-station-iot",
-                    "demo": "Live demo available",
-                    "tech_stack": ["Python", "Django", "Chart.js", "Weather APIs", "Sensors"]
-                },
-                {
-                    "name": "Energy Monitoring IoT",
-                    "description": "Home energy consumption monitoring and optimization system",
-                    "github": "https://github.com/DheerajSharma2930/energy-monitoring-iot",
-                    "demo": "Live demo available",
-                    "tech_stack": ["Python", "Streamlit", "Time Series DB", "Smart Meters", "Analytics"]
-                }
+                
             ]
         }
     
@@ -96,12 +55,12 @@ class EnhancedEmailGenerator:
         
         profile = self.user_profile
         name = profile.get('full_name', 'Dheeraj Sharma')
-        email = profile.get('email', 'dheerajsharma2930@gmail.com')
+        email = profile.get('email', 'dheerajsharma2399@gmail.com')
         current_title = profile.get('current_title', 'Backend Developer & Automation Specialist')
-        current_company = profile.get('current_company', 'TechFlow Systems')
-        linkedin = profile.get('linkedin', 'linkedin.com/in/dheeraj-sharma-2a8367259')
-        github = profile.get('github', 'github.com/DheerajSharma2930')
-        phone = profile.get('phone', '+91-9829197483')
+        current_company = profile.get('current_company', 'Sonar Instruments and Technology Pvt Ltd')
+        linkedin = profile.get('linkedin', 'linkedin.com/in/dheerajsharma2399')
+        github = profile.get('github', 'github.com/gheerajsharma2399')
+        phone = profile.get('phone', '+91-8860964920')
         
         company = job_data.get('company_name', 'your organization')
         role = job_data.get('job_role', 'the position')

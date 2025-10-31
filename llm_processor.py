@@ -284,8 +284,8 @@ class LLMProcessor:
                 self.email_generator = EnhancedEmailGenerator()
             
             # Generate job-specific email
-            email_result = self.email_generator.generate_email(job_data, jd_text)
-            return email_result['body']
+            email_body = self.email_generator.generate_enhanced_email(job_data, jd_text)
+            return email_body
             
         except Exception as e:
             print(f"Enhanced email generation failed: {e}, falling back to basic template")

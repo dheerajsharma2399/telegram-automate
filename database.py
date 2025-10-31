@@ -333,4 +333,125 @@ class Database:
                 UPDATE commands_queue SET status = 'cancelled', executed_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (command_id,))
+    
+    # === PROCESSED JOBS MANAGEMENT ===
+    
+    def add_processed_job(self, job_data: Dict) -> int:
+        """Add a processed job"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO processed_jobs (
+                    raw_message_id, job_id, first_name, last_name, email,
+                    company_name, job_role, location, eligibility,
+                    application_method, jd_text, email_subject, email_body, status, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                job_data.get('raw_message_id'),
+                job_data.get('job_id'),
+                job_data.get('first_name'),
+                job_data.get('last_name'),
+                job_data.get('email'),
+                job_data.get('company_name'),
+                job_data.get('job_role'),
+                job_data.get('location'),
+                job_data.get('eligibility'),
+                job_data.get('application_method'),
+                job_data.get('jd_text'),
+                job_data.get('email_subject'),
+                job_data.get('email_body'),
+                job_data.get('status'),
+                job_data.get('updated_at')
+            ))
+            result = cursor.fetchone()
+            return result['id'] if result else None
+    
+    def mark_job_synced(self, job_id: str):
+        """Mark job as synced to Google Sheets"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE processed_jobs 
+                SET synced_to_sheets = TRUE
+                WHERE job_id = %s
+            """, (job_id,))
+    
+    def get_processed_jobs_by_email_status(self, has_email: bool) -> List[Dict]:
+        """Get processed jobs based on whether they have an email."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if has_email:
+                cursor.execute('SELECT * FROM processed_jobs WHERE email IS NOT NULL AND email != \'\' ORDER BY created_at DESC')
+            else:
+                cursor.execute('SELECT * FROM processed_jobs WHERE email IS NULL OR email = \'\' ORDER BY created_at DESC')
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_unsynced_jobs(self) -> List[Dict]:
+        """Get all processed jobs that have not been synced to Google Sheets."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM processed_jobs WHERE synced_to_sheets = FALSE ORDER BY created_at ASC')
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def update_job_email_body(self, job_id: str, email_body: str):
+        """Update the email_body for an existing processed job."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE processed_jobs
+                SET email_body = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = %s
+            """, (email_body, job_id))
+    
+    def get_processed_job_by_id(self, job_id: str) -> Optional[Dict]:
+        """Get a single processed job by job_id for sheets sync"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (job_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+    
+    def get_email_jobs_needing_generation(self) -> List[Dict]:
+        """Get email sheet jobs that need email body generation."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM processed_jobs
+                WHERE email IS NOT NULL AND email != ''
+                AND (email_body IS NULL OR email_body = '')
+                ORDER BY created_at ASC
+            """)
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_stats(self, days: int = 7) -> Dict:
+        """Get job statistics for the last N days."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    application_method, 
+                    COUNT(id) as count
+                FROM processed_jobs
+                WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
+                GROUP BY application_method
+            """, (days,))
+            by_method = {row['application_method']: row['count'] for row in cursor.fetchall()}
+
+            cursor.execute("""
+                SELECT
+                    company_name, 
+                    COUNT(id) as count
+                FROM processed_jobs
+                WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
+                GROUP BY company_name
+                ORDER BY count DESC
+                LIMIT 5
+            """, (days,))
+            top_companies = {row['company_name']: row['count'] for row in cursor.fetchall()}
+
+            return {
+                "by_method": by_method,
+                "top_companies": top_companies,
+            }
             return True
