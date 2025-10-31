@@ -126,6 +126,7 @@
                         <button class="btn btn-info" onclick="sendCommand('/export')">Export CSV</button>
                         <button class="btn btn-warning" onclick="sendCommand('/sync_sheets')">Sync Sheets</button>
                         <button class="btn btn-secondary" onclick="generateEmails()">Generate Emails</button>
+                        <button class="btn btn-danger" onclick="forceRestart()">Force Restart</button>
                     </div>
                     <hr class="my-4">
                     <h4>Status</h4>
@@ -320,6 +321,23 @@
                 }
             } catch (error) {
                 showToast(`Failed to send command: ${error}`, 'error');
+            }
+        }
+
+        async function forceRestart() {
+            try {
+                const response = await fetch('/api/bot/force_restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    showToast(`Error: ${data.error}`, 'error');
+                } else {
+                    showToast(data.message, 'success');
+                }
+            } catch (error) {
+                showToast(`Failed to force restart: ${error}`, 'error');
             }
         }
 
