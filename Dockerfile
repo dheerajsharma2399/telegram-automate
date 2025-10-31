@@ -39,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:9501/health', timeout=5)" || exit 1
 
 # Start command - Run web server with Gunicorn and Telegram bot in background
-CMD ["bash", "-c", "python main.py & gunicorn --bind 0.0.0.0:9501 --workers 2 --timeout 120 --access-logfile - --log-level info web_server_production:application"]
+CMD ["honcho", "start"]
