@@ -6,7 +6,7 @@ services:
     build: .  # Build from source code instead of using Docker image
     container_name: telegram-job-scraper
     restart: unless-stopped
-    command: bash -c "python web_server.py & python main.py & wait"
+    command: honcho start
     environment:
       # Container Configuration
       - CONTAINER_TYPE=all
