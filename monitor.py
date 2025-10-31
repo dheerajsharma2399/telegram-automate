@@ -49,11 +49,19 @@ class TelegramMonitor:
             try:
                 session_string = self.db.get_telegram_session()
                 
-                if session_string:
+                if session_string and session_string.strip():
                     logging.info("Restoring Telegram session from database...")
                     if not self.client or not self.client.is_connected():
-                        self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
                         try:
+                            # Validate session string format before creating client
+                            if not session_string.startswith('1@') and len(session_string) < 100:
+                                logging.warning("Stored session string appears invalid format. Clearing from database.")
+                                self.db.set_telegram_session('')
+                                self.db.set_telegram_login_status('session_expired')
+                                await asyncio.sleep(30)
+                                continue
+                                
+                            self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
                             await self.client.connect()
                             if not await self.client.is_user_authorized():
                                 logging.warning("Stored session is invalid or expired. Clearing from database.")
@@ -69,9 +77,14 @@ class TelegramMonitor:
                             logging.info("Successfully restored Telegram session and connected.")
                             
                         except Exception as e:
-                            logging.error(f"Failed to connect with stored session: {e}")
-                            self.db.set_telegram_session('')
-                            self.db.set_telegram_login_status('connection_failed')
+                            error_msg = str(e).lower()
+                            if "not a valid string" in error_msg or "invalid" in error_msg:
+                                logging.warning(f"Stored session string is invalid: {e}. Clearing from database.")
+                                self.db.set_telegram_session('')
+                                self.db.set_telegram_login_status('session_expired')
+                            else:
+                                logging.error(f"Failed to connect with stored session: {e}")
+                                self.db.set_telegram_login_status('connection_failed')
                             self.client = None
                             await asyncio.sleep(30)
                             continue
