@@ -92,12 +92,13 @@ def send_telegram_command(command):
 def health():
     # Basic process health
     status = {"status": "ok"}
-    # Check if port 5000 is accepting connections (localhost)
+    # Check if the configured port is accepting connections (localhost)
+    current_port = int(os.environ.get("PORT", 9501))
     try:
-        with socket.create_connection(("127.0.0.1", 5000), timeout=1):
-            status['http_port_5000'] = 'listening'
+        with socket.create_connection(("127.0.0.1", current_port), timeout=1):
+            status[f'http_port_{current_port}'] = 'listening'
     except Exception:
-        status['http_port_5000'] = 'not_listening'
+        status[f'http_port_{current_port}'] = 'not_listening'
     return jsonify(status)
 
 
@@ -565,7 +566,7 @@ def api_sheets_generate_email_bodies():
 def _signal_handler(signum, frame):
     """On SIGTERM/SIGINT, attempt graceful shutdown by calling the shutdown endpoint."""
     try:
-        # Determine the port the app is likely running on. The app.run() uses PORT env or 8888 by default.
+        # Determine the port the app is likely running on. The app.run() uses PORT env or 9501 by default.
         port = os.environ.get('PORT') or os.environ.get('FLASK_RUN_PORT') or os.environ.get('PORT', None)
         if not port:
             port = '8888'
@@ -721,7 +722,7 @@ if __name__ == "__main__":
     application = app
     
     # Get port from environment
-    port = int(os.environ.get("PORT", 8888))
+    port = int(os.environ.get("PORT", 9501))
     
     # Start the web server (always run, whether dev or production)
     try:

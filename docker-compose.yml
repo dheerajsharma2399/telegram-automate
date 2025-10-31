@@ -13,13 +13,13 @@ services:
       - BOT_RUN_MODE=webhook
       
       # Web Server Configuration
-      - PORT=8888
+      - PORT=9501
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       
       # External Database Configuration
       - DATABASE_TYPE=postgresql
-      - DATABASE_URL=postgresql://***REMOVED***@supabase-db:5432/postgres
+      - DATABASE_URL=postgresql://***REMOVED***@152.67.7.111:5433/postgres
       
       # All other environment variables
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
@@ -40,7 +40,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     ports:
-      - "8888:8888"
+      - "9501:9501"
     networks:
       - telegram_scraper_network
     deploy:
