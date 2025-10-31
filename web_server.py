@@ -83,10 +83,17 @@ if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
                     if service_url:
                         webhook_url = f"{service_url}/webhook"
                         logging.info(f"Attempting to set webhook to: {webhook_url}")
-                        bot_application.bot.set_webhook(
-                            url=webhook_url,
-                            allowed_updates=['message', 'callback_query', 'edited_message']
-                        )
+                        
+                        async def do_set_webhook():
+                            await bot_application.bot.set_webhook(
+                                url=webhook_url,
+                                allowed_updates=['message', 'callback_query', 'edited_message']
+                            )
+                        
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(do_set_webhook())
+                        
                         logging.info(f"Auto-configured webhook to: {webhook_url}")
                     else:
                         logging.warning("Could not determine service URL for webhook setup. Please set it manually via the API.")
@@ -459,23 +466,25 @@ def setup_webhook():
         if not bot_application:
             return jsonify({"error": "Bot application not available"}), 500
         
-        # Get webhook URL from request or environment
         data = request.get_json(force=True) or {}
         webhook_url = data.get('webhook_url')
         
         if not webhook_url:
-            # Construct webhook URL from service URL
             service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
             if service_url:
                 webhook_url = f"{service_url}/webhook"
             else:
                 return jsonify({"error": "No webhook URL provided and unable to construct it"}), 400
         
-        # Setup webhook
-        bot_application.bot.set_webhook(
-            url=webhook_url,
-            allowed_updates=['message', 'callback_query', 'edited_message']
-        )
+        async def do_set_webhook():
+            await bot_application.bot.set_webhook(
+                url=webhook_url,
+                allowed_updates=['message', 'callback_query', 'edited_message']
+            )
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(do_set_webhook())
         
         logging.info(f"Webhook set to: {webhook_url}")
         return jsonify({"message": f"Webhook set to {webhook_url}"})
@@ -491,7 +500,13 @@ def remove_webhook():
         if not bot_application:
             return jsonify({"error": "Bot application not available"}), 500
         
-        bot_application.bot.delete_webhook()
+        async def do_delete_webhook():
+            await bot_application.bot.delete_webhook()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(do_delete_webhook())
+
         logging.info("Webhook removed")
         return jsonify({"message": "Webhook removed successfully"})
         
