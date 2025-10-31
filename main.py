@@ -6,6 +6,7 @@ import requests
 import sys
 import tempfile
 from datetime import datetime
+import aiohttp
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters
@@ -496,7 +497,15 @@ def setup_bot():
 
                             # build a robust fake update/context for handlers
                             class _FakeMessage:
-                                async def reply_text(self, *a, **k):
+                                async def reply_text(self, text, **kwargs):
+                                    if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
+                                        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                                        payload = {"chat_id": ADMIN_USER_ID, "text": text}
+                                        try:
+                                            async with aiohttp.ClientSession() as session:
+                                                await session.post(url, json=payload)
+                                        except Exception as e:
+                                            logger.error(f"Failed to send reply from fake message: {e}")
                                     return None
                                 async def reply_document(self, *a, **k):
                                     return None

@@ -6,9 +6,12 @@ from config import (
     TELEGRAM_API_HASH,
     TELEGRAM_PHONE,
     TELEGRAM_GROUP_USERNAME,
+    ADMIN_USER_ID,
+    TELEGRAM_BOT_TOKEN,
 )
 from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
+import aiohttp
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -75,6 +78,7 @@ class TelegramMonitor:
                             # Update login status to connected
                             self.db.set_telegram_login_status('connected')
                             logging.info("Successfully restored Telegram session and connected.")
+                            await self.send_admin_notification("✅ Bot connected to Telegram.")
                             
                         except Exception as e:
                             error_msg = str(e).lower()
@@ -107,6 +111,8 @@ class TelegramMonitor:
                         try:
                             await self.client.run_until_disconnected()
                             logging.info("Client disconnected. Will attempt to reconnect.")
+                            self.db.set_telegram_login_status('disconnected')
+                            await self.send_admin_notification("❌ Bot disconnected from Telegram.")
                         finally:
                             refresher.cancel()
                     except Exception as e:
@@ -121,6 +127,21 @@ class TelegramMonitor:
             except Exception as e:
                 logging.error(f"Error in monitor start loop: {e}")
                 await asyncio.sleep(30)
+
+    async def send_admin_notification(self, message):
+        if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            payload = {
+                "chat_id": ADMIN_USER_ID,
+                "text": message,
+            }
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, json=payload) as response:
+                        if response.status != 200:
+                            logging.error(f"Failed to send admin notification: {await response.text()}")
+            except Exception as e:
+                logging.error(f"Failed to send admin notification: {e}")
 
     async def stop(self):
         """Stops the Telegram client."""

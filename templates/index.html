@@ -324,12 +324,24 @@
         }
 
         // --- Data Fetching Functions ---
+        let lastTelegramStatus = null;
+
         async function fetchStatus() {
             try {
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 const statusCards = document.getElementById('status-cards');
                 const telegramStatus = data.telegram_status || 'unknown';
+
+                if (lastTelegramStatus !== null && lastTelegramStatus !== telegramStatus) {
+                    if (telegramStatus === 'connected') {
+                        showToast('Bot connected to Telegram.', 'success');
+                    } else {
+                        showToast('Bot disconnected from Telegram.', 'warning');
+                    }
+                }
+                lastTelegramStatus = telegramStatus;
+
                 const telegramEmoji = {
                     'connected': '🟢',
                     'not_authenticated': '🔴',
