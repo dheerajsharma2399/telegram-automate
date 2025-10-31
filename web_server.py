@@ -143,6 +143,13 @@ def health():
     return jsonify(status)
 
 
+@app.route("/test")
+def test_endpoint():
+    """A simple endpoint for testing network connectivity."""
+    logging.info("Test endpoint was hit!")
+    return "OK", 200
+
+
 def _werkzeug_shutdown():
     # Werkzeug shutdown helper
     func = request.environ.get('werkzeug.server.shutdown')
