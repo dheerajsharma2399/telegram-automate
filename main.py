@@ -356,6 +356,7 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
             return
 
         generated = 0
+        synced = 0
         for job in jobs:
             try:
                 # use LLMProcessor.generate_email_body if available
@@ -367,12 +368,29 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
                     email_body = None
 
                 if email_body:
+                    # Store email in database
                     db.update_job_email_body(job['job_id'], email_body)
+                    
+                    # AUTO-SYNC TO GOOGLE SHEETS
+                    if sheets_sync and sheets_sync.client:
+                        try:
+                            # Get fresh job data for sheets sync (includes the new email body)
+                            fresh_job_data = db.get_processed_job_by_id(job['job_id'])
+                            if fresh_job_data and sheets_sync.sync_job(fresh_job_data):
+                                db.mark_job_synced(job['job_id'])
+                                synced += 1
+                        except Exception as e:
+                            logger.warning(f"Failed to sync job {job['job_id']} to sheets: {e}")
+                    
                     generated += 1
             except Exception as e:
                 logger.exception(f"Failed to generate email for job {job.get('job_id')}: {e}")
 
-        await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.")
+        # Success message with sync info
+        if synced > 0:
+            await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.\n📊 Synced {synced} jobs to Google Sheets.")
+        else:
+            await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.")
 
     except Exception as e:
         logger.exception(f"Error during generate_emails: {e}")
