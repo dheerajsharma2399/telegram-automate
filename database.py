@@ -421,7 +421,7 @@ class Database:
             cursor.execute("""
                 SELECT * FROM processed_jobs
                 WHERE email IS NOT NULL AND email != ''
-                AND (email_body IS NULL OR email_body = '')
+                AND (email_body IS NULL OR TRIM(email_body) = '')
                 ORDER BY created_at ASC
             """)
             return [dict(row) for row in cursor.fetchall()]

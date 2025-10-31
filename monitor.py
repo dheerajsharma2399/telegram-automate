@@ -8,6 +8,7 @@ from config import (
     TELEGRAM_GROUP_USERNAME,
     ADMIN_USER_ID,
     TELEGRAM_BOT_TOKEN,
+    AUTHORIZED_USER_IDS,
 )
 from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
@@ -44,6 +45,54 @@ class TelegramMonitor:
         self.client = None # Initialize client as None
         self._handler_registered = False
         self.initial_group_usernames = group_usernames
+        self.authorized_users = [int(x) for x in AUTHORIZED_USER_IDS if x] if AUTHORIZED_USER_IDS else []
+        if ADMIN_USER_ID and int(ADMIN_USER_ID) not in self.authorized_users:
+            self.authorized_users.append(int(ADMIN_USER_ID))
+
+    async def _command_handler(self, event):
+        """Handle incoming commands from authorized users."""
+        if event.sender_id not in self.authorized_users:
+            return
+
+        command_text = event.message.text.strip()
+        command = command_text.split()[0].lower()
+        logging.info(f"Received command: '{command}' from user {event.sender_id}")
+
+        supported_commands = ['/status', '/start', '/stop', '/process', '/generate_emails', '/export', '/sync_sheets']
+
+        if command == '/status':
+            try:
+                processing_status = self.db.get_config('monitoring_status') or 'stopped'
+                unprocessed_count = self.db.get_unprocessed_count()
+                jobs_today = self.db.get_jobs_today_stats()
+                
+                status_emoji = "🟢" if processing_status == 'running' else "🔴"
+                status_text = "Running" if processing_status == 'running' else "Stopped"
+                
+                message = (
+                    f"📊 **Job Scraper Status**\n\n"
+                    f"⚪️ **Message Monitoring:** `Running`\n"
+                    f"⚙️ **Automatic Processing:** `{status_text}` {status_emoji}\n"
+                    f"📨 **Unprocessed Messages:** `{unprocessed_count}`\n"
+                    f"✅ **Processed Jobs (Today):** `{jobs_today.get('total', 0)}`\n"
+                    f"    - With Email: `{jobs_today.get('with_email', 0)}`\n"
+                    f"    - Without Email: `{jobs_today.get('without_email', 0)}`"
+                )
+                await event.respond(message, parse_mode='markdown')
+            except Exception as e:
+                logging.error(f"Error processing /status command: {e}")
+                await event.respond("Sorry, there was an error retrieving the status.")
+        
+        elif command in supported_commands:
+            try:
+                self.db.enqueue_command(command_text)
+                await event.respond(f"Command `{command_text}` has been queued for execution.", parse_mode='markdown')
+            except Exception as e:
+                logging.error(f"Error enqueuing command {command_text}: {e}")
+                await event.respond(f"Sorry, there was an error queuing your command.")
+
+        else:
+            await event.respond(f"Command `{command}` is not recognized.", parse_mode='markdown')
 
     async def start(self):
         logging.info("Starting Telegram monitor loop...")
@@ -166,46 +215,52 @@ class TelegramMonitor:
             except Exception:
                 cleaned.append(g)
 
-        if self._handler_registered and getattr(self, '_last_groups', None) == cleaned:
+        if self._handler_registered:
             return
 
-        try:
-            if self._handler_registered:
-                self.client.remove_event_handler(None, events.NewMessage)
-        except Exception:
-            pass
-
-        entities = []
-        for g in cleaned:
+        # Handler 1: For scraping new job messages from groups
+        group_entities = []
+        groups_val = self.db.get_config('monitored_groups') or ''
+        groups = [s for s in groups_val.split(',') if s] or list(self.initial_group_usernames or [])
+        for g in groups:
             try:
-                ent = await self.client.get_entity(g)
-                entities.append(ent)
-                logging.info(f"Monitoring group: {g}")
+                cleaned_g = int(g)
+            except (ValueError, TypeError):
+                cleaned_g = g
+            try:
+                ent = await self.client.get_entity(cleaned_g)
+                group_entities.append(ent)
+                logging.info(f"Monitoring group for jobs: {g}")
             except Exception as e:
                 logging.error(f"Failed to get entity for {g}: {e}")
 
-        if not entities:
-            logging.warning("No group entities resolved to monitor.")
-            self._handler_registered = False
-            self._last_groups = cleaned
-            return
+        if group_entities:
+            @self.client.on(events.NewMessage(chats=group_entities))
+            async def job_message_handler(event):
+                try:
+                    logging.info(f"New job message received: {event.message.id}")
+                    self.db.add_raw_message(
+                        message_id=event.message.id,
+                        message_text=event.message.text,
+                        sender_id=event.message.sender_id,
+                        sent_at=event.message.date,
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to add raw message: {e}")
+        else:
+            logging.warning("No group entities resolved to monitor for jobs.")
 
-        @self.client.on(events.NewMessage(chats=entities))
-        async def handler(event):
-            try:
-                logging.info(f"New message received: {event.message.id}")
-                self.db.add_raw_message(
-                    message_id=event.message.id,
-                    message_text=event.message.text,
-                    sender_id=event.message.sender_id,
-                    sent_at=event.message.date,
-                )
-            except Exception as e:
-                logging.error(f"Failed to add raw message: {e}")
+        # Handler 2: For commands from authorized users
+        if self.authorized_users:
+            @self.client.on(events.NewMessage(from_users=self.authorized_users, pattern=r'^/\w+'))
+            async def command_dispatch(event):
+                await self._command_handler(event)
+            logging.info(f"Command handler registered for {len(self.authorized_users)} authorized users.")
+        else:
+            logging.warning("No authorized users configured for commands.")
 
         self._handler_registered = True
-        self._last_groups = cleaned
-        logging.info(f"Message handler registered for {len(entities)} groups.")
+        logging.info("Event handlers registered.")
     
     async def save_session_to_db(self):
         """Save current session string to database"""
