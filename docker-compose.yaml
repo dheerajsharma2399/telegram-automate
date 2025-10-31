@@ -1,9 +1,9 @@
-# Simple single-container deployment with external database
+# Source code deployment with external database connection to existing Supabase
 version: '3.8'
 
 services:
   telegram-job-scraper:
-    image: telegram-job-scraper:latest
+    build: .  # Build from source code instead of using Docker image
     container_name: telegram-job-scraper
     restart: unless-stopped
     command: bash -c "python web_server.py & python main.py & wait"
@@ -13,13 +13,13 @@ services:
       - BOT_RUN_MODE=webhook
       
       # Web Server Configuration
-      - PORT=9000  # Changed from 8888 to avoid conflict with user's Telegram website
+      - PORT=9000
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       
-      # External Database Configuration (will be set via environment variable)
+      # External Database Configuration (connects to user's existing Supabase)
       - DATABASE_TYPE=postgresql
-      # DATABASE_URL will be provided via environment variable (DATABASE_URL env var)
+      - DATABASE_URL=${DATABASE_URL:-postgresql://***REMOVED***@152.67.7.111:5432/postgres}
       
       # All other environment variables
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
@@ -40,7 +40,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     ports:
-      - "9000:9000"  # Changed from 8888 to avoid conflict with user's Telegram website
+      - "9000:9000"
     networks:
       - telegram_scraper_network
     deploy:
