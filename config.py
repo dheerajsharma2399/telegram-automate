@@ -27,10 +27,14 @@ OPENROUTER_FALLBACK_MODEL = os.getenv('OPENROUTER_FALLBACK_MODEL', 'openai/gpt-4
 GOOGLE_CREDENTIALS_JSON = os.getenv('GOOGLE_CREDENTIALS_JSON')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 
-# Database Configuration
-DATABASE_TYPE = os.getenv('DATABASE_TYPE', 'sqlite')
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'jobs.db')
-DATABASE_URL = os.getenv('DATABASE_URL')
+# Database Configuration - PURE POSTGRESQL ONLY (Supabase)
+DATABASE_TYPE = 'postgresql'  # Always PostgreSQL, no SQLite
+DATABASE_PATH = os.getenv('DATABASE_PATH')  # Ignored in PostgreSQL mode
+DATABASE_URL = os.getenv('DATABASE_URL') or 'postgres://***REMOVED***@152.67.7.111:5433/postgres'
+
+# Ensure DATABASE_URL is set for Supabase connection
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL must be set for Supabase PostgreSQL connection")
 
 # Processing Configuration
 BATCH_SIZE = 10

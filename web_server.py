@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID
+from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID, DATABASE_URL
 import signal
 import socket
 import threading
@@ -21,7 +21,7 @@ from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MOD
 
 app = Flask(__name__)
 application = app  # Gunicorn expects 'application'
-db = Database(os.getenv("DATABASE_PATH", "jobs.db"))
+db = Database(DATABASE_URL)
 
 # LLM processor and sheets sync available to web endpoints (optional)
 llm_processor = None

@@ -13,7 +13,7 @@ services:
       - BOT_RUN_MODE=webhook
       
       # Web Server Configuration
-      - PORT=9000
+      - PORT=9501
       - FLASK_ENV=production
       - FLASK_DEBUG=0
       
@@ -40,7 +40,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     ports:
-      - "9000:9000"
+      - "9501:9501"
     networks:
       - telegram_scraper_network
     deploy:
