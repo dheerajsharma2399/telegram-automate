@@ -362,7 +362,8 @@ async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_
             # query the DB for these job_ids (only jobs with email for email sheet)
             with db.get_connection() as conn:
                 cur = conn.cursor()
-                q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['?']*len(target_ids))}) AND email IS NOT NULL AND email != ''"
+                # Use %s for psycopg2 placeholders
+                q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['%s']*len(target_ids))}) AND email IS NOT NULL AND email != ''"
                 cur.execute(q, target_ids)
                 jobs = [dict(r) for r in cur.fetchall()]
         else:
