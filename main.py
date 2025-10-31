@@ -138,7 +138,7 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
             db.update_message_status(message["id"], "failed", str(e))
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command"""
+    """Handle /start command to begin the automatic job processing schedule."""
     if not is_authorized(update.effective_user.id):
         await update.message.reply_text("❌ Unauthorized access.")
         return
@@ -148,15 +148,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         scheduler.start()
         db.set_config('monitoring_status', 'running')
         await update.message.reply_text(
-            "✅ Job processing started!\n\n"
-            "📊 Use /status to check progress\n"
-            "⚙️ Use /process to manually process jobs"
+            "✅ Automatic job processing has been started.\n\nI will now check for jobs every 10 minutes. Note: Message monitoring is always running in the background."
         )
     else:
-        await update.message.reply_text("⚠️ Job processing is already running!")
+        await update.message.reply_text("⚠️ Automatic job processing is already running!")
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /stop command"""
+    """Handle /stop command to halt the automatic job processing schedule."""
     if not is_authorized(update.effective_user.id):
         await update.message.reply_text("❌ Unauthorized access.")
         return
@@ -165,11 +163,10 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         scheduler.shutdown()
         db.set_config('monitoring_status', 'stopped')
         await update.message.reply_text(
-            "🛑 Job processing stopped.\n\n"
-            "Use /start to resume processing."
+            "🛑 Automatic job processing has been stopped.\n\nUse /start to resume."
         )
     else:
-        await update.message.reply_text("⚠️ Job processing is not running.")
+        await update.message.reply_text("⚠️ Automatic job processing is not running.")
 
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -614,11 +611,11 @@ def setup_bot():
                     logger.exception(f"Scheduler thread error when running process_jobs: {e}")
                 time.sleep(max(1, PROCESSING_INTERVAL_MINUTES * 60))
 
-        try:
-            threading.Thread(target=_scheduler_thread, daemon=True).start()
-            db.set_config('monitoring_status', 'running')
-        except Exception:
-            logger.exception("Failed to start scheduler thread")
+        # try:
+        #     threading.Thread(target=_scheduler_thread, daemon=True).start()
+        #     db.set_config('monitoring_status', 'running')
+        # except Exception:
+        #     logger.exception("Failed to start scheduler thread")
 
         logger.info("Telegram bot setup complete!")
         return application
