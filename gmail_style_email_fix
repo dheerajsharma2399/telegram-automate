@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""
+Enhanced Gmail-style email generation functions
+Based on Google Script template with bug fixes
+"""
+
+import json
+import re
+from typing import Dict, List, Optional
+from pathlib import Path
+
+def load_user_profile():
+    """Load user profile from JSON file"""
+    try:
+        profile_path = Path(__file__).parent / 'user_profile.json'
+        if profile_path.exists():
+            with open(profile_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading user profile: {e}")
+    return {}
+
+def safe_get_skills(skills):
+    """Safely get skills as a list"""
+    if isinstance(skills, str):
+        return [skills]
+    elif isinstance(skills, list):
+        return skills
+    else:
+        return []
+
+def safe_get_projects(projects):
+    """Safely get projects as a list"""
+    if isinstance(projects, list):
+        return projects
+    else:
+        return []
+
+def generate_gmail_style_email_body(job_data: Dict, jd_text: str) -> str:
+    """Gmail-style email generation based on Google Script template"""
+    
+    # Load user profile
+    profile = load_user_profile()
+    
+    # Extract key information
+    company = job_data.get('company_name', 'your company')
+    role = job_data.get('job_role', 'the position')
+    recruiter = job_data.get('recruiter_name', 'Hiring Team')
+    location = job_data.get('location', '')
+    
+    # User profile details
+    name = profile.get('full_name', 'Dheeraj Sharma')
+    email = profile.get('email', 'your.email@example.com')
+    phone = profile.get('phone', '')
+    linkedin = profile.get('linkedin', '')
+    github = profile.get('github', '')
+    current_title = profile.get('current_title', 'Software Developer')
+    current_company = profile.get('current_company', 'your company')
+    
+    # Ensure skills is always a list - FIX THE BUG
+    skills = safe_get_skills(profile.get('skills', []))
+    projects = safe_get_projects(profile.get('top_projects', []))
+    
+    # Pick the most relevant project
+    relevant_project = projects[0] if projects else None
+    
+    # Build location context
+    location_context = f" in {location}" if location else ""
+    
+    # Gmail-style email with strong professional tone based on Google Script
+    email_body = f"""Dear {recruiter},
+
+I hope this email finds you well. I am writing to express my strong interest in the {role} position{location_context}.
+
+I am {name}, currently {current_title} at {current_company}. My core strengths are centered on building end-to-end AI and backend systems that solve complex data challenges. I specialize in:"""
+
+    # Add skills section if available
+    if skills:
+        skill_list = ', '.join(skills[:5])  # Top 5 skills
+        email_body += f"""
+
+• Strong expertise in {skill_list}, which directly aligns with your requirements for this {role} position."""
+
+    # Add project example with outcomes - inspired by Google Script template
+    if relevant_project:
+        project_name = relevant_project.get('name', 'key project')
+        project_description = relevant_project.get('description', 'relevant technical experience')
+        email_body += f"""
+
+For example, in my recent work on {project_name}, I {project_description.lower()}. This project demonstrates my ability to build scalable solutions using modern technologies and cloud infrastructure, which I believe would be valuable for your team at {company}."""
+    else:
+        email_body += f"""
+
+I have experience with modern development practices and cloud technologies, which positions me well to contribute effectively to your team's goals."""
+
+    # Add closing with strong call-to-action
+    contact_info = f"\nI am available for an interview at your convenience and can be reached at {email}"
+    if phone:
+        contact_info += f" or {phone}"
+    
+    email_body += f"""{contact_info}.
+
+Thank you for considering my application. I look forward to the opportunity to discuss how my experience and skills can contribute to {company}'s continued success.
+
+Best regards,
+{name}
+{email}"""
+
+    # Add contact details
+    if phone:
+        email_body += f"\n{phone}"
+    if linkedin:
+        email_body += f"\nLinkedIn: {linkedin}"
+    if github:
+        email_body += f"\nGitHub: {github}"
+    
+    return email_body
+
+def test_email_generation():
+    """Test the email generation with sample data"""
+    
+    # Sample job data from the problematic job
+    job_data = {
+        'company_name': 'Drivetrain (FP&A Decision Intelligence Platform)',
+        'job_role': 'Engineering Intern – Gen AI',
+        'recruiter_name': 'Hiring Team',
+        'location': 'Remote',
+        'email': 'careers@drivetrain.ai',
+        'jd_text': """Requirements: Core Focus: Passionate about Generative AI and applying it to enterprise automation (FP&A platform). Technical Skills: Strong understanding of DSA (Data Structures & Algorithms), systems"""
+    }
+    
+    jd_text = job_data['jd_text']
+    
+    print("TESTING GMAIL-STYLE EMAIL GENERATION")
+    print("=" * 50)
+    print(f"Company: {job_data['company_name']}")
+    print(f"Role: {job_data['job_role']}")
+    print(f"Email: {job_data['email']}")
+    print()
+    
+    try:
+        email_body = generate_gmail_style_email_body(job_data, jd_text)
+        
+        print("SUCCESS: Gmail-style email generated!")
+        print(f"Email length: {len(email_body)} chars")
+        print()
+        print("--- GENERATED EMAIL ---")
+        print(email_body)
+        print("--- END OF EMAIL ---")
+        
+        return True
+        
+    except Exception as e:
+        print(f"FAILED: Email generation error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+if __name__ == "__main__":
+    test_email_generation()
