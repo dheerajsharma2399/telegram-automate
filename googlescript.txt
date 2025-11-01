@@ -1,0 +1,416 @@
+/****************************************************
+ * JD → Email sender (default-first) with auto populate + subject logging
+ * Sheet headers (must exist):
+ * id, first_name, last_name, email, company_name, website, status, updated_at, jd_text
+ * The script auto-creates: email_subject
+ ****************************************************/
+
+// ==== CONFIG ====
+const SHEET_NAME    = 'outreach';              // tab name
+const DEFAULT_ROLE  = 'Software Engineer Intern';
+const DEFAULT_AVAIL = 'Immediate or within 2 weeks';
+const DEFAULT_LOC   = 'India (IST) — open to remote/hybrid';
+
+// Gemini
+const GEMINI_API_KEY = 'AIzaSyB73CgsCVrvc6G7TlyMOjgAuKgR3NtVwCQ';
+const GEMINI_MODEL   = 'gemini-2.5-pro';
+
+// Resume file IDs (Drive) — choose per role; filename is forced to Dheeraj_resume.pdf
+const RESUME_SWE_ID = '1bmDiBiUDxMKNJ3KGNNMNDM7S9aBNm5wo';
+const RESUME_DS_ID  = '1QBgOjeEH-pIIl3D_av-LtJhhGd79WgIm';
+const RESUME_ML_ID  = '1zCFl3dR_7_AiQqUBYYv1AixEfJS0ntTr';
+const RESUME_FILENAME = 'Dheeraj_resume.pdf';
+
+// Optional project repo links (replace with your real ones)
+const GITHUB_IOT_URL      = 'https://github.com/dheerajsharma2399/ditto';
+const GITHUB_TRADING_URL  = 'https://github.com/dheerajsharma2399';
+const GITHUB_AI_AGENT_URL = 'https://github.com/dheerajsharma2399';
+
+// ===== Subject safety (fix “Argument too large: subject”) =====
+const SUBJECT_MAX = 98; // cap for Gmail
+
+function finalizeSubject(raw, fallback) {
+  let s = String(raw || '').replace(/<[^>]*>/g, '');  // strip HTML
+  s = s.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) s = String(fallback || 'Application');
+  if (s.length > SUBJECT_MAX) s = s.slice(0, SUBJECT_MAX - 1) + '…';
+  return s;
+}
+
+// ===== Menu & trigger =====
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Mailer')
+    .addItem('Run now', 'runMailer')
+    .addItem('Create 10-min trigger', 'createTenMinuteTrigger')
+    .addToUi();
+}
+function createTenMinuteTrigger() {
+  ScriptApp.newTrigger('runMailer').timeBased().everyMinutes(10).create();
+  SpreadsheetApp.getUi().alert('Created time trigger for runMailer (every 10 min).');
+}
+// Back-compat if an old trigger points here
+function myFunction() { return runMailer(); }
+
+// ===== Main =====
+function runMailer() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME) || SpreadsheetApp.getActiveSheet();
+  const values = sh.getDataRange().getValues();
+  if (!values.length) return;
+
+  // Ensure required headers & subject column
+  let headers = values[0].map(h => String(h).trim());
+  const baseRequired = ['id','first_name','last_name','email','company_name','website','status','updated_at','jd_text'];
+  const idx = indexMap(headers, baseRequired);
+  const subjectIdx = ensureColumn(sh, headers, 'email_subject'); // adds column if missing
+
+  const nowIso = new Date().toISOString();
+  const writes = [];
+
+  for (let r = 1; r < values.length; r++) {
+    let row = values[r];
+    const status = String(row[idx.status] || '').toUpperCase();
+    const jdText = (row[idx.jd_text] || '').toString().trim();
+
+    if (!jdText) continue; // need JD text
+    if (status && status !== 'PENDING' && status !== 'RETRY') continue;
+
+    // Current values (may be blank)
+    let id          = (row[idx.id] || '').toString().trim();
+    let first_name  = (row[idx.first_name] || '').toString().trim();
+    let last_name   = (row[idx.last_name] || '').toString().trim();
+    let email       = (row[idx.email] || '').toString().trim();
+    let company     = (row[idx.company_name] || '').toString().trim();
+    let website     = (row[idx.website] || '').toString().trim();
+
+    // Read any prefilled subject from the sheet (email_subject column)
+    const subjectPrefill =
+      (subjectIdx < row.length && row[subjectIdx] !== undefined)
+        ? String(row[subjectIdx]).trim()
+        : '';
+
+    // === Auto-populate missing fields from JD (Gemini + regex fallbacks) ===
+    if (!id || !first_name || !last_name || !email || !company || !website) {
+      const extracted = extractFieldsFromJD(jdText); // {role, company, website, recruiter_email, contact_name}
+      if (!id) id = 'JD-' + Utilities.getUuid().slice(0, 8);
+      if (!company && extracted.company) company = extracted.company;
+      if (!website && extracted.website) website = extracted.website;
+      if (!email && extracted.recruiter_email) email = extracted.recruiter_email;
+
+      if ((!first_name || !last_name) && extracted.contact_name) {
+        const parts = extracted.contact_name.trim().split(/\s+/);
+        if (!first_name) first_name = parts[0] || '';
+        if (!last_name)  last_name  = parts.slice(1).join(' ') || '';
+      }
+      // Regex fallbacks
+      if (!email) {
+        const emails = String(jdText).match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
+        email = (emails.find(e => !/noreply|no-reply/i.test(e)) || '').trim();
+      }
+      if (!website) {
+        const m = String(jdText).match(/https?:\/\/[^\s)]+/i);
+        website = m ? m[0] : website;
+      }
+
+      // Write populated fields early
+      row = ensureRowLength(row, sh.getLastColumn());
+      row[idx.id] = id;
+      row[idx.first_name] = first_name;
+      row[idx.last_name] = last_name;
+      row[idx.email] = email;
+      row[idx.company_name] = company;
+      row[idx.website] = website;
+      row[idx.updated_at] = nowIso;
+      writes.push({ r, row });
+    }
+
+    // === Decide email content ===
+    const needs = asksForMoreInfo(jdText);
+    const detectedRole = tryExtractRole(jdText) || DEFAULT_ROLE;
+    let roleForResume = detectedRole;
+    let to = email; // recipient default (may be overridden)
+    const subjectFromJD = extractSubjectFromJD(jdText); // normalized/capped later
+
+    let rawSubject = '';
+    let htmlBody   = '';
+
+    if (needs.needsMoreInfo) {
+      // Use Gemini only when JD asks for more info
+      const g = geminiAnswerMoreInfo(jdText, {
+        toHint: email, company, first: first_name, last: last_name,
+        defaultRole: DEFAULT_ROLE, availability: DEFAULT_AVAIL, location: DEFAULT_LOC
+      });
+      rawSubject    = subjectPrefill || subjectFromJD || g.subject || defaultSubject(detectedRole);
+      htmlBody      = g.html;
+      roleForResume = g.role || detectedRole;
+      if (g.recruiterEmail) to = g.recruiterEmail || to;
+    } else {
+      // Default template
+      rawSubject = subjectPrefill || subjectFromJD || defaultSubject(detectedRole);
+      htmlBody   = defaultEmailHtml({ company: company || 'your team', role: detectedRole });
+    }
+
+    // Finalize subject (normalize + cap)
+    const subject = finalizeSubject(rawSubject, defaultSubject(detectedRole));
+
+    // Validate recipient
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to || '')) {
+      row = ensureRowLength(row, sh.getLastColumn());
+      row[idx.status] = 'INVALID_EMAIL';
+      row[idx.updated_at] = nowIso;
+      if (!subjectPrefill) row[subjectIdx] = subject || '';  // don't overwrite prefilled subjects
+      writes.push({ r, row });
+      continue;
+    }
+
+    // Attach best resume by role, force filename
+    const resume = pickResumeBlob(roleForResume);
+
+    // Send
+    GmailApp.sendEmail(to, subject, stripHtml(htmlBody), {
+      htmlBody: htmlBody,
+      attachments: [resume],
+    });
+
+    // Mark SENT + log subject
+    row = ensureRowLength(row, sh.getLastColumn());
+    row[idx.status] = 'SENT';
+    row[idx.updated_at] = nowIso;
+    if (!subjectPrefill) row[subjectIdx] = subject || '';  // keep any manual subject intact
+    writes.push({ r, row });
+  }
+
+  // Bulk write
+  for (const { r, row } of writes) {
+    sh.getRange(r + 1, 1, 1, row.length).setValues([row]);
+  }
+}
+
+// ===== Extraction helpers (Gemini) =====
+function extractFieldsFromJD(jdText) {
+  const parts = [{
+    text:
+`SYSTEM
+Extract recruiter/contact and company details from the JD.
+Return ONLY JSON with this schema:
+{
+  "role": "string",
+  "company": "string",
+  "website": "string (homepage or careers link if present)",
+  "recruiter_email": "string (if present)",
+  "contact_name": "string (if a person is named)"
+}
+
+JD TEXT
+${jdText}`
+  }];
+
+  const body = {
+    contents: [{ parts }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 600, responseMimeType: "application/json" }
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  try {
+    const res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true,
+    });
+    const json = safeJson(res.getContentText());
+    const text = ((json.candidates || [])[0] || {}).content?.parts?.[0]?.text || '{}';
+    const out = safeJson(text) || {};
+    return {
+      role: (out.role || '').trim(),
+      company: (out.company || '').trim(),
+      website: (out.website || '').trim(),
+      recruiter_email: (out.recruiter_email || '').trim(),
+      contact_name: (out.contact_name || '').trim()
+    };
+  } catch (e) {
+    // Regex fallbacks
+    const emails = String(jdText).match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || [];
+    const website = (String(jdText).match(/https?:\/\/[^\s)]+/i) || [])[0] || '';
+    return { role: '', company: '', website, recruiter_email: (emails[0] || ''), contact_name: '' };
+  }
+}
+
+// ===== Subject extraction from JD (respects finalizeSubject) =====
+function extractSubjectFromJD(jd) {
+  const text = String(jd || '');
+  const patterns = [
+    /(?:^|\n)\s*(?:subject\s*(?:line)?|email\s*subject)\s*[:\-–]\s*(.+)$/i,
+    /(?:^|\n)\s*(?:use|write|set)\s+(?:the\s+)?subject\s*(?:line)?\s*(?:as|:)\s*["“”]?(.+?)["”]?\s*$/i,
+    /(?:^|\n)\s*subject\s*["“”]([^"\n\r]+)["”]/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m && m[1]) return finalizeSubject(m[1], '');
+  }
+  const m2 = text.match(/\[(?:subject|subj)\s*[:\-–]\s*([^\]]+)\]/i);
+  if (m2 && m2[1]) return finalizeSubject(m2[1], '');
+  return '';
+}
+
+// ===== Default template (ML/AI Agents + internship) =====
+function defaultSubject(role) {
+  return `Application: ${role} — Dheeraj Sharma`;
+}
+function defaultEmailHtml({ company, role }) {
+  return `
+  <p>Hi Hiring Team,</p>
+
+  <p>
+  I’m applying for the <strong>${safe(role)}</strong> position at <strong>${safe(company)}</strong>. My core strengths are centered on building <strong>end-to-end AI and backend systems</strong> that solve complex data challenges. I specialize in:
+  </p>
+
+  <ul>
+    <li>
+      <strong>AI & Machine Learning</strong>: Architecting full <strong>Retrieval-Augmented Generation (RAG)</strong> pipelines using <strong>LangChain</strong>, <strong>Ollama</strong>, and <strong>FAISS</strong>, and deploying predictive models with <strong>XGBoost</strong> and <strong>Scikit-learn</strong> on platforms like <strong>AWS SageMaker</strong>.
+    </li>
+    <li>
+      <strong>Backend Development</strong>: Creating robust services in <strong>Python</strong> with <strong>FastAPI</strong>, containerizing them with <strong>Docker</strong>, and managing them with CI/CD workflows.
+    </li>
+    <li>
+      <strong>Scalable Data Engineering</strong>: Building high-throughput data pipelines on <strong>AWS</strong> and <strong>Azure</strong> to process massive datasets (100GB+) and using automation tools like <strong>n8n</strong> to streamline workflows, delivering significant cost savings and efficiency gains.
+    </li>
+  </ul>
+
+  <p>
+  For a detailed look at my projects and qualifications, please find my <strong>resume attached</strong>. You can also explore my work and codebase on my <strong>GitHub</strong> and see my full professional background on <strong>LinkedIn</strong>.
+  </p>
+  
+  <p>Best regards,<br/>
+  <strong>Dheeraj Sharma</strong><br/>
+  Email: <a href="mailto:dheerajofficial2306@gmail.com">dheerajofficial2306@gmail.com</a><br/>
+  Phone: +91-8860964920
+  </p>`;
+}
+
+// ===== Heuristic: does the JD ask for more info? =====
+function asksForMoreInfo(jd) {
+  const txt = String(jd || '').toLowerCase();
+  const triggers = [];
+  const add = (k) => triggers.push(k);
+
+  if (/(please|kindly).{0,20}(provide|share|include|send|attach)/i.test(txt)) add('please provide/share/include');
+  if (/(answer|respond).{0,40}(questions?|following|below)/i.test(txt)) add('answer questions');
+  if (/(screening|pre[- ]?screen|shortlist).{0,20}question/i.test(txt)) add('screening questions');
+  if (/(assessment|assignment|challenge|take[- ]?home)/i.test(txt)) add('assessment/assignment');
+  if (/(availability|notice period|salary|compensation|ctc|expected)/i.test(txt)) add('specific details requested');
+  if (/(questions?)\s*[:\-]/i.test(txt)) add('explicit questions list');
+  if (/q[1-9]\s*[:\-]/i.test(txt)) add('q1/q2 style prompts');
+
+  return { needsMoreInfo: triggers.length > 0, triggers, recruiterEmail: '' };
+}
+
+// ===== If extra info: ask Gemini to draft tailored reply =====
+function geminiAnswerMoreInfo(jdText, ctx) {
+  const parts = [{
+    text:
+`SYSTEM
+You write concise recruiter emails (150–220 words, light HTML: <p>, <ul>, <li>, <strong>).
+Address explicit requests in the JD (questions, availability, salary, links, forms).
+Map 3–5 key JD requirements to my projects with outcomes (mention ML/AI where relevant). End with 2–3 specific questions if appropriate.
+
+CANDIDATE (JSON)
+${JSON.stringify({
+  name: "Dheeraj Sharma",
+  title: "Software Engineer Intern (since Feb 2025)",
+  email: "dheerajofficial2306@gmail.com",
+  phone: "+91-8860964920",
+  location: DEFAULT_LOC,
+  availability: DEFAULT_AVAIL,
+  links: ["https://github.com/dheerajsharma2399", "https://www.linkedin.com/in/dheerajsharma2399"],
+  projects: [
+    { name: "IoT-Driven Smart Agriculture", link: GITHUB_IOT_URL, tech: "Flask, MQTT, AWS IoT Core, S3, SageMaker, XGBoost", outcome: "Real-time ingestion; tracked accuracy; BI dashboards" },
+    { name: "Binance Futures Trading Bot", link: GITHUB_TRADING_URL, tech: "Flask REST, Binance Testnet, Docker, GitHub Actions", outcome: "Reliable low-latency trading APIs" },
+    { name: "ML & AI Agents for Support Automation", link: GITHUB_AI_AGENT_URL, tech: "LLM agents (tool use, RAG), BERT/XGBoost/LightGBM", outcome: "Measured with precision/recall/F1 and latency" }
+  ]
+})}
+
+COMPANY (hint): ${ctx.company || ''}
+
+JD TEXT
+${jdText}
+
+OUTPUT JSON ONLY:
+{
+  "role": "string (if identified)",
+  "recruiter_email": "string (if found)",
+  "email": { "subject": "string", "html": "string" }
+}`
+  }];
+
+  const body = {
+    contents: [{ parts }],
+    generationConfig: { temperature: 0.35, maxOutputTokens: 1400, responseMimeType: "application/json" }
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true,
+  });
+
+  const json = safeJson(res.getContentText());
+  const text = ((json.candidates || [])[0] || {}).content?.parts?.[0]?.text || '{}';
+  const out = safeJson(text) || {};
+  return {
+    role: out.role || ctx.defaultRole || DEFAULT_ROLE,
+    recruiterEmail: (out.recruiter_email || '').trim(),
+    subject: (out.email && out.email.subject) || defaultSubject(out.role || DEFAULT_ROLE),
+    html: (out.email && out.email.html) || defaultEmailHtml({
+      company: ctx.company || 'your team',
+      role: out.role || DEFAULT_ROLE
+    })
+  };
+}
+
+// ===== Utilities =====
+function tryExtractRole(jd) {
+  const m1 = String(jd || '').match(/(?:role|position|title)\s*[:\-]\s*([^\n\r]+)/i);
+  if (m1) return m1[1].trim();
+  const m2 = String(jd || '').match(/\b([A-Za-z ]+Intern)\b/i);
+  if (m2) return m2[1].trim();
+  const m3 = String(jd || '').match(/\b(backend|software|python|machine learning|ml|ai)\b.*\b(intern|engineer)\b/i);
+  if (m3) return (m3[0] || '').trim().replace(/\s+/g, ' ').replace(/^\w/, c => c.toUpperCase());
+  return '';
+}
+function pickResumeBlob(role) {
+  const rl = (role || '').toLowerCase();
+  let fileId = RESUME_SWE_ID; // default
+  if (rl.includes('machine') || rl.includes('ml') || rl.includes('ai')) fileId = RESUME_ML_ID;
+  else if (rl.includes('data')) fileId = RESUME_DS_ID;
+  return DriveApp.getFileById(fileId).getBlob().setName(RESUME_FILENAME);
+}
+function indexMap(headers, required) {
+  const idx = {};
+  for (const name of required) {
+    const i = headers.indexOf(name);
+    if (i === -1) throw new Error(`Missing required column header: "${name}"`);
+    idx[name] = i;
+  }
+  return idx;
+}
+function ensureColumn(sh, headers, name) {
+  let idx = headers.indexOf(name);
+  if (idx === -1) {
+    const last = sh.getLastColumn();
+    sh.insertColumnAfter(last);
+    sh.getRange(1, last + 1).setValue(name);
+    idx = last; // 0-based index of new column
+  }
+  return idx;
+}
+function ensureRowLength(row, targetLen) {
+  const out = row.slice();
+  while (out.length < targetLen) out.push('');
+  return out;
+}
+function stripHtml(html) { return String(html || '').replace(/<[^>]+>/g, ' '); }
+function safeJson(s) { try { return JSON.parse(s || '{}'); } catch (e) { return {}; } }
+function safe(x) { return String(x || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }

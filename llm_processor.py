@@ -272,15 +272,19 @@ class LLMProcessor:
         }
 
     def generate_email_body(self, job_data: Dict, jd_text: str) -> str:
-        """Generate email body using proven manual template logic for quality and consistency"""
+        """Generate Gmail-style email body based on Google Script template with bug fixes"""
         try:
-            # Use the improved manual email generation logic
-            return self._generate_basic_email_body(job_data, jd_text)
-            
+            # Use the Gmail-style email generation
+            return self._generate_gmail_style_email_body(job_data, jd_text)
         except Exception as e:
-            print(f"Manual email generation failed: {e}, using basic fallback")
-            # Last resort fallback
-            return self._generate_enhanced_template_email(job_data, jd_text)
+            print(f"Gmail-style email generation failed: {e}, using enhanced fallback")
+            # Enhanced fallback with bug fixes
+            try:
+                return self._generate_enhanced_template_email_fixed(job_data, jd_text)
+            except Exception as e2:
+                print(f"Enhanced fallback also failed: {e2}, using simple fallback")
+                # Simple fallback
+                return self._generate_simple_email_body(job_data, jd_text)
     
     async def generate_email_body_llm(self, job_data: Dict, jd_text: str) -> str:
         """Generate personalized email body using LLM"""
@@ -293,6 +297,189 @@ class LLMProcessor:
             skills = profile.get('skills', [])
             projects = profile.get('top_projects', [])
             
+    def _generate_gmail_style_email_body(self, job_data: Dict, jd_text: str) -> str:
+        """Gmail-style email generation based on Google Script template with bug fixes"""
+        profile = self.user_profile or {}
+        
+        # Extract key information
+        company = job_data.get('company_name', 'your company')
+        role = job_data.get('job_role', 'the position')
+        recruiter = job_data.get('recruiter_name', 'Hiring Team')
+        location = job_data.get('location', '')
+        
+        # User profile details - with bug fixes for skills
+        name = profile.get('full_name', 'Dheeraj Sharma')
+        email = profile.get('email', 'your.email@example.com')
+        phone = profile.get('phone', '')
+        linkedin = profile.get('linkedin', '')
+        github = profile.get('github', '')
+        current_title = profile.get('current_title', 'Software Developer')
+        current_company = profile.get('current_company', 'your company')
+        
+        # Ensure skills is always a list - FIX THE BUG
+        skills = profile.get('skills', [])
+        if isinstance(skills, str):
+            skills = [skills]
+        elif not isinstance(skills, list):
+            skills = []
+        
+        projects = profile.get('top_projects', [])
+        if not isinstance(projects, list):
+            projects = []
+        
+        # Pick the most relevant project
+        relevant_project = projects[0] if projects else None
+        
+        # Build location context
+        location_context = f" in {location}" if location else ""
+        
+        # Gmail-style email with strong professional tone based on Google Script
+        email_body = f"""Dear {recruiter},
+
+I hope this email finds you well. I am writing to express my strong interest in the {role} position{location_context}.
+
+I am {name}, currently {current_title} at {current_company}. My core strengths are centered on building end-to-end AI and backend systems that solve complex data challenges. I specialize in:"""
+
+        # Add skills section if available
+        if skills:
+            skill_list = ', '.join(skills[:5])  # Top 5 skills
+            email_body += f"""
+
+• Strong expertise in {skill_list}, which directly aligns with your requirements for this {role} position."""
+
+        # Add project example with outcomes - inspired by Google Script template
+        if relevant_project:
+            project_name = relevant_project.get('name', 'key project')
+            project_description = relevant_project.get('description', 'relevant technical experience')
+            email_body += f"""
+
+For example, in my recent work on {project_name}, I {project_description.lower()}. This project demonstrates my ability to build scalable solutions using modern technologies and cloud infrastructure, which I believe would be valuable for your team at {company}."""
+        else:
+            email_body += f"""
+
+I have experience with modern development practices and cloud technologies, which positions me well to contribute effectively to your team's goals."""
+
+        # Add closing with strong call-to-action
+        contact_info = f"\nI am available for an interview at your convenience and can be reached at {email}"
+        if phone:
+            contact_info += f" or {phone}"
+        
+        email_body += f"""{contact_info}.
+
+Thank you for considering my application. I look forward to the opportunity to discuss how my experience and skills can contribute to {company}'s continued success.
+
+Best regards,
+{name}
+{email}"""
+
+        # Add contact details
+        if phone:
+            email_body += f"\n{phone}"
+        if linkedin:
+            email_body += f"\nLinkedIn: {linkedin}"
+        if github:
+            email_body += f"\nGitHub: {github}"
+        
+        return email_body
+
+    def _generate_enhanced_template_email_fixed(self, job_data: Dict, jd_text: str) -> str:
+        """Enhanced template email generation with bug fixes"""
+        profile = self.user_profile or {}
+        
+        # User profile details - with bug fixes
+        name = profile.get('full_name', 'Dheeraj Sharma')
+        email = profile.get('email', 'your.email@example.com')
+        phone = profile.get('phone', '')
+        linkedin = profile.get('linkedin', '')
+        github = profile.get('github', '')
+        current_title = profile.get('current_title', 'Software Developer')
+        current_company = profile.get('current_company', 'your company')
+        
+        # Ensure skills is always a list - FIX THE BUG
+        skills = profile.get('skills', [])
+        if isinstance(skills, str):
+            skills = [skills]
+        elif not isinstance(skills, list):
+            skills = []
+        
+        projects = profile.get('top_projects', [])
+        if not isinstance(projects, list):
+            projects = []
+        
+        # Extract job-specific details
+        company = job_data.get('company_name', 'your company')
+        role = job_data.get('job_role', 'the position')
+        recruiter = job_data.get('recruiter_name', 'Hiring Team')
+        location = job_data.get('location', '')
+        
+        # Build personalized sections
+        skills_section = ""
+        if skills:
+            relevant_skills = skills[:4]  # Top 4 relevant skills
+            skills_section = f"\n\nI bring strong expertise in {', '.join(relevant_skills)}, which I believe aligns well with your requirements for this {role} position."
+        
+        project_section = ""
+        if projects:
+            top_project = projects[0]
+            project_name = top_project.get('name', 'a key project')
+            project_desc = top_project.get('description', 'relevant technical experience')
+            project_section = f"\n\nFor example, in my recent work on {project_name}, I {project_desc.lower()}."
+        
+        # Personalized opening based on company/role
+        company_context = f" at {company}" if company != 'your company' else ""
+        location_context = f" in {location}" if location else ""
+        
+        # Generate the email
+        email_body = f"""Dear {recruiter},
+
+I hope this email finds you well. I am writing to express my strong interest in the {role} position{company_context}{location_context}.
+
+I am {name}, currently working as a {current_title}. Having reviewed the job description, I am genuinely excited about this opportunity because{company_context} and believe my background would be a great fit for your team.{skills_section}{project_section}
+
+I would welcome the opportunity to discuss how my experience and skills can contribute to your organization's continued success. I am available for an interview at your convenience and can be reached at {email}.
+
+Thank you for considering my application. I look forward to hearing from you.
+
+Best regards,
+{name}
+{email}"""
+        
+        # Keep result within reasonable limits
+        if len(email_body) > 1500:
+            email_body = email_body[:1490] + '...'
+            
+        return email_body
+
+    def _generate_simple_email_body(self, job_data: Dict, jd_text: str) -> str:
+        """Simple fallback email generation with bug fixes"""
+        profile = self.user_profile or {}
+        
+        # User profile details - with bug fixes
+        name = profile.get('full_name', 'Dheeraj Sharma')
+        email = profile.get('email', 'your.email@example.com')
+        phone = profile.get('phone', '')
+        
+        # Extract job details
+        company = job_data.get('company_name', 'your company')
+        role = job_data.get('job_role', 'the position')
+        recruiter = job_data.get('recruiter_name', 'Hiring Team')
+        
+        # Simple email body
+        email_body = f"""Dear {recruiter},
+
+I am writing to express my strong interest in the {role} position at {company}.
+
+I am {name} and I am very interested in this opportunity. I believe my skills and experience make me a great fit for this role.
+
+I would welcome the opportunity to discuss my qualifications further. I can be reached at {email}{' or ' + phone if phone else ''}.
+
+Thank you for considering my application.
+
+Best regards,
+{name}
+{email}"""
+        
+        return email_body
             # Extract key job details
             company = job_data.get('company_name', 'your company')
             role = job_data.get('job_role', 'the position')
