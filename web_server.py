@@ -539,144 +539,144 @@ def remove_webhook():
         logging.error(f"Failed to remove webhook: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/generate_emails', methods=['POST'])
-def api_generate_emails():
-    """Generate enhanced email bodies for processed jobs.
-    
-    This endpoint supports:
-    1. Direct generation when running as standalone service
-    2. Command queuing when running as dashboard-only service
-    
-    If LLM processor is available, generates enhanced job-specific emails.
-    If not available, enqueues command for bot service to handle.
-    """
-    try:
-        payload = request.get_json(force=True) or {}
-        job_ids = payload.get('job_ids')
-        run_now = payload.get('run_now', False)
+# @app.route('/api/generate_emails', methods=['POST'])
+# def api_generate_emails():
+#     """Generate enhanced email bodies for processed jobs.
+#     
+#     This endpoint supports:
+#     1. Direct generation when running as standalone service
+#     2. Command queuing when running as dashboard-only service
+#     
+#     If LLM processor is available, generates enhanced job-specific emails.
+#     If not available, enqueues command for bot service to handle.
+#     """
+#     try:
+#         payload = request.get_json(force=True) or {}
+#         job_ids = payload.get('job_ids')
+#         run_now = payload.get('run_now', False)
 
-        # Case 1: Direct generation (standalone mode)
-        if llm_processor and run_now:
-            logging.info("Direct email generation triggered.")
-            email_jobs_without_emails = db.get_email_jobs_needing_generation()
-            logging.info(f"Found {len(email_jobs_without_emails)} jobs needing email generation.")
+#         # Case 1: Direct generation (standalone mode)
+#         if llm_processor and run_now:
+#             logging.info("Direct email generation triggered.")
+#             email_jobs_without_emails = db.get_email_jobs_needing_generation()
+#             logging.info(f"Found {len(email_jobs_without_emails)} jobs needing email generation.")
 
-            if not email_jobs_without_emails:
-                return jsonify({"message": "No jobs found that need an email body generated.", "generated": 0})
+#             if not email_jobs_without_emails:
+#                 return jsonify({"message": "No jobs found that need an email body generated.", "generated": 0})
             
-            generated = 0
-            for job in email_jobs_without_emails:
-                try:
-                    # Use enhanced email generation with job-specific content
-                    email_body = llm_processor.generate_email_body(job, job.get('jd_text', ''))
-                    if email_body:
-                        db.update_job_email_body(job['job_id'], email_body)
-                        generated += 1
-                except Exception as e:
-                    logging.error(f"Failed to generate email for job {job.get('job_id')}: {e}")
+#             generated = 0
+#             for job in email_jobs_without_emails:
+#                 try:
+#                     # Use enhanced email generation with job-specific content
+#                     email_body = llm_processor.generate_email_body(job, job.get('jd_text', ''))
+#                     if email_body:
+#                         db.update_job_email_body(job['job_id'], email_body)
+#                         generated += 1
+#                 except Exception as e:
+#                     logging.error(f"Failed to generate email for job {job.get('job_id')}: {e}")
             
-            return jsonify({
-                "message": f"Generated {generated} email bodies for 'email' sheet jobs.",
-                "generated": generated,
-                "mode": "direct_generation"
-            })
+#             return jsonify({
+#                 "message": f"Generated {generated} email bodies for 'email' sheet jobs.",
+#                 "generated": generated,
+#                 "mode": "direct_generation"
+#             })
         
-        # Case 2: Command queuing (service separation mode)
-        else:
-            # enqueue the command for the bot poller to execute
-            cmd = '/generate_emails'
-            if job_ids:
-                cmd = f"/generate_emails {','.join(map(str, job_ids))}"
+#         # Case 2: Command queuing (service separation mode)
+#         else:
+#             # enqueue the command for the bot poller to execute
+#             cmd = '/generate_emails'
+#             if job_ids:
+#                 cmd = f"/generate_emails {','.join(map(str, job_ids))}"
 
-            if hasattr(db, 'enqueue_command') and callable(getattr(db, 'enqueue_command')):
-                cmd_id = db.enqueue_command(cmd)
-                return jsonify({
-                    "message": "Email generation enqueued.",
-                    "command_id": cmd_id,
-                    "mode": "command_queue"
-                })
-            else:
-                ok, resp = send_telegram_command(cmd)
-                if ok:
-                    return jsonify({
-                        "message": "Email generation sent via Telegram fallback.",
-                        "telegram_response": resp,
-                        "mode": "telegram_fallback"
-                    })
-                else:
-                    return jsonify({"error": "Failed to enqueue generation and Telegram fallback failed.", "details": resp}), 500
+#             if hasattr(db, 'enqueue_command') and callable(getattr(db, 'enqueue_command')):
+#                 cmd_id = db.enqueue_command(cmd)
+#                 return jsonify({
+#                     "message": "Email generation enqueued.",
+#                     "command_id": cmd_id,
+#                     "mode": "command_queue"
+#                 })
+#             else:
+#                 ok, resp = send_telegram_command(cmd)
+#                 if ok:
+#                     return jsonify({
+#                         "message": "Email generation sent via Telegram fallback.",
+#                         "telegram_response": resp,
+#                         "mode": "telegram_fallback"
+#                     })
+#                 else:
+#                     return jsonify({"error": "Failed to enqueue generation and Telegram fallback failed.", "details": resp}), 500
                     
-    except Exception as e:
-        logging.exception('Failed to generate emails')
-        return jsonify({'error': str(e)}), 500
+#     except Exception as e:
+#         logging.exception('Failed to generate emails')
+#         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/sheets/generate_email_bodies', methods=['POST'])
-def api_sheets_generate_email_bodies():
-    """Generate email bodies from Google Sheets data.
-    
-    This endpoint can generate emails directly if LLM processor is available,
-    or delegate to the bot service if not.
-    """
-    try:
-        payload = request.get_json(force=True) or {}
-        sheet = payload.get('sheet', 'email')
-        limit = payload.get('limit', 50)
-        
-        sheets_sync = get_sheets_sync()
-        if not sheets_sync:
-            return jsonify({'error': 'Google Sheets not configured'}), 500
-        
-        if llm_processor:
-            # Direct generation mode - generate emails for sheet data
-            try:
-                jobs_to_generate = sheets_sync.get_jobs_needing_email_generation(sheet)
-                if not jobs_to_generate:
-                    return jsonify({"message": f"No jobs found in '{sheet}' sheet that need an email body generated.", "generated": 0})
+# @app.route('/api/sheets/generate_email_bodies', methods=['POST'])
+# def api_sheets_generate_email_bodies():
+#     """Generate email bodies from Google Sheets data.
+#     
+#     This endpoint can generate emails directly if LLM processor is available,
+#     or delegate to the bot service if not.
+#     """
+#     try:
+#         payload = request.get_json(force=True) or {}
+#         sheet = payload.get('sheet', 'email')
+#         limit = payload.get('limit', 50)
+#         
+#         sheets_sync = get_sheets_sync()
+#         if not sheets_sync:
+#             return jsonify({'error': 'Google Sheets not configured'}), 500
+#         
+#         if llm_processor:
+#             # Direct generation mode - generate emails for sheet data
+#             try:
+#                 jobs_to_generate = sheets_sync.get_jobs_needing_email_generation(sheet)
+#                 if not jobs_to_generate:
+#                     return jsonify({"message": f"No jobs found in '{sheet}' sheet that need an email body generated.", "generated": 0})
 
-                generated_count = 0
-                for job in jobs_to_generate:
-                    try:
-                        # Ensure job_id is present for logging and updating
-                        job_id = job.get('Job ID', 'unknown_job')
+#                 generated_count = 0
+#                 for job in jobs_to_generate:
+#                     try:
+#                         # Ensure job_id is present for logging and updating
+#                         job_id = job.get('Job ID', 'unknown_job')
                         
-                        # Use enhanced email generation with job-specific content
-                        # Pass job_data as a dictionary, and jd_text
-                        email_body = llm_processor.generate_email_body(job, job.get('Job Description', ''))
+#                         # Use enhanced email generation with job-specific content
+#                         # Pass job_data as a dictionary, and jd_text
+#                         email_body = llm_processor.generate_email_body(job, job.get('Job Description', ''))
                         
-                        if email_body:
-                            if sheets_sync.update_job_email_body_in_sheet(job_id, email_body, sheet):
-                                generated_count += 1
-                            else:
-                                logging.warning(f"Failed to update email body for job {job_id} in sheet {sheet}.")
-                        else:
-                            logging.warning(f"LLM did not generate an email body for job {job_id}.")
-                    except Exception as e:
-                        logging.error(f"Error generating or updating email for job {job.get('Job ID', 'unknown')}: {e}")
+#                         if email_body:
+#                             if sheets_sync.update_job_email_body_in_sheet(job_id, email_body, sheet):
+#                                 generated_count += 1
+#                             else:
+#                                 logging.warning(f"Failed to update email body for job {job_id} in sheet {sheet}.")
+#                         else:
+#                             logging.warning(f"LLM did not generate an email body for job {job_id}.")
+#                     except Exception as e:
+#                         logging.error(f"Error generating or updating email for job {job.get('Job ID', 'unknown')}: {e}")
                 
-                return jsonify({
-                    "message": f"Generated and updated email bodies for {generated_count} jobs in '{sheet}' sheet.",
-                    "generated": generated_count,
-                    "mode": "direct_sheet_generation"
-                })
-            except Exception as e:
-                logging.error(f'Sheet generation error: {e}')
-                return jsonify({'error': str(e)}), 500
-        else:
-            # Queue mode - delegate to bot
-            cmd = f'/sync_sheets'
-            if hasattr(db, 'enqueue_command'):
-                cmd_id = db.enqueue_command(cmd)
-                return jsonify({"message": "Sheet sync enqueued.", "command_id": cmd_id})
-            else:
-                ok, resp = send_telegram_command(cmd)
-                if ok:
-                    return jsonify({"message": "Sheet sync sent via Telegram.", "telegram_response": resp})
-                else:
-                    return jsonify({"error": "Failed to sync sheets", "details": resp}), 500
+#                 return jsonify({
+#                     "message": f"Generated and updated email bodies for {generated_count} jobs in '{sheet}' sheet.",
+#                     "generated": generated_count,
+#                     "mode": "direct_sheet_generation"
+#                 })
+#             except Exception as e:
+#                 logging.error(f'Sheet generation error: {e}')
+#                 return jsonify({'error': str(e)}), 500
+#         else:
+#             # Queue mode - delegate to bot
+#             cmd = f'/sync_sheets'
+#             if hasattr(db, 'enqueue_command'):
+#                 cmd_id = db.enqueue_command(cmd)
+#                 return jsonify({"message": "Sheet sync enqueued.", "command_id": cmd_id})
+#             else:
+#                 ok, resp = send_telegram_command(cmd)
+#                 if ok:
+#                     return jsonify({"message": "Sheet sync sent via Telegram.", "telegram_response": resp})
+#                 else:
+#                     return jsonify({"error": "Failed to sync sheets", "details": resp}), 500
                     
-    except Exception as e:
-        logging.exception('Failed to generate email bodies from sheet')
-        return jsonify({'error': str(e)}), 500
+#     except Exception as e:
+#         logging.exception('Failed to generate email bodies from sheet')
+#         return jsonify({'error': str(e)}), 500
 
 
 def _signal_handler(signum, frame):

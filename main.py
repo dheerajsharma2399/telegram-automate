@@ -341,80 +341,80 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"❌ Failed to sync with Google Sheets: {e}")
 
 
-async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /generate_emails command - generate personalized email bodies for processed jobs."""
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
-        return
+# async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     """Handle /generate_emails command - generate personalized email bodies for processed jobs."""
+#     if not is_authorized(update.effective_user.id):
+#         await update.message.reply_text("❌ Unauthorized access.")
+#         return
 
-    # optional arg: comma separated job ids
-    target_ids = None
-    if context.args:
-        arg = context.args[0]
-        target_ids = [x.strip() for x in arg.split(',') if x.strip()]
+#     # optional arg: comma separated job ids
+#     target_ids = None
+#     if context.args:
+#         arg = context.args[0]
+#         target_ids = [x.strip() for x in arg.split(',') if x.strip()]
 
-    await update.message.reply_text("🧠 Generating email bodies... this may take a moment.")
+#     await update.message.reply_text("🧠 Generating email bodies... this may take a moment.")
 
-    try:
-        # Fetch jobs to generate for: ONLY email sheet jobs without email body or specified
-        jobs = []
-        if target_ids:
-            # query the DB for these job_ids (only jobs with email for email sheet)
-            with db.get_connection() as conn:
-                cur = conn.cursor()
-                # Use %s for psycopg2 placeholders
-                q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['%s']*len(target_ids))}) AND email IS NOT NULL AND email != ''"
-                cur.execute(q, target_ids)
-                jobs = [dict(r) for r in cur.fetchall()]
-        else:
-            # Only get email sheet jobs that need email generation
-            jobs = db.get_email_jobs_needing_generation()
+#     try:
+#         # Fetch jobs to generate for: ONLY email sheet jobs without email body or specified
+#         jobs = []
+#         if target_ids:
+#             # query the DB for these job_ids (only jobs with email for email sheet)
+#             with db.get_connection() as conn:
+#                 cur = conn.cursor()
+#                 # Use %s for psycopg2 placeholders
+#                 q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['%s']*len(target_ids))}) AND email IS NOT NULL AND email != ''"
+#                 cur.execute(q, target_ids)
+#                 jobs = [dict(r) for r in cur.fetchall()]
+#         else:
+#             # Only get email sheet jobs that need email generation
+#             jobs = db.get_email_jobs_needing_generation()
 
-        if not jobs:
-            await update.message.reply_text("No jobs found in the 'email' sheet that need email body generation.")
-            return
+#         if not jobs:
+#             await update.message.reply_text("No jobs found in the 'email' sheet that need email body generation.")
+#             return
 
-        generated = 0
-        synced = 0
-        for job in jobs:
-            try:
-                # use LLMProcessor.generate_email_body if available
-                jd = job.get('jd_text') or ''
-                email_body = None
-                try:
-                    email_body = llm_processor.generate_email_body(job, jd)
-                except Exception:
-                    email_body = None
+#         generated = 0
+#         synced = 0
+#         for job in jobs:
+#             try:
+#                 # use LLMProcessor.generate_email_body if available
+#                 jd = job.get('jd_text') or ''
+#                 email_body = None
+#                 try:
+#                     email_body = llm_processor.generate_email_body(job, jd)
+#                 except Exception:
+#                     email_body = None
 
-                if email_body:
-                    # Store email in database
-                    db.update_job_email_body(job['job_id'], email_body)
+#                 if email_body:
+#                     # Store email in database
+#                     db.update_job_email_body(job['job_id'], email_body)
                     
-                    # AUTO-SYNC TO GOOGLE SHEETS
-                    sheets_sync = get_sheets_sync()
-                    if sheets_sync and sheets_sync.client:
-                        try:
-                            # Get fresh job data for sheets sync (includes the new email body)
-                            fresh_job_data = db.get_processed_job_by_id(job['job_id'])
-                            if fresh_job_data and sheets_sync.sync_job(fresh_job_data):
-                                db.mark_job_synced(job['job_id'])
-                                synced += 1
-                        except Exception as e:
-                            logger.warning(f"Failed to sync job {job['job_id']} to sheets: {e}")
+#                     # AUTO-SYNC TO GOOGLE SHEETS
+#                     sheets_sync = get_sheets_sync()
+#                     if sheets_sync and sheets_sync.client:
+#                         try:
+#                             # Get fresh job data for sheets sync (includes the new email body)
+#                             fresh_job_data = db.get_processed_job_by_id(job['job_id'])
+#                             if fresh_job_data and sheets_sync.sync_job(fresh_job_data):
+#                                 db.mark_job_synced(job['job_id'])
+#                                 synced += 1
+#                         except Exception as e:
+#                             logger.warning(f"Failed to sync job {job['job_id']} to sheets: {e}")
                     
-                    generated += 1
-            except Exception as e:
-                logger.exception(f"Failed to generate email for job {job.get('job_id')}: {e}")
+#                     generated += 1
+#             except Exception as e:
+#                 logger.exception(f"Failed to generate email for job {job.get('job_id')}: {e}")
 
-        # Success message with sync info
-        if synced > 0:
-            await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.\n📊 Synced {synced} jobs to Google Sheets.")
-        else:
-            await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.")
+#         # Success message with sync info
+#         if synced > 0:
+#             await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.\n📊 Synced {synced} jobs to Google Sheets.")
+#         else:
+#             await update.message.reply_text(f"✅ Generated email bodies for {generated} jobs.")
 
-    except Exception as e:
-        logger.exception(f"Error during generate_emails: {e}")
-        await update.message.reply_text(f"❌ Failed to generate emails: {e}")
+#     except Exception as e:
+#         logger.exception(f"Error during generate_emails: {e}")
+#         await update.message.reply_text(f"❌ Failed to generate emails: {e}")
 
 
 async def log_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -465,7 +465,7 @@ def setup_webhook_bot():
     application.add_handler(CommandHandler("process", process_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("export", export_command))
-    application.add_handler(CommandHandler("generate_emails", generate_emails_command))
+    # application.add_handler(CommandHandler("generate_emails", generate_emails_command))
     application.add_handler(CommandHandler("sync_sheets", sync_sheets_command))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_text_handler))
@@ -542,14 +542,14 @@ def setup_bot():
                                 elif text.startswith('/process'):
                                     await process_jobs(application)
                                     executed_ok = True
-                                elif text.startswith('/generate_emails'):
-                                    parts = text.split(' ', 1)
-                                    args = []
-                                    if len(parts) > 1:
-                                        args = [parts[1]]
-                                    fake_ctx = _SN(args=args)
-                                    await generate_emails_command(fake_update, fake_ctx)
-                                    executed_ok = True
+                                # elif text.startswith('/generate_emails'):
+                                #     parts = text.split(' ', 1)
+                                #     args = []
+                                #     if len(parts) > 1:
+                                #         args = [parts[1]]
+                                #     fake_ctx = _SN(args=args)
+                                #     await generate_emails_command(fake_update, fake_ctx)
+                                #     executed_ok = True
                                 elif text.startswith('/export'):
                                     await export_command(fake_update, application)
                                     executed_ok = True
