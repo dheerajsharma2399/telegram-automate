@@ -170,3 +170,74 @@ class GoogleSheetsSync:
             logger.error(f"Google Sheets sync error for job {job_data.get('job_id', 'unknown')}: {str(e)}")
             logger.error(f"Job data keys: {list(job_data.keys())}")
             return False
+
+    def get_jobs_needing_email_generation(self, sheet_name: str) -> list[Dict]:
+        """
+        Retrieves jobs from the specified sheet that need email body generation.
+        A job needs email generation if its 'Email Body' column is empty.
+        """
+        if not self.client:
+            self.logger.error("Google Sheets client not initialized.")
+            return []
+
+        worksheet = None
+        if sheet_name == "email":
+            worksheet = self.sheet_email
+        elif sheet_name == "email-exp":
+            worksheet = self.sheet_email_exp
+        else:
+            self.logger.warning(f"Invalid sheet name '{sheet_name}' for email generation.")
+            return []
+
+        if not worksheet:
+            self.logger.error(f"Worksheet '{sheet_name}' not available.")
+            return []
+
+        try:
+            records = worksheet.get_all_records()
+            jobs_needing_generation = []
+            for record in records:
+                # Assuming 'Email Body' is the header for the email body column
+                if not record.get('Email Body'):
+                    jobs_needing_generation.append(record)
+            self.logger.info(f"Found {len(jobs_needing_generation)} jobs needing email generation in sheet '{sheet_name}'.")
+            return jobs_needing_generation
+        except Exception as e:
+            self.logger.error(f"Error retrieving jobs from sheet '{sheet_name}': {e}")
+            return []
+
+    def update_job_email_body_in_sheet(self, job_id: str, email_body: str, sheet_name: str) -> bool:
+        """
+        Updates the 'Email Body' for a specific job in the specified Google Sheet.
+        """
+        if not self.client:
+            self.logger.error("Google Sheets client not initialized.")
+            return False
+
+        worksheet = None
+        if sheet_name == "email":
+            worksheet = self.sheet_email
+        elif sheet_name == "email-exp":
+            worksheet = self.sheet_email_exp
+        else:
+            self.logger.warning(f"Invalid sheet name '{sheet_name}' for email body update.")
+            return False
+
+        if not worksheet:
+            self.logger.error(f"Worksheet '{sheet_name}' not available.")
+            return False
+
+        try:
+            # Find the row with the matching job_id
+            cell = worksheet.find(job_id, in_column=1)  # Assuming 'Job ID' is in the first column
+            if cell:
+                # Update the 'Email Body' column (assuming it's the 13th column, index 12)
+                worksheet.update_cell(cell.row, 13, email_body)
+                self.logger.info(f"Successfully updated email body for job {job_id} in sheet '{sheet_name}'.")
+                return True
+            else:
+                self.logger.warning(f"Job ID '{job_id}' not found in sheet '{sheet_name}'.")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error updating email body for job {job_id} in sheet '{sheet_name}': {e}")
+            return False

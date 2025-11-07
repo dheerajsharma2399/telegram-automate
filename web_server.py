@@ -629,10 +629,34 @@ def api_sheets_generate_email_bodies():
         if llm_processor:
             # Direct generation mode - generate emails for sheet data
             try:
-                # This would need to be implemented based on your sheets_sync capabilities
+                jobs_to_generate = sheets_sync.get_jobs_needing_email_generation(sheet)
+                if not jobs_to_generate:
+                    return jsonify({"message": f"No jobs found in '{sheet}' sheet that need an email body generated.", "generated": 0})
+
+                generated_count = 0
+                for job in jobs_to_generate:
+                    try:
+                        # Ensure job_id is present for logging and updating
+                        job_id = job.get('Job ID', 'unknown_job')
+                        
+                        # Use enhanced email generation with job-specific content
+                        # Pass job_data as a dictionary, and jd_text
+                        email_body = llm_processor.generate_email_body(job, job.get('Job Description', ''))
+                        
+                        if email_body:
+                            if sheets_sync.update_job_email_body_in_sheet(job_id, email_body, sheet):
+                                generated_count += 1
+                            else:
+                                logging.warning(f"Failed to update email body for job {job_id} in sheet {sheet}.")
+                        else:
+                            logging.warning(f"LLM did not generate an email body for job {job_id}.")
+                    except Exception as e:
+                        logging.error(f"Error generating or updating email for job {job.get('Job ID', 'unknown')}: {e}")
+                
                 return jsonify({
-                    'message': 'Direct sheet-based email generation not fully implemented',
-                    'recommendation': 'Use the /generate_emails command for now'
+                    "message": f"Generated and updated email bodies for {generated_count} jobs in '{sheet}' sheet.",
+                    "generated": generated_count,
+                    "mode": "direct_sheet_generation"
                 })
             except Exception as e:
                 logging.error(f'Sheet generation error: {e}')
