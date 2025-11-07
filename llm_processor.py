@@ -7,7 +7,6 @@ import asyncio
 from config import SYSTEM_PROMPT
 import os
 from pathlib import Path
-import json
 
 class LLMProcessor:
     def __init__(self, api_key: str, model: str, fallback_model: str):
@@ -297,6 +296,77 @@ class LLMProcessor:
             skills = profile.get('skills', [])
             projects = profile.get('top_projects', [])
             
+            # Extract key job details
+            company = job_data.get('company_name', 'your company')
+            role = job_data.get('job_role', 'the position')
+            location = job_data.get('location', '')
+            recruiter = job_data.get('recruiter_name', 'Hiring Team')
+            
+            # Create comprehensive prompt
+            prompt = f"""Write a professional, personalized job application email for the following position:
+
+**POSITION:** {role}
+**COMPANY:** {company}
+**LOCATION:** {location}
+
+**APPLICANT PROFILE:**
+- Name: {name}
+- Email: {email}
+- Current Role: {current_title}
+- Key Skills: {', '.join(skills[:8]) if skills else 'Software development, programming, problem-solving'}
+- Relevant Projects: {', '.join([p.get('name', '') for p in projects[:2]]) if projects else 'Technical projects'}
+
+**JOB DESCRIPTION:**
+{jd_text[:800]}
+
+**EMAIL REQUIREMENTS:**
+1. Use a warm, professional tone
+2. Address the recipient as "{recruiter}"
+3. Specifically mention {company} and {role} to show genuine interest
+4. Mention 1-2 relevant skills that match the job requirements
+5. Reference a specific project that demonstrates relevant experience
+6. Keep the email concise (250-350 words)
+7. Include a clear call-to-action for follow-up
+8. Personalize it completely - no generic templates
+
+**IMPORTANT:** Use the applicant's actual name "{name}" throughout the email. Do not use project names as the person's name.
+
+Write the email body only (no subject line):"""
+
+            # Call LLM for email generation
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "You are a professional career advisor writing personalized job application emails that are specific, engaging, and professional."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 800
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.base_url,
+                                      headers=headers,
+                                      json=payload,
+                                      timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        content = data['choices'][0]['message']['content'].strip()
+                        return content
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"LLM API error: {response.status} - {error_text}")
+                        
+        except Exception as e:
+            print(f"LLM email generation failed: {e}")
+            # Fallback to enhanced template
+            return self._generate_enhanced_template_email(job_data, jd_text)
+    
     def _generate_gmail_style_email_body(self, job_data: Dict, jd_text: str) -> str:
         """Gmail-style email generation based on Google Script template with bug fixes"""
         profile = self.user_profile or {}
@@ -480,76 +550,6 @@ Best regards,
 {email}"""
         
         return email_body
-            # Extract key job details
-            company = job_data.get('company_name', 'your company')
-            role = job_data.get('job_role', 'the position')
-            location = job_data.get('location', '')
-            recruiter = job_data.get('recruiter_name', 'Hiring Team')
-            
-            # Create comprehensive prompt
-            prompt = f"""Write a professional, personalized job application email for the following position:
-
-**POSITION:** {role}
-**COMPANY:** {company}
-**LOCATION:** {location}
-
-**APPLICANT PROFILE:**
-- Name: {name}
-- Email: {email}
-- Current Role: {current_title}
-- Key Skills: {', '.join(skills[:8]) if skills else 'Software development, programming, problem-solving'}
-- Relevant Projects: {', '.join([p.get('name', '') for p in projects[:2]]) if projects else 'Technical projects'}
-
-**JOB DESCRIPTION:**
-{jd_text[:800]}
-
-**EMAIL REQUIREMENTS:**
-1. Use a warm, professional tone
-2. Address the recipient as "{recruiter}"
-3. Specifically mention {company} and {role} to show genuine interest
-4. Mention 1-2 relevant skills that match the job requirements
-5. Reference a specific project that demonstrates relevant experience
-6. Keep the email concise (250-350 words)
-7. Include a clear call-to-action for follow-up
-8. Personalize it completely - no generic templates
-
-**IMPORTANT:** Use the applicant's actual name "{name}" throughout the email. Do not use project names as the person's name.
-
-Write the email body only (no subject line):"""
-
-            # Call LLM for email generation
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": "You are a professional career advisor writing personalized job application emails that are specific, engaging, and professional."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 800
-            }
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.base_url,
-                                      headers=headers,
-                                      json=payload,
-                                      timeout=aiohttp.ClientTimeout(total=30)) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        content = data['choices'][0]['message']['content'].strip()
-                        return content
-                    else:
-                        error_text = await response.text()
-                        raise Exception(f"LLM API error: {response.status} - {error_text}")
-                        
-        except Exception as e:
-            print(f"LLM email generation failed: {e}")
-            # Fallback to enhanced template
-            return self._generate_enhanced_template_email(job_data, jd_text)
     
     def _generate_enhanced_template_email(self, job_data: Dict, jd_text: str) -> str:
         """Enhanced template-based email generation (better than basic template)"""
