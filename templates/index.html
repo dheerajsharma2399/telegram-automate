@@ -20,77 +20,9 @@
         }
         .status-card { text-align: center; }
         .nav-tabs .nav-link { cursor: pointer; }
-        
-        /* Toast Notification Styles */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-        }
-        
-        .toast-notification {
-            min-width: 300px;
-            margin-bottom: 10px;
-            border: none;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            animation: slideInRight 0.3s ease-out;
-        }
-        
-        .toast-success {
-            background-color: #d4edda;
-            border-left: 4px solid #28a745;
-            color: #155724;
-        }
-        
-        .toast-error {
-            background-color: #f8d7da;
-            border-left: 4px solid #dc3545;
-            color: #721c24;
-        }
-        
-        .toast-info {
-            background-color: #d1ecf1;
-            border-left: 4px solid #17a2b8;
-            color: #0c5460;
-        }
-        
-        .toast-warning {
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            color: #856404;
-        }
-        
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-        }
     </style>
 </head>
 <body>
-    <!-- Toast Container -->
-    <div class="toast-container">
-        <!-- Toasts will be dynamically inserted here -->
-    </div>
-    
     <div class="container mt-4">
         <h1 class="mb-4">Telegram Job Scraper Dashboard</h1>
 
@@ -128,8 +60,6 @@
                         <button class="btn btn-primary" onclick="sendCommand('/process')">Process Queue</button>
                         <button class="btn btn-info" onclick="sendCommand('/export')">Export CSV</button>
                         <button class="btn btn-warning" onclick="sendCommand('/sync_sheets')">Sync Sheets</button>
-                        <button class="btn btn-secondary" onclick="generateEmails()">Generate Emails</button>
-                        <button class="btn btn-danger" onclick="forceRestart()">Force Restart</button>
                     </div>
                     <hr class="my-4">
                     <h4>Status</h4>
@@ -139,12 +69,11 @@
                 </div>
             </div>
 
-            <!-- My Applications Tab (New Dashboard Jobs System) -->
+            <!-- Jobs -->
             <div class="tab-pane fade" id="jobs" role="tabpanel">
                 <div class="py-4">
-                    <h4>My Applications - Job Management Dashboard</h4>
+                    <h4>My Applications - Job Management</h4>
                     
-                    <!-- Top Controls -->
                     <div class="row mb-3">
                         <div class="col-md-8">
                             <div class="btn-group" role="group">
@@ -159,7 +88,6 @@
                         </div>
                     </div>
 
-                    <!-- Filters -->
                     <div class="row mb-3">
                         <div class="col-md-3">
                             <select class="form-select" id="status-filter" onchange="filterJobs()">
@@ -179,16 +107,11 @@
                                 <option value="irrelevant">Irrelevant (Experienced)</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-sm btn-outline-danger" onclick="markSelectedAs('rejected')">Mark Rejected</button>
-                            <button class="btn btn-sm btn-outline-success" onclick="markSelectedAs('applied')">Mark Applied</button>
-                        </div>
-                        <div class="col-md-3 text-end">
+                        <div class="col-md-6 text-end">
                             <span id="jobs-count" class="badge bg-info">0 jobs</span>
                         </div>
                     </div>
 
-                    <!-- Jobs Table -->
                     <div class="table-responsive">
                         <table class="table table-striped table-hover" id="dashboard-jobs-table">
                             <thead class="table-dark">
@@ -205,25 +128,9 @@
                                 </tr>
                             </thead>
                             <tbody id="dashboard-jobs-body">
-                                <!-- Dashboard jobs data will be injected here -->
+                                <tr><td colspan="9" class="text-center text-muted">Click "Refresh" to load jobs</td></tr>
                             </tbody>
                         </table>
-                    </div>
-
-                    <!-- Bulk Actions -->
-                    <div class="mt-3" id="bulk-actions" style="display: none;">
-                        <div class="card">
-                            <div class="card-body">
-                                <h6>Bulk Actions for Selected Jobs (<span id="selected-count">0</span>)</h6>
-                                <div class="btn-group">
-                                    <button class="btn btn-success btn-sm" onclick="bulkUpdateStatus('applied')">Mark Applied</button>
-                                    <button class="btn btn-warning btn-sm" onclick="bulkUpdateStatus('not_applied')">Mark Not Applied</button>
-                                    <button class="btn btn-danger btn-sm" onclick="bulkUpdateStatus('rejected')">Mark Rejected</button>
-                                    <button class="btn btn-info btn-sm" onclick="bulkAddNotes()">Add Notes</button>
-                                </div>
-                                <button class="btn btn-secondary btn-sm" onclick="clearSelection()">Clear Selection</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -243,7 +150,6 @@
                                 </tr>
                             </thead>
                             <tbody id="queue-table-body">
-                                <!-- Queue data will be injected here -->
                             </tbody>
                         </table>
                     </div>
@@ -268,19 +174,6 @@
                             </tbody>
                         </table>
                     </div>
-
-                    <hr class="my-3">
-                    <h4>Monitored Groups</h4>
-                    <div class="mb-2">
-                        <input id="new-group-input" class="form-control" placeholder="e.g. -1001234567890 or @groupusername">
-                        <div class="mt-2">
-                            <button class="btn btn-sm btn-primary" onclick="addMonitoredGroup()">Add Group</button>
-                        </div>
-                    </div>
-                    <ul id="monitored-groups-list" class="list-group"></ul>
-                    <div class="mt-3">
-                        <button class="btn btn-sm btn-success" onclick="triggerSheetGeneration()">Generate Email Bodies from Sheet</button>
-                    </div>
                 </div>
             </div>
 
@@ -289,15 +182,15 @@
                 <div class="py-4">
                     <div class="row">
                         <div class="col-md-4">
-                            <h4>Bot Logs (main.py)</h4>
+                            <h4>Bot Logs</h4>
                             <div id="bot-logs" class="log-box">Loading...</div>
                         </div>
                         <div class="col-md-4">
-                            <h4>Monitor Logs (monitor.py)</h4>
+                            <h4>Monitor Logs</h4>
                             <div id="monitor-logs" class="log-box">Loading...</div>
                         </div>
                         <div class="col-md-4">
-                            <h4>Webhook Logs (web_server.py)</h4>
+                            <h4>Webhook Logs</h4>
                             <div id="webhook-logs" class="log-box">Loading...</div>
                         </div>
                     </div>
@@ -311,49 +204,6 @@
                     <div class="alert" id="telegram-status-alert">
                         Loading...
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Setup Telegram Login</h5>
-                            <div id="setup-form-container">
-                                <button class="btn btn-primary" onclick="sendCode()">Send Code</button>
-                            </div>
-                            <div id="otp-form-container" style="display: none;">
-                                <div class="mb-3 mt-3">
-                                    <label for="otp" class="form-label">OTP Code</label>
-                                    <input type="text" class="form-control" id="otp" placeholder="Enter the code you received">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="password" class="form-label">2FA Password (if any)</label>
-                                    <input type="password" class="form-control" id="password" placeholder="Your two-factor authentication password">
-                                </div>
-                                <button class="btn btn-success" onclick="sendOtp()">Sign In</button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Session Management</h5>
-                            <p class="text-muted">If you need to reset your Telegram login (e.g., new phone number), clear the session below.</p>
-                            <button class="btn btn-warning" onclick="clearTelegramSession()">Clear Telegram Session</button>
-                            <div class="mt-3">
-                                <small class="text-muted">
-                                    <strong>Note:</strong> You only need to log in once. The session is stored securely in the database and will be restored automatically on server restart.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h5>Set Webhook URL</h5>
-                            <p class="text-muted">If the bot is not responding to commands, you may need to set the webhook URL manually. Enter the full public URL of the application, ending with /webhook.</p>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="webhook-url" placeholder="https://your-app-url/webhook" value="https://home-server-telegrambot-47whkl-ba1148-152-67-7-111.traefik.me/webhook">
-                                <button class="btn btn-primary" onclick="setWebhook()">Set Webhook</button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -361,69 +211,55 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // --- Toast Notification Function (Simplified for Debugging) ---
+        // === GLOBAL VARIABLES ===
+        let allDashboardJobs = [];
+        let currentSort = { column: null, direction: 'asc' };
+        let lastTelegramStatus = null;
+
+        // === HELPER FUNCTIONS ===
         function showToast(message, type = 'info') {
             alert(`[${type.toUpperCase()}]\n${message}`);
         }
 
-        function hideToast(toastId) {
-            // No-op for alert-based notifications
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
-        // --- Command Functions ---
-        async function sendCommand(command) {
-            try {
-                const response = await fetch('/api/command', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command: command })
-                });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    showToast(`Error: ${errorData.error} - ${errorData.details}`, 'error');
-                } else {
-                    showToast(`Command '${command}' sent successfully.`, 'success');
-                }
-            } catch (error) {
-                showToast(`Failed to send command: ${error}`, 'error');
+        function getStatusBadge(status) {
+            const badges = {
+                'not_applied': '<span class="badge bg-secondary">Not Applied</span>',
+                'applied': '<span class="badge bg-success">Applied</span>',
+                'interview': '<span class="badge bg-info">Interview</span>',
+                'rejected': '<span class="badge bg-danger">Rejected</span>',
+                'offer': '<span class="badge bg-warning">Offer</span>',
+                'archived': '<span class="badge bg-dark">Archived</span>'
+            };
+            return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+        }
+
+        function getRelevanceBadge(relevance) {
+            if (relevance === 'relevant') {
+                return '<span class="badge bg-success">Relevant</span>';
+            } else if (relevance === 'irrelevant') {
+                return '<span class="badge bg-danger">Irrelevant</span>';
             }
+            return '<span class="badge bg-secondary">Unknown</span>';
         }
 
-        async function forceRestart() {
-            try {
-                const response = await fetch('/api/bot/force_restart', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    showToast(`Error: ${data.error}`, 'error');
-                } else {
-                    showToast(data.message, 'success');
-                }
-            } catch (error) {
-                showToast(`Failed to force restart: ${error}`, 'error');
-            }
+        function updateJobsCount(count) {
+            document.getElementById('jobs-count').textContent = `${count} jobs`;
         }
 
-        // --- Data Fetching Functions ---
-        let lastTelegramStatus = null;
-
+        // === STATUS FUNCTIONS ===
         async function fetchStatus() {
             try {
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 const statusCards = document.getElementById('status-cards');
                 const telegramStatus = data.telegram_status || 'unknown';
-
-                if (lastTelegramStatus !== null && lastTelegramStatus !== telegramStatus) {
-                    if (telegramStatus === 'connected') {
-                        showToast('Bot connected to Telegram.', 'success');
-                    } else {
-                        showToast('Bot disconnected from Telegram.', 'warning');
-                    }
-                }
-                lastTelegramStatus = telegramStatus;
 
                 const telegramEmoji = {
                     'connected': '🟢',
@@ -460,7 +296,7 @@
                         <div class="card status-card">
                             <div class="card-body">
                                 <h5 class="card-title">Unprocessed</h5>
-                                <p class="card-text fs-4">${data.unprocessed_count}</p>
+                                <p class="card-text fs-4">${data.unprocessed_count || 0}</p>
                             </div>
                         </div>
                     </div>
@@ -468,400 +304,37 @@
                         <div class="card status-card">
                             <div class="card-body">
                                 <h5 class="card-title">Jobs Today</h5>
-                                <p class="card-text fs-4">${data.jobs_today.total}</p>
+                                <p class="card-text fs-4">${data.jobs_today?.total || 0}</p>
                             </div>
                         </div>
                     </div>
                 `;
             } catch (error) {
                 console.error("Failed to fetch status:", error);
+                showToast(`Failed to fetch status: ${error}`, 'error');
             }
         }
 
-        async function generateEmails() {
+        // === COMMAND FUNCTIONS ===
+        async function sendCommand(command) {
             try {
-                const response = await fetch('/api/generate_emails', {
+                const response = await fetch('/api/command', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({run_now: true})
+                    body: JSON.stringify({ command: command })
                 });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message || 'Generation completed or enqueued', 'success');
-                    // refresh status/logs to show action
-                    fetchStatus();
-                    fetchLogs();
-                    fetchPendingCommands();
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    showToast(`Error: ${errorData.error} - ${errorData.details}`, 'error');
                 } else {
-                    showToast('Error: ' + (data.error || JSON.stringify(data)), 'error');
-                }
-            } catch (err) {
-                showToast('Failed to request generation: ' + err, 'error');
-            }
-        }
-
-        async function fetchQueue() {
-            try {
-                const response = await fetch('/api/queue');
-                const data = await response.json();
-                const queueTableBody = document.getElementById('queue-table-body');
-                queueTableBody.innerHTML = data.map(item => `
-                    <tr>
-                        <td>${item.id}</td>
-                        <td>${item.message_id}</td>
-                        <td>${new Date(item.sent_at).toLocaleString()}</td>
-                        <td><small>${item.message_text.substring(0, 100)}...</small></td>
-                    </tr>
-                `).join('');
-            } catch (error) {
-                console.error("Failed to fetch queue:", error);
-            }
-        }
-
-        async function fetchLogs() {
-            try {
-                const response = await fetch('/api/logs');
-                const data = await response.json();
-                document.getElementById('bot-logs').textContent = data.bot_logs;
-                document.getElementById('monitor-logs').textContent = data.monitor_logs;
-                document.getElementById('webhook-logs').textContent = data.webhook_logs;
-            } catch (error) {
-                console.error("Failed to fetch logs:", error);
-            }
-        }
-
-        // --- Event Listeners ---
-        document.getElementById('queue-tab').addEventListener('click', fetchQueue);
-        document.getElementById('logs-tab').addEventListener('click', fetchLogs);
-        document.getElementById('pending-tab').addEventListener('click', () => { fetchPendingCommands(); fetchMonitoredGroups(); });
-        document.getElementById('setup-tab').addEventListener('click', () => { fetchTelegramStatus(); });
-        document.getElementById('jobs-tab').addEventListener('click', fetchJobs);
-
-        document.getElementById('select-all-jobs').addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.job-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-        });
-
-        // --- Jobs Tab Functions ---
-        async function fetchJobs() {
-            try {
-                const response = await fetch('/api/jobs');
-                const data = await response.json();
-                const jobsTableBody = document.getElementById('jobs-table-body');
-                jobsTableBody.innerHTML = data.map(job => `
-                    <tr id="job-row-${job.job_id}">
-                        <td><input type="checkbox" class="job-checkbox" value="${job.job_id}"></td>
-                        <td>${job.company_name}</td>
-                        <td>${job.job_role}</td>
-                        <td><a href="${job.application_link}" target="_blank">${job.application_link}</a></td>
-                    </tr>
-                `).join('');
-            } catch (error) {
-                console.error("Failed to fetch jobs:", error);
-            }
-        }
-
-        async function removeSelectedJobs() {
-            const selectedJobs = Array.from(document.querySelectorAll('.job-checkbox:checked')).map(cb => cb.value);
-            if (selectedJobs.length === 0) {
-                showToast('No jobs selected for removal.', 'warning');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/jobs/hide', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ job_ids: selectedJobs })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    fetchJobs(); // Refresh the job list
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
+                    showToast(`Command '${command}' sent successfully.`, 'success');
                 }
             } catch (error) {
-                showToast(`Failed to remove jobs: ${error}`, 'error');
+                showToast(`Failed to send command: ${error}`, 'error');
             }
         }
 
-        // --- Telegram Status Functions ---
-        async function fetchTelegramStatus() {
-            try {
-                const response = await fetch('/api/telegram/status');
-                const data = await response.json();
-                
-                const alert = document.getElementById('telegram-status-alert');
-                const status = data.login_status || 'unknown';
-                const authorized = data.authorized || false;
-                
-                if (status === 'connected') {
-                    alert.className = 'alert alert-success';
-                    alert.innerHTML = `
-                        <strong>🟢 Connected</strong><br>
-                        Your Telegram account is successfully authenticated. The bot can now monitor job postings.
-                    `;
-                } else if (status === 'not_authenticated') {
-                    alert.className = 'alert alert-warning';
-                    alert.innerHTML = `
-                        <strong>🔴 Not Authenticated</strong><br>
-                        Please complete the Telegram setup below to enable job monitoring.
-                    `;
-                } else if (status === 'session_expired') {
-                    alert.className = 'alert alert-info';
-                    alert.innerHTML = `
-                        <strong>🟡 Session Expired</strong><br>
-                        Your Telegram session has expired. Please log in again below.
-                    `;
-                } else {
-                    alert.className = 'alert alert-secondary';
-                    alert.innerHTML = `
-                        <strong>⚫ Unknown Status</strong><br>
-                        Unable to determine Telegram connection status.
-                    `;
-                }
-                
-                return data;
-            } catch (error) {
-                console.error("Failed to fetch Telegram status:", error);
-                const alert = document.getElementById('telegram-status-alert');
-                alert.className = 'alert alert-danger';
-                alert.innerHTML = `
-                    <strong>❌ Error</strong><br>
-                    Unable to fetch Telegram connection status: ${error.message}
-                `;
-            }
-        }
-        
-        async function clearTelegramSession() {
-            showToast('Clearing Telegram session...', 'info');
-            
-            try {
-                const response = await fetch('/api/telegram/clear_session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                const data = await response.json();
-                if (response.ok) {
-                    showToast('Telegram session cleared successfully. Please log in again.', 'success');
-                    document.getElementById('setup-form-container').style.display = 'block';
-                    document.getElementById('otp-form-container').style.display = 'none';
-                    fetchTelegramStatus();
-                    fetchStatus();
-                } else {
-                    showToast('Error: ' + (data.error || 'Failed to clear session'), 'error');
-                }
-            } catch (error) {
-                showToast('Failed to clear session: ' + error, 'error');
-            }
-        }
-
-        // --- Telegram Setup Functions ---
-        async function sendCode() {
-            try {
-                showToast('Sending code...', 'info');
-                const response = await fetch('/api/telegram/setup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    document.getElementById('setup-form-container').style.display = 'none';
-                    document.getElementById('otp-form-container').style.display = 'block';
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to send code: ${error}`, 'error');
-            }
-        }
-
-        async function sendOtp() {
-            const otp = document.getElementById('otp').value;
-            const password = document.getElementById('password').value;
-
-            if (!otp) {
-                showToast('Please enter the OTP.', 'warning');
-                return;
-            }
-
-            try {
-                showToast('Signing in...', 'info');
-                const response = await fetch('/api/telegram/signin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: otp, password: password })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    // Optionally, redirect or refresh
-                    window.location.reload();
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to sign in: ${error}`, 'error');
-            }
-        }
-
-        async function setWebhook() {
-            const webhookUrl = document.getElementById('webhook-url').value;
-            if (!webhookUrl) {
-                showToast('Please enter a webhook URL.', 'warning');
-                return;
-            }
-
-            try {
-                showToast('Setting webhook...', 'info');
-                const response = await fetch('/api/setup_webhook', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ webhook_url: webhookUrl })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to set webhook: ${error}`, 'error');
-            }
-        }
-
-        // --- Pending / Groups functions ---
-        async function fetchPendingCommands() {
-            try {
-                const resp = await fetch('/api/pending_commands');
-                const data = await resp.json();
-                const body = document.getElementById('pending-commands-body');
-                if (!Array.isArray(data)) {
-                    body.innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
-                    return;
-                }
-                body.innerHTML = data.map(item => `
-                    <tr>
-                        <td>${item.id}</td>
-                        <td><code>${item.command}</code></td>
-                        <td>${new Date(item.created_at).toLocaleString()}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger" onclick="cancelPending(${item.id})">Cancel</button>
-                        </td>
-                    </tr>
-                `).join('') || '<tr><td colspan="4">No pending commands</td></tr>';
-            } catch (err) {
-                console.error('Failed to fetch pending commands', err);
-            }
-        }
-
-        async function cancelPending(id) {
-            try {
-                const resp = await fetch(`/api/command/${id}/cancel`, { method: 'POST' });
-                const data = await resp.json();
-                if (resp.ok) {
-                    showToast(data.message || 'Cancelled', 'success');
-                    fetchPendingCommands();
-                } else {
-                    showToast('Error: ' + (data.error || JSON.stringify(data)), 'error');
-                }
-            } catch (err) {
-                showToast('Failed to cancel: ' + err, 'error');
-            }
-        }
-
-        async function fetchMonitoredGroups() {
-            try {
-                const resp = await fetch('/api/monitored_groups');
-                const data = await resp.json();
-                const list = document.getElementById('monitored-groups-list');
-                if (!data.groups) {
-                    list.innerHTML = '<li class="list-group-item">Error loading</li>';
-                    return;
-                }
-                list.innerHTML = data.groups.map(g => `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><code>${g}</code></span>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeMonitoredGroup('${g}')">Remove</button>
-                    </li>
-                `).join('') || '<li class="list-group-item">No groups configured</li>';
-            } catch (err) {
-                console.error('Failed to fetch groups', err);
-            }
-        }
-
-        async function addMonitoredGroup() {
-            const input = document.getElementById('new-group-input');
-            const group = input.value.trim();
-            if (!group) { showToast('Enter a group id or username', 'warning'); return; }
-            try {
-                const resp = await fetch('/api/monitored_groups', {
-                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({group})
-                });
-                const data = await resp.json();
-                if (resp.ok) {
-                    input.value = '';
-                    fetchMonitoredGroups();
-                    showToast('Group added successfully', 'success');
-                } else {
-                    showToast('Error: ' + (data.error || JSON.stringify(data)), 'error');
-                }
-            } catch (err) {
-                showToast('Failed to add group: ' + err, 'error');
-            }
-        }
-
-        async function removeMonitoredGroup(group) {
-            try {
-                const resp = await fetch('/api/monitored_groups', {
-                    method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({group})
-                });
-                const data = await resp.json();
-                if (resp.ok) {
-                    fetchMonitoredGroups();
-                    showToast('Group removed successfully', 'success');
-                } else {
-                    showToast('Error: ' + (data.error || JSON.stringify(data)), 'error');
-                }
-            } catch (err) {
-                showToast('Failed to remove group: ' + err, 'error');
-            }
-        }
-
-        async function triggerSheetGeneration() {
-            try {
-                showToast('Triggering sheet generation...', 'info');
-                const resp = await fetch('/api/sheets/generate_email_bodies', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sheet: 'email'})
-                });
-                const data = await resp.json();
-                if (resp.ok) {
-                    showToast(data.message + '\n' + JSON.stringify(data.summary), 'success');
-                    fetchStatus();
-                    fetchLogs();
-                } else {
-                    showToast('Error: ' + (data.error || JSON.stringify(data)), 'error');
-                }
-            } catch (err) {
-                showToast('Failed to trigger sheet generation: ' + err, 'error');
-            }
-        }
-
-        // ===============================================
-        // DASHBOARD JOBS FUNCTIONS (NEW)
-        // ===============================================
-
-        let allDashboardJobs = [];
-        let currentSort = { column: null, direction: 'asc' };
-
+        // === JOBS FUNCTIONS ===
         async function fetchDashboardJobs() {
             try {
                 const response = await fetch('/api/dashboard/jobs');
@@ -886,35 +359,23 @@
                 const statusBadge = getStatusBadge(job.application_status);
                 const relevanceBadge = getRelevanceBadge(job.job_relevance);
                 const notesIcon = job.notes ? '📝' : '';
-                const duplicateBadge = job.is_duplicate ? '<span class="badge bg-warning">Duplicate</span>' : '';
                 
                 return `
-                    <tr data-job-id="${job.id}" class="dashboard-job-row">
-                        <td><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}" onchange="updateSelection()"></td>
-                        <td>
-                            <strong>${escapeHtml(job.company_name || 'N/A')}</strong>
-                            ${duplicateBadge}
-                        </td>
+                    <tr data-job-id="${job.id}">
+                        <td><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}"></td>
+                        <td><strong>${escapeHtml(job.company_name || 'N/A')}</strong></td>
                         <td>${escapeHtml(job.job_role || 'N/A')}</td>
                         <td>${escapeHtml(job.location || 'N/A')}</td>
                         <td>
                             ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary">🔗 Link</a>` : ''}
-                            ${job.phone ? `<span class="text-muted">📞 ${job.phone}</span>` : ''}
                         </td>
                         <td>${statusBadge}</td>
                         <td>${relevanceBadge}</td>
-                        <td>
-                            ${notesIcon}
-                            <button class="btn btn-sm btn-outline-secondary" onclick="editNotes(${job.id}, '${escapeHtml(job.notes || '')}')">
-                                ${notesIcon ? 'Edit' : 'Add'}
-                            </button>
-                        </td>
+                        <td>${notesIcon}</td>
                         <td>
                             <div class="btn-group" role="group">
                                 <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied')">✅</button>
-                                <button class="btn btn-sm btn-outline-warning" onclick="updateJobStatus(${job.id}, 'not_applied')">⏳</button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected')">❌</button>
-                                <button class="btn btn-sm btn-outline-info" onclick="markAsDuplicate(${job.id})">🔄</button>
                             </div>
                         </td>
                     </tr>
@@ -922,29 +383,51 @@
             }).join('');
         }
 
-        function getStatusBadge(status) {
-            const badges = {
-                'not_applied': '<span class="badge bg-secondary">Not Applied</span>',
-                'applied': '<span class="badge bg-success">Applied</span>',
-                'interview': '<span class="badge bg-info">Interview</span>',
-                'rejected': '<span class="badge bg-danger">Rejected</span>',
-                'offer': '<span class="badge bg-warning">Offer</span>',
-                'archived': '<span class="badge bg-dark">Archived</span>'
-            };
-            return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
-        }
-
-        function getRelevanceBadge(relevance) {
-            if (relevance === 'relevant') {
-                return '<span class="badge bg-success">Relevant</span>';
-            } else if (relevance === 'irrelevant') {
-                return '<span class="badge bg-danger">Irrelevant</span>';
+        async function updateJobStatus(jobId, status) {
+            try {
+                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Job status updated to ${status}`, 'success');
+                    fetchDashboardJobs();
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to update job status: ${error}`, 'error');
             }
-            return '<span class="badge bg-secondary">Unknown</span>';
         }
 
-        function updateJobsCount(count) {
-            document.getElementById('jobs-count').textContent = `${count} jobs`;
+        function toggleAllJobs() {
+            const selectAllCheckbox = document.getElementById('select-all-dashboard-jobs');
+            const checkboxes = document.querySelectorAll('.dashboard-job-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+        }
+
+        function filterJobs() {
+            const searchTerm = document.getElementById('job-search').value.toLowerCase();
+            const statusFilter = document.getElementById('status-filter').value;
+            const relevanceFilter = document.getElementById('relevance-filter').value;
+            
+            let filteredJobs = allDashboardJobs.filter(job => {
+                const matchesSearch = !searchTerm || 
+                    (job.company_name && job.company_name.toLowerCase().includes(searchTerm)) ||
+                    (job.job_role && job.job_role.toLowerCase().includes(searchTerm));
+                
+                const matchesStatus = !statusFilter || job.application_status === statusFilter;
+                const matchesRelevance = !relevanceFilter || job.job_relevance === relevanceFilter;
+                
+                return matchesSearch && matchesStatus && matchesRelevance;
+            });
+            
+            displayDashboardJobs(filteredJobs);
+            updateJobsCount(filteredJobs.length);
         }
 
         async function importJobsFromSheets() {
@@ -991,9 +474,6 @@
                 const response = await fetch('/api/dashboard/jobs/export');
                 const data = await response.json();
                 if (response.ok) {
-                    // Create CSV download
-                    const csvContent = convertToCSV(data.data, data.columns);
-                    downloadCSV(csvContent, 'dashboard_jobs.csv');
                     showToast(`Exported ${data.count} jobs to CSV`, 'success');
                 } else {
                     showToast(`Error: ${data.error}`, 'error');
@@ -1003,258 +483,102 @@
             }
         }
 
-        function convertToCSV(data, columns) {
-            const headers = columns.join(',');
-            const rows = data.map(row => columns.map(col => {
-                const value = row[col] || '';
-                return `"${String(value).replace(/"/g, '""')}"`;
-            }).join(','));
-            return [headers, ...rows].join('\n');
-        }
-
-        function downloadCSV(content, filename) {
-            const blob = new Blob([content], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        }
-
-        async function updateJobStatus(jobId, status) {
+        // === OTHER FUNCTIONS ===
+        async function fetchQueue() {
             try {
-                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        status: status,
-                        application_date: status === 'applied' ? new Date().toISOString() : null
-                    })
-                });
+                const response = await fetch('/api/queue');
                 const data = await response.json();
-                if (response.ok) {
-                    showToast(`Job status updated to ${status}`, 'success');
-                    fetchDashboardJobs();
+                const queueTableBody = document.getElementById('queue-table-body');
+                queueTableBody.innerHTML = data.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${item.message_id}</td>
+                        <td>${new Date(item.sent_at).toLocaleString()}</td>
+                        <td><small>${item.message_text.substring(0, 100)}...</small></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error("Failed to fetch queue:", error);
+            }
+        }
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const data = await response.json();
+                document.getElementById('bot-logs').textContent = data.bot_logs || 'No logs available';
+                document.getElementById('monitor-logs').textContent = data.monitor_logs || 'No logs available';
+                document.getElementById('webhook-logs').textContent = data.webhook_logs || 'No logs available';
+            } catch (error) {
+                console.error("Failed to fetch logs:", error);
+            }
+        }
+
+        async function fetchPendingCommands() {
+            try {
+                const response = await fetch('/api/pending_commands');
+                const data = await response.json();
+                const body = document.getElementById('pending-commands-body');
+                if (!Array.isArray(data)) {
+                    body.innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td><code>${item.command}</code></td>
+                        <td>${new Date(item.created_at).toLocaleString()}</td>
+                        <td>-</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">No pending commands</td></tr>';
+            } catch (err) {
+                console.error('Failed to fetch pending commands', err);
+            }
+        }
+
+        async function fetchTelegramStatus() {
+            try {
+                const response = await fetch('/api/telegram/status');
+                const data = await response.json();
+                
+                const alert = document.getElementById('telegram-status-alert');
+                const status = data.login_status || 'unknown';
+                
+                if (status === 'connected') {
+                    alert.className = 'alert alert-success';
+                    alert.innerHTML = '<strong>🟢 Connected</strong><br>Your Telegram account is successfully authenticated.';
+                } else if (status === 'not_authenticated') {
+                    alert.className = 'alert alert-warning';
+                    alert.innerHTML = '<strong>🔴 Not Authenticated</strong><br>Please complete the Telegram setup below to enable job monitoring.';
                 } else {
-                    showToast(`Error: ${data.error}`, 'error');
+                    alert.className = 'alert alert-secondary';
+                    alert.innerHTML = `<strong>⚫ ${status}</strong><br>Unable to determine Telegram connection status.`;
                 }
             } catch (error) {
-                showToast(`Failed to update job status: ${error}`, 'error');
+                console.error("Failed to fetch Telegram status:", error);
+                const alert = document.getElementById('telegram-status-alert');
+                alert.className = 'alert alert-danger';
+                alert.innerHTML = `<strong>❌ Error</strong><br>Unable to fetch Telegram connection status: ${error.message}`;
             }
         }
 
-        async function editNotes(jobId, currentNotes) {
-            const newNotes = prompt('Add/Edit notes for this job:', currentNotes || '');
-            if (newNotes === null) return; // User cancelled
-            
-            try {
-                const response = await fetch(`/api/dashboard/jobs/${jobId}/notes`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ notes: newNotes })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast('Notes updated successfully', 'success');
-                    fetchDashboardJobs();
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to update notes: ${error}`, 'error');
-            }
-        }
-
-        async function markAsDuplicate(jobId) {
-            // Simple implementation - mark as duplicate without specifying the original
-            try {
-                const response = await fetch(`/api/dashboard/duplicates/${jobId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ duplicate_of_id: null, confidence_score: 0.8 })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast('Job marked as duplicate', 'success');
-                    fetchDashboardJobs();
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to mark as duplicate: ${error}`, 'error');
-            }
-        }
-
-        function toggleAllJobs() {
-            const selectAllCheckbox = document.getElementById('select-all-dashboard-jobs');
-            const checkboxes = document.querySelectorAll('.dashboard-job-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAllCheckbox.checked;
-            });
-            updateSelection();
-        }
-
-        function updateSelection() {
-            const selectedCheckboxes = document.querySelectorAll('.dashboard-job-checkbox:checked');
-            const selectedCount = selectedCheckboxes.length;
-            
-            document.getElementById('selected-count').textContent = selectedCount;
-            document.getElementById('bulk-actions').style.display = selectedCount > 0 ? 'block' : 'none';
-        }
-
-        async function bulkUpdateStatus(status) {
-            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => parseInt(cb.value));
-            if (selectedIds.length === 0) {
-                showToast('No jobs selected', 'warning');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/dashboard/jobs/bulk_status', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        job_ids: selectedIds,
-                        status: status,
-                        application_date: status === 'applied' ? new Date().toISOString() : null
-                    })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    fetchDashboardJobs();
-                    clearSelection();
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to bulk update: ${error}`, 'error');
-            }
-        }
-
-        function clearSelection() {
-            const checkboxes = document.querySelectorAll('.dashboard-job-checkbox');
-            checkboxes.forEach(checkbox => checkbox.checked = false);
-            document.getElementById('select-all-dashboard-jobs').checked = false;
-            updateSelection();
-        }
-
-        function bulkAddNotes() {
-            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => parseInt(cb.value));
-            if (selectedIds.length === 0) {
-                showToast('No jobs selected', 'warning');
-                return;
-            }
-            
-            const notes = prompt('Add notes to selected jobs:');
-            if (notes === null) return;
-
-            // For bulk notes, we'll add them one by one (could be optimized)
-            selectedIds.forEach(async (jobId) => {
-                try {
-                    await fetch(`/api/dashboard/jobs/${jobId}/notes`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ notes: notes })
-                    });
-                } catch (error) {
-                    console.error(`Failed to add notes to job ${jobId}:`, error);
-                }
-            });
-            
-            showToast(`Notes added to ${selectedIds.length} jobs`, 'success');
-            fetchDashboardJobs();
-            clearSelection();
-        }
-
-        function markSelectedAs(status) {
-            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => parseInt(cb.value));
-            if (selectedIds.length === 0) {
-                showToast('No jobs selected', 'warning');
-                return;
-            }
-            bulkUpdateStatus(status);
-        }
-
-        function filterJobs() {
-            const searchTerm = document.getElementById('job-search').value.toLowerCase();
-            const statusFilter = document.getElementById('status-filter').value;
-            const relevanceFilter = document.getElementById('relevance-filter').value;
-            
-            let filteredJobs = allDashboardJobs.filter(job => {
-                // Search filter
-                const matchesSearch = !searchTerm || 
-                    (job.company_name && job.company_name.toLowerCase().includes(searchTerm)) ||
-                    (job.job_role && job.job_role.toLowerCase().includes(searchTerm)) ||
-                    (job.location && job.location.toLowerCase().includes(searchTerm));
-                
-                // Status filter
-                const matchesStatus = !statusFilter || job.application_status === statusFilter;
-                
-                // Relevance filter
-                const matchesRelevance = !relevanceFilter || job.job_relevance === relevanceFilter;
-                
-                return matchesSearch && matchesStatus && matchesRelevance;
-            });
-            
-            displayDashboardJobs(filteredJobs);
-            updateJobsCount(filteredJobs.length);
-        }
-
-        function sortTable(columnIndex) {
-            const isAsc = currentSort.column === columnIndex && currentSort.direction === 'asc';
-            currentSort.direction = isAsc ? 'desc' : 'asc';
-            currentSort.column = columnIndex;
-            
-            // Update sort indicators
-            document.querySelectorAll('.sort-indicator').forEach(indicator => {
-                indicator.textContent = '↕️';
-            });
-            document.getElementById(`sort-${columnIndex}`).textContent = isAsc ? '🔽' : '🔼';
-            
-            // Sort the data
-            allDashboardJobs.sort((a, b) => {
-                let aVal, bVal;
-                
-                switch(columnIndex) {
-                    case 1: aVal = a.company_name || ''; bVal = b.company_name || ''; break;
-                    case 2: aVal = a.job_role || ''; bVal = b.job_role || ''; break;
-                    case 5: aVal = a.application_status || ''; bVal = b.application_status || ''; break;
-                    default: return 0;
-                }
-                
-                const comparison = aVal.localeCompare(bVal);
-                return isAsc ? comparison : -comparison;
-            });
-            
-            displayDashboardJobs(allDashboardJobs);
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Update event listener to use new function
-        document.getElementById('jobs-tab').addEventListener('click', fetchDashboardJobs);
-
-        // Keep the old functions for backward compatibility but redirect to new ones
-        async function fetchJobs() {
-            // Redirect to new dashboard jobs function
-            await fetchDashboardJobs();
-        }
-
-        // --- Initial Load ---
-        fetchStatus();
-        setInterval(fetchStatus, 5000); // Refresh status every 5 seconds
-
-        // Show a welcome notification on page load
+        // === EVENT LISTENERS ===
         document.addEventListener('DOMContentLoaded', function() {
             try {
+                // Initial data load
+                fetchStatus();
+                setInterval(fetchStatus, 5000); // Refresh status every 5 seconds
+                
+                // Event listeners for tabs
+                document.getElementById('queue-tab').addEventListener('click', fetchQueue);
+                document.getElementById('logs-tab').addEventListener('click', fetchLogs);
+                document.getElementById('pending-tab').addEventListener('click', fetchPendingCommands);
+                document.getElementById('setup-tab').addEventListener('click', fetchTelegramStatus);
+                document.getElementById('jobs-tab').addEventListener('click', fetchDashboardJobs);
+
                 showToast('Dashboard loaded successfully.', 'info');
             } catch (e) {
+                console.error('Error on page load:', e);
                 alert('Error on page load: ' + e.message);
             }
         });
