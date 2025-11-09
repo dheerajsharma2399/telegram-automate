@@ -268,6 +268,7 @@ class LLMProcessor:
             "email_body": email_body,
             "status": "pending",
             "updated_at": datetime.now().isoformat(),
+            "is_hidden": False,
         }
 
     # def generate_email_body(self, job_data: Dict, jd_text: str) -> str:

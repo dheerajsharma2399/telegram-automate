@@ -416,6 +416,29 @@ def api_jobs_stats():
         logging.error(f"Failed to fetch job stats: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/jobs")
+def api_jobs():
+    """API endpoint to get all processed jobs that are not hidden."""
+    try:
+        jobs = db.get_all_processed_jobs()
+        return jsonify(jobs)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/jobs/hide", methods=["POST"])
+def api_hide_jobs():
+    """API endpoint to mark jobs as hidden."""
+    try:
+        data = request.get_json(force=True) or {}
+        job_ids = data.get('job_ids')
+        if not job_ids or not isinstance(job_ids, list):
+            return jsonify({"error": "job_ids must be a non-empty list"}), 400
+        
+        rows_affected = db.hide_jobs(job_ids)
+        return jsonify({"message": f"{rows_affected} jobs hidden successfully."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # --- Telegram Webhook Endpoint ---
 

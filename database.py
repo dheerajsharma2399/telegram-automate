@@ -82,8 +82,15 @@ class Database:
                     email_body TEXT,
                     synced_to_sheets BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_hidden BOOLEAN DEFAULT FALSE,
                     FOREIGN KEY (raw_message_id) REFERENCES raw_messages(id)
                 )
+            """)
+            
+            # Add is_hidden column to processed_jobs if it doesn't exist
+            cursor.execute("""
+                ALTER TABLE processed_jobs
+                ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE;
             """)
             
             # Bot config table
@@ -345,8 +352,8 @@ class Database:
                 INSERT INTO processed_jobs (
                     raw_message_id, job_id, first_name, last_name, email,
                     company_name, job_role, location, eligibility, application_link,
-                    application_method, jd_text, email_subject, email_body, status, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 job_data.get('raw_message_id'),
@@ -364,7 +371,8 @@ class Database:
                 job_data.get('email_subject'),
                 job_data.get('email_body'),
                 job_data.get('status'),
-                job_data.get('updated_at')
+                job_data.get('updated_at'),
+                job_data.get('is_hidden', False)
             ))
             result = cursor.fetchone()
             return result['id'] if result else None
@@ -425,6 +433,25 @@ class Database:
                 ORDER BY created_at ASC
             """)
             return [dict(row) for row in cursor.fetchall()]
+    
+    def get_all_processed_jobs(self) -> List[Dict]:
+        """Get all processed jobs that are not hidden."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM processed_jobs WHERE is_hidden = FALSE ORDER BY created_at DESC')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def hide_jobs(self, job_ids: List[str]) -> int:
+        """Mark a list of jobs as hidden."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            # Use tuple for IN clause
+            cursor.execute("""
+                UPDATE processed_jobs
+                SET is_hidden = TRUE
+                WHERE job_id IN %s
+            """, (tuple(job_ids),))
+            return cursor.rowcount
     
     def get_stats(self, days: int = 7) -> Dict:
         """Get job statistics for the last N days."""
