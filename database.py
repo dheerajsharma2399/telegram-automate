@@ -649,11 +649,11 @@ class Database:
                 WHERE id = %s
             """, (duplicate_of_id, job_id))
             
-            # Add to duplicate groups table
+            # Add to duplicate groups table (cast array to JSON)
             cursor.execute("""
                 INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
-                VALUES (%s, %s, %s)
-            """, (duplicate_of_id, [str(job_id)], confidence_score))
+                VALUES (%s, %s::jsonb, %s)
+            """, (duplicate_of_id, f'["{job_id}"]', confidence_score))
             
             return cursor.rowcount > 0
 
@@ -742,9 +742,23 @@ class Database:
             detected_count = 0
             for duplicate in duplicates:
                 if duplicate['rn'] > 1:
-                    # Mark as duplicate and create group
-                    self.mark_as_duplicate(duplicate['id'], None, 0.9)
-                    detected_count += 1
+                    # Mark as duplicate - create group with proper JSON format
+                    try:
+                        cursor.execute("""
+                            INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
+                            VALUES (%s, %s::jsonb, %s)
+                        """, (None, f'["{duplicate["id"]}"]', 0.9))
+                        
+                        # Update job status
+                        cursor.execute("""
+                            UPDATE dashboard_jobs
+                            SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                        """, (None, duplicate['id']))
+                        
+                        detected_count += 1
+                    except Exception as e:
+                        self.logger.error(f"Error marking duplicate job {duplicate['id']}: {e}")
             
             return detected_count
 

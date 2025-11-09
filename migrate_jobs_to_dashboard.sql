@@ -50,14 +50,20 @@ AND (pj.email IS NULL OR pj.email = '')  -- Only non-email jobs
 AND pj.is_hidden = FALSE;  -- Only visible jobs
 
 -- Check how many jobs were migrated
-SELECT 
+SELECT
     'Jobs Migrated' as description,
     COUNT(*) as count
-FROM dashboard_jobs 
+FROM dashboard_jobs
 WHERE original_sheet = 'non-email';
 
 -- Show current dashboard job count
-SELECT 
+SELECT
     'Total Dashboard Jobs' as description,
     COUNT(*) as count
 FROM dashboard_jobs;
+
+-- Show any duplicate job groups
+SELECT
+    'Duplicate Groups' as description,
+    COUNT(*) as count
+FROM job_duplicate_groups;
