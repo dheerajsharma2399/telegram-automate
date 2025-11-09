@@ -83,6 +83,7 @@ class Database:
                     synced_to_sheets BOOLEAN DEFAULT FALSE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     is_hidden BOOLEAN DEFAULT FALSE,
+                    sheet_name TEXT,
                     FOREIGN KEY (raw_message_id) REFERENCES raw_messages(id)
                 )
             """)
@@ -439,6 +440,13 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM processed_jobs WHERE is_hidden = FALSE ORDER BY created_at DESC')
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_jobs_by_sheet_name(self, sheet_name: str) -> List[Dict]:
+        """Get all processed jobs for a given sheet name that are not hidden."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM processed_jobs WHERE sheet_name = %s AND is_hidden = FALSE ORDER BY created_at DESC', (sheet_name,))
             return [dict(row) for row in cursor.fetchall()]
 
     def hide_jobs(self, job_ids: List[str]) -> int:
