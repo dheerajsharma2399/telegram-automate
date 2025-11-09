@@ -100,6 +100,9 @@
                 <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab">Dashboard</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="jobs-tab" data-bs-toggle="tab" data-bs-target="#jobs" type="button" role="tab">Jobs</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button" role="tab">Queue</button>
             </li>
             <li class="nav-item" role="presentation">
@@ -132,6 +135,32 @@
                     <h4>Status</h4>
                     <div class="row" id="status-cards">
                         <!-- Status cards will be injected here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jobs Tab -->
+            <div class="tab-pane fade" id="jobs" role="tabpanel">
+                <div class="py-4">
+                    <h4>Processed Jobs</h4>
+                    <div class="mb-3">
+                        <button class="btn btn-danger" onclick="removeSelectedJobs()">Remove Selected</button>
+                        <button class="btn btn-secondary" onclick="fetchJobs()">Refresh</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all-jobs"></th>
+                                    <th>Company Name</th>
+                                    <th>Job Role</th>
+                                    <th>Application Link</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jobs-table-body">
+                                <!-- Jobs data will be injected here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -443,6 +472,58 @@
         document.getElementById('logs-tab').addEventListener('click', fetchLogs);
         document.getElementById('pending-tab').addEventListener('click', () => { fetchPendingCommands(); fetchMonitoredGroups(); });
         document.getElementById('setup-tab').addEventListener('click', () => { fetchTelegramStatus(); });
+        document.getElementById('jobs-tab').addEventListener('click', fetchJobs);
+
+        document.getElementById('select-all-jobs').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.job-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+
+        // --- Jobs Tab Functions ---
+        async function fetchJobs() {
+            try {
+                const response = await fetch('/api/jobs');
+                const data = await response.json();
+                const jobsTableBody = document.getElementById('jobs-table-body');
+                jobsTableBody.innerHTML = data.map(job => `
+                    <tr id="job-row-${job.job_id}">
+                        <td><input type="checkbox" class="job-checkbox" value="${job.job_id}"></td>
+                        <td>${job.company_name}</td>
+                        <td>${job.job_role}</td>
+                        <td><a href="${job.application_link}" target="_blank">${job.application_link}</a></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error("Failed to fetch jobs:", error);
+            }
+        }
+
+        async function removeSelectedJobs() {
+            const selectedJobs = Array.from(document.querySelectorAll('.job-checkbox:checked')).map(cb => cb.value);
+            if (selectedJobs.length === 0) {
+                showToast('No jobs selected for removal.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/jobs/hide', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: selectedJobs })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    fetchJobs(); // Refresh the job list
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to remove jobs: ${error}`, 'error');
+            }
+        }
 
         // --- Telegram Status Functions ---
         async function fetchTelegramStatus() {
