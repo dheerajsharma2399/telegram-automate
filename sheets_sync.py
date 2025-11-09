@@ -107,26 +107,20 @@ class GoogleSheetsSync:
             recruiter_name = job_data.get('recruiter_name') or ''
             application_link = job_data.get('application_link') or ''
             
-            # Route to appropriate worksheet based on relevance and contact method
-            has_email = bool(job_data.get('email'))
-            
-            if job_relevance == 'relevant':
-                if has_email:
-                    worksheet = self.sheet_email        # Relevant + Email
-                    logger.info("Routing to 'email' sheet (relevant with email)")
-                else:
-                    worksheet = self.sheet_other        # Relevant + Link/Phone
-                    logger.info("Routing to 'non-email' sheet (relevant without email)")
-            else:  # irrelevant
-                if has_email:
-                    worksheet = self.sheet_email_exp    # Irrelevant + Email
-                    logger.info("Routing to 'email-exp' sheet (irrelevant with email)")
-                else:
-                    worksheet = self.sheet_other_exp    # Irrelevant + Link/Phone
-                    logger.info("Routing to 'non-email-exp' sheet (irrelevant without email)")
+            # Route to appropriate worksheet based on sheet_name
+            sheet_name = job_data.get('sheet_name')
+            worksheet = None
+            if sheet_name == 'email':
+                worksheet = self.sheet_email
+            elif sheet_name == 'non-email':
+                worksheet = self.sheet_other
+            elif sheet_name == 'email-exp':
+                worksheet = self.sheet_email_exp
+            elif sheet_name == 'non-email-exp':
+                worksheet = self.sheet_other_exp
             
             if not worksheet:
-                logger.error(f"Target worksheet not available for relevance={job_relevance}, has_email={has_email}")
+                logger.error(f"Target worksheet not available for sheet_name={sheet_name}")
                 return False
             
             # ROBUST DATA MAPPING with missing field handling

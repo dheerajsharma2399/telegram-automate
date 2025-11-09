@@ -247,6 +247,21 @@ class LLMProcessor:
         #     except Exception:
         #         email_body = None
 
+        # Determine sheet name
+        job_relevance = job_data.get('job_relevance', 'relevant')
+        has_email = bool(job_data.get('email'))
+        sheet_name = 'non-email' # default
+        if job_relevance == 'relevant':
+            if has_email:
+                sheet_name = 'email'
+            else:
+                sheet_name = 'non-email'
+        else:  # irrelevant
+            if has_email:
+                sheet_name = 'email-exp'
+            else:
+                sheet_name = 'non-email-exp'
+
         return {
             "raw_message_id": raw_message_id,
             "job_id": job_id,
@@ -269,6 +284,7 @@ class LLMProcessor:
             "status": "pending",
             "updated_at": datetime.now().isoformat(),
             "is_hidden": False,
+            "sheet_name": sheet_name,
         }
 
     # def generate_email_body(self, job_data: Dict, jd_text: str) -> str:

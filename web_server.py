@@ -420,7 +420,7 @@ def api_jobs_stats():
 def api_jobs():
     """API endpoint to get all processed jobs that are not hidden."""
     try:
-        jobs = db.get_all_processed_jobs()
+        jobs = db.get_jobs_by_sheet_name('non-email')
         return jsonify(jobs)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
