@@ -699,6 +699,49 @@ def get_dashboard_stats():
         logging.error(f"Failed to get dashboard stats: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/dashboard/jobs/<int:job_id>/message", methods=["GET"])
+def get_dashboard_job_message(job_id: int):
+    """Get the original raw message and job description for a dashboard job"""
+    try:
+        # Get the dashboard job
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM dashboard_jobs WHERE id = %s", (job_id,))
+            job = cursor.fetchone()
+            
+            if not job:
+                return jsonify({"error": "Job not found"}), 404
+            
+            job = dict(job)
+            
+            # Get the original processed job if source_job_id exists
+            original_job = None
+            raw_message = None
+            
+            if job.get('source_job_id'):
+                # Get original processed job
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (job['source_job_id'],))
+                original_job = cursor.fetchone()
+                if original_job:
+                    original_job = dict(original_job)
+                
+                # Get raw message if raw_message_id exists in processed job
+                if original_job and original_job.get('raw_message_id'):
+                    cursor.execute("SELECT * FROM raw_messages WHERE id = %s", (original_job['raw_message_id'],))
+                    raw_message = cursor.fetchone()
+                    if raw_message:
+                        raw_message = dict(raw_message)
+            
+            return jsonify({
+                "dashboard_job": job,
+                "original_job": original_job,
+                "raw_message": raw_message
+            })
+            
+    except Exception as e:
+        logging.error(f"Failed to get job message for job {job_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # --- Telegram Webhook Endpoint ---
 

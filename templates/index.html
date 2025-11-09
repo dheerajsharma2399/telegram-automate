@@ -374,8 +374,9 @@
                         <td>${notesIcon}</td>
                         <td>
                             <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied')">✅</button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected')">❌</button>
+                                <button class="btn btn-sm btn-outline-info" onclick="viewJobMessage(${job.id})" title="View Original Message">📄</button>
+                                <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied')" title="Mark as Applied">✅</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected')" title="Mark as Rejected">❌</button>
                             </div>
                         </td>
                     </tr>
@@ -481,6 +482,77 @@
             } catch (error) {
                 showToast(`Failed to export jobs: ${error}`, 'error');
             }
+        }
+
+        async function viewJobMessage(jobId) {
+            try {
+                const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showToast(`Error: ${data.error}`, 'error');
+                    return;
+                }
+                
+                // Create a modal-like dialog to display the message
+                let messageContent = '<h5>Job Information</h5>';
+                messageContent += `<p><strong>Company:</strong> ${escapeHtml(data.dashboard_job?.company_name || 'N/A')}</p>`;
+                messageContent += `<p><strong>Role:</strong> ${escapeHtml(data.dashboard_job?.job_role || 'N/A')}</p>`;
+                messageContent += `<p><strong>Location:</strong> ${escapeHtml(data.dashboard_job?.location || 'N/A')}</p>`;
+                
+                if (data.original_job?.jd_text) {
+                    messageContent += `<h6>Job Description (Original):</h6>`;
+                    messageContent += `<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${escapeHtml(data.original_job.jd_text)}</div>`;
+                }
+                
+                if (data.raw_message?.message_text) {
+                    messageContent += `<h6>Original Telegram Message:</h6>`;
+                    messageContent += `<div style="background: #e9ecef; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${escapeHtml(data.raw_message.message_text)}</div>`;
+                }
+                
+                if (!data.original_job?.jd_text && !data.raw_message?.message_text) {
+                    messageContent += `<p style="color: #6c757d;">No original message or job description available for this job.</p>`;
+                }
+                
+                // Display in a custom modal
+                showCustomModal('Original Message & Job Description', messageContent);
+                
+            } catch (error) {
+                showToast(`Failed to fetch job message: ${error}`, 'error');
+            }
+        }
+
+        function showCustomModal(title, content) {
+            // Create modal backdrop
+            const backdrop = document.createElement('div');
+            backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+            
+            // Create modal container
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background: white; border-radius: 8px; max-width: 800px; max-height: 90%; width: 90%; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2);';
+            
+            // Modal header
+            const header = document.createElement('div');
+            header.style.cssText = 'padding: 20px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;';
+            header.innerHTML = `<h5 style="margin: 0;">${title}</h5><button onclick="this.closest('[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>`;
+            
+            // Modal body
+            const body = document.createElement('div');
+            body.style.cssText = 'padding: 20px; max-height: 70vh; overflow-y: auto;';
+            body.innerHTML = content;
+            
+            modal.appendChild(header);
+            modal.appendChild(body);
+            backdrop.appendChild(modal);
+            
+            // Click outside to close
+            backdrop.addEventListener('click', (e) => {
+                if (e.target === backdrop) {
+                    backdrop.remove();
+                }
+            });
+            
+            document.body.appendChild(backdrop);
         }
 
         // === OTHER FUNCTIONS ===
