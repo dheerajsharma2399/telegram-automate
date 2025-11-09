@@ -79,32 +79,23 @@ if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
                 import time
                 time.sleep(5)  # Wait for server to start
                 try:
-                    # Prioritize WEBHOOK_URL environment variable
-                    webhook_url = os.getenv('WEBHOOK_URL')
-                    if not webhook_url:
-                        # Fallback to guessing from other service variables
-                        service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
-                        if service_url:
-                            webhook_url = f"{service_url}/webhook"
-
-                    if webhook_url:
-                        logging.info(f"Attempting to set webhook to: {webhook_url}")
-                        
-                        async def do_set_webhook():
-                            await bot_application.bot.set_webhook(
-                                url=webhook_url,
-                                allowed_updates=['message', 'callback_query', 'edited_message']
-                            )
-                        
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(do_set_webhook())
-                        
-                        logging.info(f"Auto-configured webhook to: {webhook_url}")
-                    else:
-                        logging.warning("Could not determine service URL for webhook setup. Please set WEBHOOK_URL environment variable or set it manually via the API.")
+                    # Use the correct domain for the new deployment
+                    webhook_url = "https://job.mooh.me/webhook"
+                    logging.info(f"Setting webhook to correct domain: {webhook_url}")
+                    
+                    async def do_set_webhook():
+                        await bot_application.bot.set_webhook(
+                            url=webhook_url,
+                            allowed_updates=['message', 'callback_query', 'edited_message']
+                        )
+                    
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(do_set_webhook())
+                    
+                    logging.info(f"Auto-configured webhook to: {webhook_url}")
                 except Exception as e:
-                    logging.warning(f"Auto webhook setup failed: {e}")
+                    logging.warning(f"Failed to set webhook: {e}")
             
             # Start auto-setup in background thread
             threading.Thread(target=auto_setup_webhook, daemon=True).start()
