@@ -140,9 +140,45 @@ class Database:
             
             # Initialize Telegram auth record
             cursor.execute("""
-                INSERT INTO telegram_auth (id, login_status) 
+                INSERT INTO telegram_auth (id, login_status)
                 VALUES (1, 'not_authenticated')
                 ON CONFLICT (id) DO NOTHING
+            """)
+            
+            # Create dashboard_jobs table for job management
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dashboard_jobs (
+                    id SERIAL PRIMARY KEY,
+                    source_job_id TEXT,
+                    original_sheet TEXT,
+                    company_name TEXT,
+                    job_role TEXT,
+                    location TEXT,
+                    application_link TEXT,
+                    phone TEXT,
+                    recruiter_name TEXT,
+                    job_relevance TEXT DEFAULT 'relevant',
+                    original_created_at TIMESTAMP,
+                    application_status TEXT DEFAULT 'not_applied',
+                    application_date TIMESTAMP,
+                    notes TEXT,
+                    is_duplicate BOOLEAN DEFAULT FALSE,
+                    duplicate_of_id INTEGER,
+                    conflict_status TEXT DEFAULT 'none',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Create job_duplicate_groups table for duplicate tracking
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS job_duplicate_groups (
+                    id SERIAL PRIMARY KEY,
+                    primary_job_id INTEGER,
+                    duplicate_jobs JSON,
+                    confidence_score FLOAT DEFAULT 0.8,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
             """)
             
             self.logger.info("All tables initialized in Supabase")
@@ -477,7 +513,7 @@ class Database:
 
             cursor.execute("""
                 SELECT
-                    company_name, 
+                    company_name,
                     COUNT(id) as count
                 FROM processed_jobs
                 WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
@@ -491,4 +527,244 @@ class Database:
                 "by_method": by_method,
                 "top_companies": top_companies,
             }
-            return True
+
+    def get_relevant_jobs(self, has_email: Optional[bool] = None) -> List[Dict]:
+        """Get relevant jobs (fresher-friendly) - NEW METHOD"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if has_email is None:
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' ORDER BY created_at DESC")
+            elif has_email:
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' AND email IS NOT NULL AND email != '' ORDER BY created_at DESC")
+            else:
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC")
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_irrelevant_jobs(self, has_email: Optional[bool] = None) -> List[Dict]:
+        """Get irrelevant jobs (experienced required) - NEW METHOD"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if has_email is None:
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' ORDER BY created_at DESC")
+            elif has_email:
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND email IS NOT NULL AND email != '' ORDER BY created_at DESC")
+            else:
+                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC")
+            return [dict(row) for row in cursor.fetchall()]
+
+    # ===============================================
+    # DASHBOARD JOBS MANAGEMENT (NEW METHODS)
+    # ===============================================
+
+    def add_dashboard_job(self, job_data: Dict) -> int:
+        """Add a job to the dashboard_jobs table"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO dashboard_jobs (
+                    source_job_id, original_sheet, company_name, job_role, location,
+                    application_link, phone, recruiter_name, job_relevance, original_created_at,
+                    application_status, application_date, notes, is_duplicate, duplicate_of_id, conflict_status
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                job_data.get('source_job_id'),
+                job_data.get('original_sheet'),
+                job_data.get('company_name'),
+                job_data.get('job_role'),
+                job_data.get('location'),
+                job_data.get('application_link'),
+                job_data.get('phone'),
+                job_data.get('recruiter_name'),
+                job_data.get('job_relevance'),
+                job_data.get('original_created_at'),
+                job_data.get('application_status', 'not_applied'),
+                job_data.get('application_date'),
+                job_data.get('notes'),
+                job_data.get('is_duplicate', False),
+                job_data.get('duplicate_of_id'),
+                job_data.get('conflict_status', 'none')
+            ))
+            result = cursor.fetchone()
+            return result['id'] if result else None
+
+    def get_dashboard_jobs(self, status_filter: Optional[str] = None,
+                          relevance_filter: Optional[str] = None,
+                          include_archived: bool = False) -> List[Dict]:
+        """Get dashboard jobs with optional filtering"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            query = "SELECT * FROM dashboard_jobs WHERE 1=1"
+            params = []
+            
+            if status_filter:
+                query += " AND application_status = %s"
+                params.append(status_filter)
+            
+            if relevance_filter:
+                query += " AND job_relevance = %s"
+                params.append(relevance_filter)
+            
+            if not include_archived:
+                query += " AND application_status != 'archived'"
+            
+            query += " ORDER BY created_at DESC"
+            
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def update_dashboard_job_status(self, job_id: int, status: str,
+                                   application_date: Optional[str] = None) -> bool:
+        """Update job application status in dashboard"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (status, application_date, job_id))
+            return cursor.rowcount > 0
+
+    def add_job_notes(self, job_id: int, notes: str) -> bool:
+        """Add or update notes for a job"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET notes = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (notes, job_id))
+            return cursor.rowcount > 0
+
+    def mark_as_duplicate(self, job_id: int, duplicate_of_id: int, confidence_score: float = 0.8) -> bool:
+        """Mark a job as duplicate of another job"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Update the job record
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (duplicate_of_id, job_id))
+            
+            # Add to duplicate groups table
+            cursor.execute("""
+                INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
+                VALUES (%s, %s, %s)
+            """, (duplicate_of_id, [str(job_id)], confidence_score))
+            
+            return cursor.rowcount > 0
+
+    def bulk_update_status(self, job_ids: List[int], status: str,
+                          application_date: Optional[str] = None) -> int:
+        """Update status for multiple jobs at once"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ANY(%s)
+            """, (status, application_date, job_ids))
+            return cursor.rowcount
+
+    def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
+        """Import non-email jobs from processed_jobs to dashboard_jobs"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get processed jobs that are not already in dashboard
+            if sheet_name == 'non-email':
+                query = """
+                    SELECT pj.* FROM processed_jobs pj
+                    LEFT JOIN dashboard_jobs dj ON pj.job_id = dj.source_job_id
+                    WHERE dj.source_job_id IS NULL
+                    AND (pj.email IS NULL OR pj.email = '')
+                    ORDER BY pj.created_at DESC
+                    LIMIT %s
+                """
+                params = (max_jobs,)
+            else:
+                raise ValueError(f"Unsupported sheet_name: {sheet_name}")
+            
+            cursor.execute(query, params)
+            jobs = [dict(row) for row in cursor.fetchall()]
+            
+            # Insert into dashboard_jobs
+            imported_count = 0
+            for job in jobs:
+                dashboard_job = {
+                    'source_job_id': job['job_id'],
+                    'original_sheet': 'non-email',
+                    'company_name': job['company_name'],
+                    'job_role': job['job_role'],
+                    'location': job['location'],
+                    'application_link': job['application_link'],
+                    'phone': job.get('phone'),
+                    'recruiter_name': job.get('recruiter_name'),
+                    'job_relevance': job.get('job_relevance', 'relevant'),
+                    'original_created_at': job['created_at'],
+                    'application_status': 'not_applied'
+                }
+                
+                job_id = self.add_dashboard_job(dashboard_job)
+                if job_id:
+                    imported_count += 1
+            
+            return imported_count
+
+    def detect_duplicate_jobs(self) -> int:
+        """Detect duplicate jobs in dashboard_jobs table"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Find potential duplicates by company name and role
+            query = """
+                WITH potential_duplicates AS (
+                    SELECT
+                        id, company_name, job_role,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY LOWER(TRIM(company_name)), LOWER(TRIM(job_role))
+                            ORDER BY created_at
+                        ) as rn
+                    FROM dashboard_jobs
+                    WHERE is_duplicate = FALSE
+                )
+                SELECT id, company_name, job_role, rn
+                FROM potential_duplicates
+                WHERE rn > 1
+            """
+            
+            cursor.execute(query)
+            duplicates = cursor.fetchall()
+            
+            detected_count = 0
+            for duplicate in duplicates:
+                if duplicate['rn'] > 1:
+                    # Mark as duplicate and create group
+                    self.mark_as_duplicate(duplicate['id'], None, 0.9)
+                    detected_count += 1
+            
+            return detected_count
+
+    def export_dashboard_jobs(self, format_type: str = 'csv') -> Dict:
+        """Export dashboard jobs to CSV format"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    company_name, job_role, location, application_link, phone,
+                    job_relevance, application_status, application_date, notes, created_at
+                FROM dashboard_jobs
+                ORDER BY created_at DESC
+            """)
+            jobs = [dict(row) for row in cursor.fetchall()]
+            
+            return {
+                'format': format_type,
+                'count': len(jobs),
+                'data': jobs,
+                'columns': ['company_name', 'job_role', 'location', 'application_link', 'phone',
+                           'job_relevance', 'application_status', 'application_date', 'notes', 'created_at']
+            }
