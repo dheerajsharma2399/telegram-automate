@@ -90,6 +90,23 @@ def get_sheets_sync():
 
 scheduler = AsyncIOScheduler()
 
+# New background job to import any missed jobs to dashboard
+async def auto_import_jobs_to_dashboard():
+    """Background service to automatically import non-email jobs to dashboard"""
+    try:
+        logger.info("Running background job import...")
+        
+        # Import any non-email jobs that aren't in dashboard yet
+        imported_count = db.import_jobs_from_processed('non-email', max_jobs=50)
+        
+        if imported_count > 0:
+            logger.info(f"Background import completed: {imported_count} jobs imported to dashboard")
+        else:
+            logger.info("Background import: No new jobs to import")
+            
+    except Exception as e:
+        logger.error(f"Background import job failed: {e}")
+
 # Authorization check
 def is_authorized(user_id: int) -> bool:
     """Check if user is authorized to use the bot"""
@@ -117,7 +134,7 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
             for job_data in parsed_jobs:
                 processed_data = llm_processor.process_job_data(job_data, message["id"])
                 
-                # Fix: Handle database method compatibility
+                # Add job to processed_jobs table
                 try:
                     job_id = db.add_processed_job(processed_data)
                 except AttributeError:
@@ -129,6 +146,37 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
                     else:
                         logger.error("No compatible database method found for processed jobs")
                         raise Exception("Database method not available")
+                
+                # AUTOMATIC DASHBOARD POPULATION: Add non-email jobs to dashboard
+                if processed_data.get('application_method') != 'email':
+                    try:
+                        # Convert processed job to dashboard format (using only available columns)
+                        dashboard_job_data = {
+                            'source_job_id': processed_data.get('job_id'),
+                            'original_sheet': 'non-email',
+                            'company_name': processed_data.get('company_name'),
+                            'job_role': processed_data.get('job_role'),
+                            'location': processed_data.get('location'),
+                            'application_link': processed_data.get('application_link'),
+                            'phone': None,  # processed_jobs doesn't have phone column
+                            'recruiter_name': None,  # processed_jobs doesn't have recruiter_name column
+                            'job_relevance': 'relevant',  # Default to relevant
+                            'original_created_at': processed_data.get('updated_at'),
+                            'application_status': 'not_applied'
+                        }
+                        
+                        # Add to dashboard if not already present
+                        with db.get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute(
+                                "SELECT id FROM dashboard_jobs WHERE source_job_id = %s",
+                                (processed_data.get('job_id'),)
+                            )
+                            if not cursor.fetchone():
+                                db.add_dashboard_job(dashboard_job_data)
+                                logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')} - {processed_data.get('job_role')}")
+                    except Exception as e:
+                        logger.error(f"Failed to auto-import job to dashboard: {e}")
             
             db.update_message_status(message["id"], "processed")
             logger.info(f"Processed message {message['id']} and found {len(parsed_jobs)} jobs.")
@@ -145,10 +193,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not scheduler.running:
         scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[context])
+        # Add background import job that runs every 5 minutes
+        scheduler.add_job(auto_import_jobs_to_dashboard, IntervalTrigger(minutes=5))
         scheduler.start()
         db.set_config('monitoring_status', 'running')
         await update.message.reply_text(
-            "✅ Automatic job processing has been started.\n\nI will now check for jobs every 10 minutes. Note: Message monitoring is always running in the background."
+            "✅ Automatic job processing has been started.\n\nI will now check for jobs every 10 minutes and import them to dashboard every 5 minutes. Note: Message monitoring is always running in the background."
         )
     else:
         await update.message.reply_text("⚠️ Automatic job processing is already running!")
