@@ -13,6 +13,7 @@ from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID, DATABASE_URL
 import signal
 import socket
 import threading
+import tempfile
 import json
 from urllib.parse import urljoin
 from llm_processor import LLMProcessor
@@ -437,6 +438,274 @@ def api_hide_jobs():
         rows_affected = db.hide_jobs(job_ids)
         return jsonify({"message": f"{rows_affected} jobs hidden successfully."})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ===============================================
+# DASHBOARD JOBS API ENDPOINTS (NEW)
+# ===============================================
+
+@app.route("/api/dashboard/jobs", methods=["GET"])
+def get_dashboard_jobs():
+    """Get all dashboard jobs with optional filtering"""
+    try:
+        status_filter = request.args.get('status')
+        relevance_filter = request.args.get('relevance')
+        include_archived = request.args.get('include_archived', 'false').lower() == 'true'
+        
+        jobs = db.get_dashboard_jobs(
+            status_filter=status_filter,
+            relevance_filter=relevance_filter,
+            include_archived=include_archived
+        )
+        
+        return jsonify({
+            "jobs": jobs,
+            "count": len(jobs),
+            "filters": {
+                "status": status_filter,
+                "relevance": relevance_filter,
+                "include_archived": include_archived
+            }
+        })
+    except Exception as e:
+        logging.error(f"Failed to fetch dashboard jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/jobs", methods=["POST"])
+def add_job_to_dashboard():
+    """Add a new job to the dashboard"""
+    try:
+        data = request.get_json(force=True) or {}
+        
+        # Required fields validation
+        required_fields = ['company_name', 'job_role', 'application_link']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {missing_fields}"}), 400
+        
+        # Add default values
+        data.setdefault('application_status', 'not_applied')
+        data.setdefault('job_relevance', 'relevant')
+        data.setdefault('conflict_status', 'none')
+        data.setdefault('is_duplicate', False)
+        
+        job_id = db.add_dashboard_job(data)
+        if job_id:
+            return jsonify({
+                "message": "Job added to dashboard successfully",
+                "job_id": job_id
+            }), 201
+        else:
+            return jsonify({"error": "Failed to add job to dashboard"}), 500
+            
+    except Exception as e:
+        logging.error(f"Failed to add job to dashboard: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/jobs/<int:job_id>", methods=["PATCH"])
+def update_job_status(job_id):
+    """Update job application status"""
+    try:
+        data = request.get_json(force=True) or {}
+        status = data.get('status')
+        application_date = data.get('application_date')
+        
+        if not status:
+            return jsonify({"error": "Status is required"}), 400
+        
+        valid_statuses = ['not_applied', 'applied', 'interview', 'rejected', 'offer', 'archived']
+        if status not in valid_statuses:
+            return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
+        
+        success = db.update_dashboard_job_status(job_id, status, application_date)
+        if success:
+            return jsonify({"message": f"Job status updated to {status}"})
+        else:
+            return jsonify({"error": "Job not found"}), 404
+            
+    except Exception as e:
+        logging.error(f"Failed to update job status: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/jobs/<int:job_id>/notes", methods=["POST"])
+def add_job_notes(job_id):
+    """Add notes to a job"""
+    try:
+        data = request.get_json(force=True) or {}
+        notes = data.get('notes', '').strip()
+        
+        if not notes:
+            return jsonify({"error": "Notes cannot be empty"}), 400
+        
+        success = db.add_job_notes(job_id, notes)
+        if success:
+            return jsonify({"message": "Notes added successfully"})
+        else:
+            return jsonify({"error": "Job not found"}), 404
+            
+    except Exception as e:
+        logging.error(f"Failed to add notes to job: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/jobs/bulk_status", methods=["POST"])
+def bulk_update_status():
+    """Update status for multiple jobs"""
+    try:
+        data = request.get_json(force=True) or {}
+        job_ids = data.get('job_ids', [])
+        status = data.get('status')
+        application_date = data.get('application_date')
+        
+        if not job_ids or not isinstance(job_ids, list):
+            return jsonify({"error": "job_ids must be a non-empty list"}), 400
+        
+        if not status:
+            return jsonify({"error": "status is required"}), 400
+        
+        valid_statuses = ['not_applied', 'applied', 'interview', 'rejected', 'offer', 'archived']
+        if status not in valid_statuses:
+            return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
+        
+        updated_count = db.bulk_update_status(job_ids, status, application_date)
+        return jsonify({
+            "message": f"Updated {updated_count} jobs to {status}",
+            "updated_count": updated_count
+        })
+        
+    except Exception as e:
+        logging.error(f"Failed to bulk update status: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/import", methods=["POST"])
+def import_jobs_from_sheets():
+    """Import non-email jobs from processed_jobs to dashboard"""
+    try:
+        data = request.get_json(force=True) or {}
+        sheet_name = data.get('sheet_name', 'non-email')
+        max_jobs = data.get('max_jobs', 50)
+        
+        if sheet_name != 'non-email':
+            return jsonify({"error": "Currently only 'non-email' sheet is supported"}), 400
+        
+        imported_count = db.import_jobs_from_processed(sheet_name, max_jobs)
+        
+        return jsonify({
+            "message": f"Imported {imported_count} jobs from {sheet_name} sheet",
+            "imported_count": imported_count
+        })
+        
+    except Exception as e:
+        logging.error(f"Failed to import jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/duplicates", methods=["GET"])
+def get_detected_duplicates():
+    """Get detected duplicate jobs"""
+    try:
+        # Simple query to get duplicate jobs
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM dashboard_jobs
+                WHERE is_duplicate = TRUE
+                ORDER BY created_at DESC
+            """)
+            duplicates = [dict(row) for row in cursor.fetchall()]
+        
+        return jsonify({
+            "duplicates": duplicates,
+            "count": len(duplicates)
+        })
+        
+    except Exception as e:
+        logging.error(f"Failed to get duplicates: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/duplicates/<int:job_id>", methods=["POST"])
+def mark_as_duplicate_endpoint(job_id):
+    """Mark a job as duplicate"""
+    try:
+        data = request.get_json(force=True) or {}
+        duplicate_of_id = data.get('duplicate_of_id')
+        confidence_score = data.get('confidence_score', 0.8)
+        
+        if not duplicate_of_id:
+            return jsonify({"error": "duplicate_of_id is required"}), 400
+        
+        success = db.mark_as_duplicate(job_id, duplicate_of_id, confidence_score)
+        if success:
+            return jsonify({"message": "Job marked as duplicate"})
+        else:
+            return jsonify({"error": "Failed to mark as duplicate"}), 500
+            
+    except Exception as e:
+        logging.error(f"Failed to mark as duplicate: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/detect_duplicates", methods=["POST"])
+def detect_duplicates_endpoint():
+    """Detect duplicate jobs in dashboard"""
+    try:
+        detected_count = db.detect_duplicate_jobs()
+        return jsonify({
+            "message": f"Detected {detected_count} potential duplicates",
+            "detected_count": detected_count
+        })
+        
+    except Exception as e:
+        logging.error(f"Failed to detect duplicates: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/jobs/export", methods=["GET"])
+def export_dashboard_jobs():
+    """Export dashboard jobs to CSV format"""
+    try:
+        format_type = request.args.get('format', 'csv')
+        export_data = db.export_dashboard_jobs(format_type)
+        
+        if format_type == 'csv':
+            # For now, return JSON with CSV data
+            return jsonify(export_data)
+        else:
+            return jsonify({"error": "Only CSV format is currently supported"}), 400
+            
+    except Exception as e:
+        logging.error(f"Failed to export jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/stats", methods=["GET"])
+def get_dashboard_stats():
+    """Get dashboard job statistics"""
+    try:
+        # Get jobs by status
+        all_jobs = db.get_dashboard_jobs()
+        
+        stats = {
+            "total_jobs": len(all_jobs),
+            "by_status": {},
+            "by_relevance": {},
+            "recent_additions": 0
+        }
+        
+        # Calculate statistics
+        from datetime import datetime, timedelta
+        yesterday = datetime.now() - timedelta(days=1)
+        
+        for job in all_jobs:
+            status = job.get('application_status', 'unknown')
+            relevance = job.get('job_relevance', 'unknown')
+            
+            stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
+            stats["by_relevance"][relevance] = stats["by_relevance"].get(relevance, 0) + 1
+            
+            # Count recent additions
+            if job.get('created_at') and job['created_at'] > yesterday:
+                stats["recent_additions"] += 1
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        logging.error(f"Failed to get dashboard stats: {e}")
         return jsonify({"error": str(e)}), 500
 
 

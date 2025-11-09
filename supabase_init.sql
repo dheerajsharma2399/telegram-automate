@@ -103,16 +103,68 @@ CREATE INDEX IF NOT EXISTS idx_commands_queue_status ON commands_queue(status);
 -- VERIFICATION QUERIES
 -- ===============================================
 
--- Verify all tables were created
-SELECT table_name, table_type 
-FROM information_schema.tables 
-WHERE table_schema = 'public' 
-AND table_name IN ('raw_messages', 'processed_jobs', 'bot_config', 'commands_queue', 'telegram_auth')
+-- ===============================================
+-- DASHBOARD JOBS SYSTEM - NEW TABLES
+-- ===============================================
+
+-- Dashboard jobs table (isolated system for job management)
+CREATE TABLE IF NOT EXISTS dashboard_jobs (
+    id SERIAL PRIMARY KEY,
+    source_job_id TEXT, -- Reference to original job ID
+    original_sheet TEXT, -- 'email', 'non-email', 'email-exp', 'non-email-exp'
+    company_name TEXT,
+    job_role TEXT,
+    location TEXT,
+    application_link TEXT,
+    phone TEXT,
+    recruiter_name TEXT,
+    job_relevance TEXT, -- 'relevant' or 'irrelevant'
+    original_created_at TIMESTAMP,
+    
+    -- Dashboard-specific fields (DO NOT sync back)
+    application_status TEXT DEFAULT 'not_applied', -- 'not_applied', 'applied', 'interview', 'rejected', 'offer', 'archived'
+    application_date TIMESTAMP,
+    notes TEXT,
+    is_duplicate BOOLEAN DEFAULT FALSE,
+    duplicate_of_id INTEGER,
+    conflict_status TEXT, -- 'none', 'detected', 'resolved'
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Duplicate detection table
+CREATE TABLE IF NOT EXISTS job_duplicate_groups (
+    id SERIAL PRIMARY KEY,
+    primary_job_id INTEGER, -- References dashboard_jobs.id
+    duplicate_jobs TEXT[], -- Array of job IDs that are duplicates
+    confidence_score DECIMAL(3,2), -- 0.00 to 1.00
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved BOOLEAN DEFAULT FALSE,
+    resolution_notes TEXT
+);
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_status ON dashboard_jobs(application_status);
+CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_company ON dashboard_jobs(company_name);
+CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_relevance ON dashboard_jobs(job_relevance);
+CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_created ON dashboard_jobs(created_at);
+CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_duplicate ON dashboard_jobs(is_duplicate);
+
+-- =============================================--
+-- VERIFICATION QUERIES (UPDATED)
+-- =============================================--
+
+-- Verify all tables were created (including new ones)
+SELECT table_name, table_type
+FROM information_schema.tables
+WHERE table_schema = 'public'
+AND table_name IN ('raw_messages', 'processed_jobs', 'bot_config', 'commands_queue', 'telegram_auth', 'dashboard_jobs', 'job_duplicate_groups')
 ORDER BY table_name;
 
--- Check table structures
+-- Check table structures (including new ones)
 SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns 
-WHERE table_schema = 'public' 
-AND table_name IN ('raw_messages', 'processed_jobs', 'bot_config', 'commands_queue', 'telegram_auth')
+FROM information_schema.columns
+WHERE table_schema = 'public'
+AND table_name IN ('raw_messages', 'processed_jobs', 'bot_config', 'commands_queue', 'telegram_auth', 'dashboard_jobs', 'job_duplicate_groups')
 ORDER BY table_name, ordinal_position;

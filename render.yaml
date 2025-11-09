@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: job-dashboard
+    name: telegram-job-scraper
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
@@ -10,8 +10,24 @@ services:
         fromSecret: true
       - key: ADMIN_USER_ID
         fromSecret: true
-      - key: DATABASE_PATH
-        value: jobs.db
+      - key: DATABASE_URL
+        fromSecret: true
+      - key: OPENROUTER_API_KEY
+        fromSecret: true
+      - key: GOOGLE_CREDENTIALS_JSON
+        fromSecret: true
+      - key: SPREADSHEET_ID
+        fromSecret: true
+      - key: CONTAINER_TYPE
+        value: web
+      - key: BOT_RUN_MODE
+        value: webhook
+      - key: PORT
+        value: "10000"
+      - key: FLASK_ENV
+        value: production
+    autoDeploy: true
+    healthCheckPath: /health
 
   - type: worker
     name: telegram-job-bot
@@ -28,15 +44,16 @@ services:
         fromSecret: true
       - key: TELEGRAM_BOT_TOKEN
         fromSecret: true
-      - key: TELEGRAM_GROUP_USERNAME
+      - key: TELEGRAM_GROUP_USERNAMES
         fromSecret: true
       - key: AUTHORIZED_USER_IDS
         fromSecret: true
       - key: OPENROUTER_API_KEY
         fromSecret: true
-      - key: GOOGLE_CREDENTIALS_JSON
+      - key: DATABASE_URL
         fromSecret: true
-      - key: SPREADSHEET_ID
-        fromSecret: true
-      - key: DATABASE_PATH
-        value: jobs.db
+      - key: CONTAINER_TYPE
+        value: bot
+      - key: BOT_RUN_MODE
+        value: webhook
+    autoDeploy: true
