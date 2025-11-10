@@ -499,14 +499,13 @@ async def echo_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Global application instance for webhook handling
 application = None
 
-def setup_webhook_bot():
+async def setup_webhook_bot():
     """Setup the bot application object for webhook mode, without starting background tasks."""
     global application
-    if application:
+    if application and getattr(application, 'initialized', False):
         return application
 
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    asyncio.run(application.initialize())
 
     # Add all handlers
     application.add_handler(MessageHandler(filters.ALL, log_all_messages), group=-1)
@@ -521,9 +520,11 @@ def setup_webhook_bot():
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_text_handler))
     
+    await application.initialize()
+    
     return application
 
-def setup_bot():
+async def setup_bot():
     """Set up the bot with proper error handling and start background tasks."""
     global application
     
@@ -533,7 +534,7 @@ def setup_bot():
             logger.error("Cannot start bot: Another instance is running")
             return None
             
-        application = setup_webhook_bot()
+        application = await setup_webhook_bot()
 
         # Start the telegram monitor
         monitor = TelegramMonitor(
@@ -681,7 +682,7 @@ def run_bot_polling():
     logger.info("Starting bot in polling mode...")
     
     global application
-    application = setup_bot()
+    application = asyncio.run(setup_bot())
     if not application:
         logger.error("Failed to setup bot. Exiting.")
         return False
@@ -708,12 +709,12 @@ def run_bot_polling():
         logger.info("Cleaning up bot resources...")
         cleanup_bot_instance()
 
-def run_bot_webhook():
+async def run_bot_webhook():
     """Run bot in webhook mode (for production deployment)"""
     logger.info("Bot configured for webhook mode - use web server to handle webhooks")
     
     global application
-    application = setup_bot()
+    application = await setup_bot()
     if not application:
         logger.error("Failed to setup bot. Exiting.")
         return False
@@ -736,7 +737,7 @@ def main():
     run_mode = os.getenv('BOT_RUN_MODE', 'polling').lower()
     
     if run_mode == 'webhook':
-        return run_bot_webhook()
+        return asyncio.run(run_bot_webhook())
     elif run_mode == 'polling':
         return run_bot_polling()
     else:

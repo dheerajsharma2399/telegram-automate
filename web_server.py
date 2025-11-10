@@ -45,7 +45,7 @@ def get_sheets_sync():
 # Bot application for webhook mode
 bot_application = None
 
-def setup_bot_webhook():
+async def setup_bot_webhook():
     """Setup bot for webhook mode"""
     global bot_application
     try:
@@ -57,7 +57,7 @@ def setup_bot_webhook():
             
         # Import the main module and setup bot
         import main
-        bot_application = main.setup_webhook_bot()
+        bot_application = await main.setup_webhook_bot()
         if bot_application:
             logging.info("Bot application loaded for webhook mode")
             return True
@@ -71,7 +71,7 @@ def setup_bot_webhook():
 # Initialize bot if webhook mode is enabled
 if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
     try:
-        setup_bot_webhook()
+        bot_application = asyncio.run(setup_bot_webhook())
         # Auto-setup webhook URL if bot was successfully loaded
         if bot_application:
             def auto_setup_webhook():
@@ -745,8 +745,8 @@ def get_dashboard_job_message(job_id: int):
 
 # --- Telegram Webhook Endpoint ---
 
-def process_webhook_async(update_data):
-    """Process webhook update in separate thread"""
+async def process_webhook_async(update_data):
+    """Process webhook update in an async context"""
     try:
         if not bot_application:
             logging.error("Bot application not available for webhook")
@@ -755,16 +755,9 @@ def process_webhook_async(update_data):
         from telegram import Update
         update = Update.de_json(update_data, bot_application.bot)
         
-        # Create new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            loop.run_until_complete(bot_application.process_update(update))
-            logging.info(f"Processed webhook update: {update.update_id}")
-            return True
-        finally:
-            loop.close()
+        await bot_application.process_update(update)
+        logging.info(f"Processed webhook update: {update.update_id}")
+        return True
             
     except Exception as e:
         logging.error(f"Error processing webhook: {e}")
@@ -798,9 +791,15 @@ def telegram_webhook():
         if not update_data:
             return jsonify({"error": "No update data"}), 400
         
-        # Process the update in a separate thread
+        # Process the update in a separate thread with its own event loop
+        def run_in_thread(data):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(process_webhook_async(data))
+            loop.close()
+
         import threading
-        thread = threading.Thread(target=process_webhook_async, args=(update_data,))
+        thread = threading.Thread(target=run_in_thread, args=(update_data,))
         thread.start()
         
         webhook_logger.info(f"Webhook update queued for processing: {update_data.get('update_id', 'unknown')}")
