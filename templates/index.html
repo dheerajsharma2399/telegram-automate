@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1282,6 +1281,29 @@
                 statusDiv.innerHTML = '<div class="alert alert-info">🔄 Fetching, processing, and deduplicating historical messages... This may take several minutes.</div>';
                 
                 const response = await fetch('/api/fetch_historical_messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hours_back: parseInt(hoursBack) })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    const duplicateInfo = data.duplicates_removed > 0
+                        ? `<br><small>🗂️ Removed ${data.duplicates_removed} duplicate jobs</small>`
+                        : '';
+                    
+                    const processingInfo = data.processed_count > 0
+                        ? `<br><small>🧠 Extracted ${data.processed_count} jobs from the messages</small>`
+                        : '<br><small>ℹ️ No job postings found in the fetched messages</small>';
+                    
+                    statusDiv.innerHTML = `<div class="alert alert-success">
+                        ✅ <strong>Success!</strong>
+                        <br>📥 Fetched ${data.fetched_count} messages from the past ${data.hours_back} hours
+                        ${processingInfo}
+                        ${duplicateInfo}
+                        <br><small>All messages have been processed and duplicates removed automatically.</small>
+                    </div>`;
                     
                     // Refresh multiple tabs to show updated data
                     setTimeout(() => {
@@ -1352,28 +1374,3 @@
     </script>
 </body>
 </html>
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ hours_back: parseInt(hoursBack) })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.status === 'success') {
-                    const duplicateInfo = data.duplicates_removed > 0
-                        ? `<br><small>🗂️ Removed ${data.duplicates_removed} duplicate jobs</small>`
-                        : '';
-                    
-                    const processingInfo = data.processed_count > 0
-                        ? `<br><small>🧠 Extracted ${data.processed_count} jobs from the messages</small>`
-                        : '<br><small>ℹ️ No job postings found in the fetched messages</small>';
-                    
-                    statusDiv.innerHTML = `<div class="alert alert-success">
-                        ✅ <strong>Success!</strong>
-                        <br>📥 Fetched ${data.fetched_count} messages from the past ${data.hours_back} hours
-                        ${processingInfo}
-                        ${duplicateInfo}
-                        <br><small>All messages have been processed and duplicates removed automatically.</small>
-                    </div>`;
-                    
-                   
