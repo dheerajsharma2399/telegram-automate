@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Historical Message Fetcher for Telegram
-Fetches missed messages from the past 12 hours and processes them
-"""
-
 import asyncio
 import logging
 from datetime import datetime, timedelta
@@ -19,6 +13,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+from message_utils import extract_message_text, should_process_message
 
 class HistoricalMessageFetcher:
     def __init__(self, api_id: str, api_hash: str, phone: str, db: Database):
@@ -117,16 +113,8 @@ class HistoricalMessageFetcher:
                         if message.date < start_time:
                             break
                         
-                        # More flexible filtering: Only skip clearly empty messages or bot commands
-                        message_text = self._extract_message_text(message)
-                        if not message_text or message_text.strip() == "":
-                            continue
-                        
-                        # Skip only actual bot commands (start with /)
-                        if message_text.startswith('/'):
-                            continue
-                        
-                        messages.append(message)
+                        if should_process_message(message):
+                            messages.append(message)
                     
                     # Process and store messages
                     processed_count = 0
@@ -147,43 +135,6 @@ class HistoricalMessageFetcher:
         except Exception as e:
             logger.error(f"Failed to fetch historical messages: {e}")
             return 0
-    
-    def _extract_message_text(self, message):
-        """Extract text from message, handling forwarded messages properly"""
-        try:
-            # Try direct text first
-            if message.text and message.text.strip():
-                return message.text
-            
-            # Handle forwarded messages (new Telegram structure)
-            if hasattr(message, 'forward') and message.forward:
-                forward_msg = message.forward
-                
-                # Try to get text from forwarded message
-                if hasattr(forward_msg, 'text') and forward_msg.text:
-                    return forward_msg.text
-                
-                # Try forwarded message's original text
-                if hasattr(forward_msg, 'message') and forward_msg.message:
-                    return forward_msg.message
-            
-            # Handle fwd_from structure (older Telegram versions)
-            if hasattr(message, 'fwd_from') and message.fwd_from:
-                fwd = message.fwd_from
-                if hasattr(fwd, 'text') and fwd.text:
-                    return fwd.text
-                if hasattr(fwd, 'message') and fwd.message:
-                    return fwd.message
-            
-            # Try message.message as fallback
-            if hasattr(message, 'message') and message.message:
-                return message.message
-            
-            return ""
-            
-        except Exception as e:
-            logger.warning(f"Error extracting text from message {message.id}: {e}")
-            return ""
 
     async def _store_message_if_new(self, message):
         """Store message in database if it's not already stored"""
@@ -203,7 +154,7 @@ class HistoricalMessageFetcher:
                 return False  # Message already exists
             
             # Extract message text using enhanced method for forwarded messages
-            message_text = self._extract_message_text(message)
+            message_text = extract_message_text(message)
             
             # Log what we found for debugging
             if message_text and len(message_text) > 50:
