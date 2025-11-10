@@ -506,6 +506,7 @@ def setup_webhook_bot():
         return application
 
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application.initialize()
 
     # Add all handlers
     application.add_handler(MessageHandler(filters.ALL, log_all_messages), group=-1)
