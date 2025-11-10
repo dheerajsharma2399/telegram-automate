@@ -94,6 +94,12 @@ class Database:
                 ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE;
             """)
             
+            # Add job_relevance column to processed_jobs if it doesn't exist
+            cursor.execute("""
+                ALTER TABLE processed_jobs
+                ADD COLUMN IF NOT EXISTS job_relevance TEXT DEFAULT 'relevant';
+            """)
+            
             # Bot config table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS bot_config (
