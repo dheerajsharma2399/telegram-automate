@@ -287,7 +287,7 @@ class Database:
                     SUM(CASE WHEN application_method = 'email' THEN 1 ELSE 0 END) as with_email,
                     SUM(CASE WHEN application_method != 'email' THEN 1 ELSE 0 END) as without_email
                 FROM processed_jobs
-                WHERE DATE(created_at) = DATE('now')
+                WHERE created_at::date = CURRENT_DATE
             """)
             stats = cursor.fetchone()
             return {

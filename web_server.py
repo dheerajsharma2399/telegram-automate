@@ -83,17 +83,21 @@ if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
                     webhook_url = "https://job.mooh.me/webhook"
                     logging.info(f"Setting webhook to correct domain: {webhook_url}")
                     
-                    async def do_set_webhook():
-                        await bot_application.bot.set_webhook(
-                            url=webhook_url,
-                            allowed_updates=['message', 'callback_query', 'edited_message']
-                        )
-                    
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    loop.run_until_complete(do_set_webhook())
-                    
-                    logging.info(f"Auto-configured webhook to: {webhook_url}")
+                    # FIXED: Check if bot_application is properly initialized
+                    if hasattr(bot_application, 'bot'):
+                        async def do_set_webhook():
+                            await bot_application.bot.set_webhook(
+                                url=webhook_url,
+                                allowed_updates=['message', 'callback_query', 'edited_message']
+                            )
+                        
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(do_set_webhook())
+                        
+                        logging.info(f"Auto-configured webhook to: {webhook_url}")
+                    else:
+                        logging.warning("bot_application is not properly initialized - skipping webhook setup")
                 except Exception as e:
                     logging.warning(f"Failed to set webhook: {e}")
             
@@ -752,6 +756,11 @@ async def process_webhook_async(update_data):
             logging.error("Bot application not available for webhook")
             return False
         
+        # FIXED: Check if bot_application is properly initialized
+        if not hasattr(bot_application, 'bot'):
+            logging.error("Bot application not properly initialized for webhook")
+            return False
+        
         from telegram import Update
         update = Update.de_json(update_data, bot_application.bot)
         
@@ -816,6 +825,10 @@ def setup_webhook():
         if not bot_application:
             return jsonify({"error": "Bot application not available"}), 500
         
+        # FIXED: Check if bot_application is properly initialized
+        if not hasattr(bot_application, 'bot'):
+            return jsonify({"error": "Bot application not properly initialized"}), 500
+        
         data = request.get_json(force=True) or {}
         webhook_url = data.get('webhook_url')
         
@@ -849,6 +862,10 @@ def remove_webhook():
     try:
         if not bot_application:
             return jsonify({"error": "Bot application not available"}), 500
+        
+        # FIXED: Check if bot_application is properly initialized
+        if not hasattr(bot_application, 'bot'):
+            return jsonify({"error": "Bot application not properly initialized"}), 500
         
         async def do_delete_webhook():
             await bot_application.bot.delete_webhook()
