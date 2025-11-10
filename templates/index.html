@@ -781,9 +781,20 @@
                         <td>${notesIcon}</td>
                         <td>
                             <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-info" onclick="viewJobMessage(${job.id})" title="View Original Message">📄</button>
+                                <button class="btn btn-sm btn-outline-info" onclick="toggleJobDescription(${job.id})" title="Show/Hide Description">📄</button>
                                 <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied')" title="Mark as Applied">✅</button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected')" title="Mark as Rejected">❌</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="job-description-row d-none" id="description-${job.id}">
+                        <td colspan="9">
+                            <div class="p-3">
+                                <h5>${escapeHtml(job.job_role || 'N/A')} at ${escapeHtml(job.company_name || 'N/A')}</h5>
+                                <p><strong>Location:</strong> ${escapeHtml(job.location || 'N/A')}</p>
+                                <div class="job-description-content" id="job-desc-content-${job.id}">
+                                    <p class="text-muted">Loading job description...</p>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -941,75 +952,80 @@
             }
         }
 
-        async function viewJobMessage(jobId) {
+        // Toggle the visibility of job description
+        function toggleJobDescription(jobId) {
+            const descRow = document.getElementById(`description-${jobId}`);
+            const contentDiv = document.getElementById(`job-desc-content-${jobId}`);
+            
+            if (descRow.classList.contains('d-none')) {
+                // Show the description row
+                descRow.classList.remove('d-none');
+                
+                // Fetch job description if not already loaded
+                if (!contentDiv.getAttribute('data-loaded')) {
+                    fetchJobDescription(jobId);
+                }
+            } else {
+                // Hide the description row
+                descRow.classList.add('d-none');
+            }
+        }
+        
+        // Fetch and display job description
+        async function fetchJobDescription(jobId) {
             try {
+                const contentDiv = document.getElementById(`job-desc-content-${jobId}`);
+                
+                // Show loading indicator
+                contentDiv.innerHTML = '<p class="text-muted">Loading job description...</p>';
+                
+                // Fetch job data
                 const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    showToast(`Error: ${data.error}`, 'error');
+                    contentDiv.innerHTML = `<p class="text-danger">Error loading job description: ${data.error || 'Unknown error'}</p>`;
                     return;
                 }
                 
-                // Create a modal-like dialog to display the message
-                let messageContent = '<h5>Job Information</h5>';
-                messageContent += `<p><strong>Company:</strong> ${escapeHtml(data.dashboard_job?.company_name || 'N/A')}</p>`;
-                messageContent += `<p><strong>Role:</strong> ${escapeHtml(data.dashboard_job?.job_role || 'N/A')}</p>`;
-                messageContent += `<p><strong>Location:</strong> ${escapeHtml(data.dashboard_job?.location || 'N/A')}</p>`;
+                // Build description content
+                let descriptionHtml = '';
                 
                 if (data.original_job?.jd_text) {
-                    messageContent += `<h6>Job Description (Original):</h6>`;
-                    messageContent += `<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${escapeHtml(data.original_job.jd_text)}</div>`;
+                    descriptionHtml += `
+                        <h6>Job Description:</h6>
+                        <div class="p-2" style="background: #f8f9fa; border-radius: 5px; font-family: monospace; font-size: 12px; white-space: pre-wrap;">
+                            ${escapeHtml(data.original_job.jd_text)}
+                        </div>
+                    `;
                 }
                 
                 if (data.raw_message?.message_text) {
-                    messageContent += `<h6>Original Telegram Message:</h6>`;
-                    messageContent += `<div style="background: #e9ecef; padding: 15px; border-radius: 5px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${escapeHtml(data.raw_message.message_text)}</div>`;
+                    descriptionHtml += `
+                        <h6 class="mt-3">Original Message:</h6>
+                        <div class="p-2" style="background: #e9ecef; border-radius: 5px; font-family: monospace; font-size: 12px; white-space: pre-wrap;">
+                            ${escapeHtml(data.raw_message.message_text)}
+                        </div>
+                    `;
                 }
                 
                 if (!data.original_job?.jd_text && !data.raw_message?.message_text) {
-                    messageContent += `<p style="color: #6c757d;">No original message or job description available for this job.</p>`;
+                    descriptionHtml = '<p class="text-muted">No job description or original message available for this job.</p>';
                 }
                 
-                // Display in a custom modal
-                showCustomModal('Original Message & Job Description', messageContent);
+                // Update content and mark as loaded
+                contentDiv.innerHTML = descriptionHtml;
+                contentDiv.setAttribute('data-loaded', 'true');
                 
             } catch (error) {
-                showToast(`Failed to fetch job message: ${error}`, 'error');
+                console.error("Failed to fetch job description:", error);
+                contentDiv.innerHTML = `<p class="text-danger">Error loading job description: ${error}</p>`;
             }
         }
-
-        function showCustomModal(title, content) {
-            // Create modal backdrop
-            const backdrop = document.createElement('div');
-            backdrop.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;';
-            
-            // Create modal container
-            const modal = document.createElement('div');
-            modal.style.cssText = 'background: white; border-radius: 8px; max-width: 800px; max-height: 90%; width: 100%; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2);';
-            
-            // Modal header
-            const header = document.createElement('div');
-            header.style.cssText = 'padding: 20px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;';
-            header.innerHTML = `<h5 style="margin: 0;">${title}</h5><button onclick="this.closest('[style*=fixed]').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>`;
-            
-            // Modal body
-            const body = document.createElement('div');
-            body.style.cssText = 'padding: 20px; max-height: 70vh; overflow-y: auto;';
-            body.innerHTML = content;
-            
-            modal.appendChild(header);
-            modal.appendChild(body);
-            backdrop.appendChild(modal);
-            
-            // Click outside to close
-            backdrop.addEventListener('click', (e) => {
-                if (e.target === backdrop) {
-                    backdrop.remove();
-                }
-            });
-            
-            document.body.appendChild(backdrop);
+        
+        // Legacy function kept for backward compatibility - now redirects to new toggle
+        async function viewJobMessage(jobId) {
+            toggleJobDescription(jobId);
         }
 
         // === OTHER FUNCTIONS ===
