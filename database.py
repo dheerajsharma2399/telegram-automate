@@ -782,3 +782,27 @@ class Database:
                 'columns': ['company_name', 'job_role', 'location', 'application_link', 'phone',
                            'job_relevance', 'application_status', 'application_date', 'notes', 'created_at']
             }
+
+    def get_dashboard_job_by_id(self, job_id: int) -> Optional[Dict]:
+        """Get a specific dashboard job by ID"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM dashboard_jobs WHERE id = %s", (job_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+
+    def get_original_job_data(self, source_job_id: str) -> Optional[Dict]:
+        """Get original processed job data by source job ID"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (source_job_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+
+    def get_raw_message_by_id(self, message_id: int) -> Optional[Dict]:
+        """Get raw message by ID"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM raw_messages WHERE id = %s", (message_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None

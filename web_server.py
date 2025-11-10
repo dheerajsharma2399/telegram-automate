@@ -18,7 +18,7 @@ import json
 from urllib.parse import urljoin
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
-from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID
+from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
 
 app = Flask(__name__)
 application = app  # Gunicorn expects 'application'
@@ -1157,6 +1157,76 @@ def api_telegram_status():
         }
         return jsonify(status)
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/fetch_historical_messages", methods=["POST"])
+def fetch_historical_messages():
+    """Fetch historical messages from Telegram groups AND process them with duplicate removal"""
+    try:
+        data = request.get_json(force=True) or {}
+        hours_back = data.get('hours_back', 12)  # Default to 12 hours
+        
+        if hours_back < 1 or hours_back > 48:
+            return jsonify({"error": "hours_back must be between 1 and 48"}), 400
+        
+        # Import the historical message fetcher
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        
+        from historical_message_fetcher import HistoricalMessageFetcher
+        
+        # Initialize fetcher
+        if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
+            return jsonify({"error": "Telegram API credentials not configured"}), 500
+        
+        fetcher = HistoricalMessageFetcher(TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, db)
+        
+        async def run_enhanced_fetch():
+            try:
+                # Connect to Telegram
+                if await fetcher.connect_client():
+                    logging.info("Connected to Telegram for enhanced historical message fetch")
+                    
+                    # Fetch, process, and deduplicate messages
+                    result = await fetcher.fetch_and_process_historical_messages(hours_back)
+                    
+                    logging.info(f"Enhanced historical message process complete: {result}")
+                    return result
+                else:
+                    logging.error("Failed to connect to Telegram for enhanced historical fetch")
+                    return {
+                        "fetched_count": 0,
+                        "processed_count": 0,
+                        "duplicates_found": 0,
+                        "duplicates_removed": 0,
+                        "status": "connection_failed"
+                    }
+            except Exception as e:
+                logging.error(f"Error in enhanced historical fetch: {e}")
+                return {
+                    "fetched_count": 0,
+                    "processed_count": 0,
+                    "duplicates_found": 0,
+                    "duplicates_removed": 0,
+                    "status": "error",
+                    "error": str(e)
+                }
+            finally:
+                await fetcher.close()
+
+        # Run the async function
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(run_enhanced_fetch())
+        finally:
+            loop.close()
+
+        return jsonify(result)
+        
+    except Exception as e:
+        logging.error(f"Failed to fetch historical messages: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
