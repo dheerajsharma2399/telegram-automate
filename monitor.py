@@ -12,6 +12,7 @@ from config import (
 )
 from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
+from message_utils import extract_message_text, should_process_message, get_message_info
 import aiohttp
 
 logging.basicConfig(
@@ -262,21 +263,39 @@ class TelegramMonitor:
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
+                # Check if message should be processed using enhanced text extraction
+                if not should_process_message(event.message):
+                    return
+
+                # Get message info for logging
+                msg_info = get_message_info(event.message)
+                
                 # Ignore commands from authorized users in job groups to prevent duplication
-                if event.sender_id in self.authorized_users and event.message.text.startswith('/'):
-                    logging.info(f"Ignoring command '{event.message.text}' in job group to avoid adding to raw messages.")
+                if event.sender_id in self.authorized_users and msg_info['is_bot_command']:
+                    logging.info(f"Ignoring command '{msg_info['text']}' in job group to avoid adding to raw messages.")
                     return
 
                 try:
-                    logging.info(f"New job message received: {event.message.id}")
+                    # Log message details
+                    if msg_info['has_forward']:
+                        logging.info(f"New forwarded job message received: {event.message.id} (type: {msg_info['type']})")
+                    else:
+                        logging.info(f"New direct job message received: {event.message.id}")
+                    
+                    # Add to database with enhanced text extraction
                     self.db.add_raw_message(
                         message_id=event.message.id,
-                        message_text=event.message.text,
+                        message_text=msg_info['text'],
                         sender_id=event.message.sender_id,
                         sent_at=event.message.date,
                     )
+                    
+                    # Log successful processing
+                    if msg_info['text_preview']:
+                        logging.debug(f"Message text: {msg_info['text_preview']}")
+                    
                 except Exception as e:
-                    logging.error(f"Failed to add raw message: {e}")
+                    logging.error(f"Failed to add raw message {event.message.id}: {e}")
         else:
             logging.warning("No group entities resolved to monitor for jobs.")
 
