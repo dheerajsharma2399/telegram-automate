@@ -11,14 +11,13 @@ logger = logging.getLogger(__name__)
 
 def extract_message_text(message) -> str:
     """
-    Extract text from a Telegram message, handling forwarded messages properly.
+    Extract text from a Telegram message, handling all message types.
     
-    This function tries multiple sources to get the message text:
-    1. Direct message text (message.text)
-    2. Forwarded message text (message.forward.text)
-    3. Legacy forwarded text (message.fwd_from.text)
-    4. Alternative text fields (message.message)
-    5. Media captions (message.caption)
+    In Telethon:
+    - message.message contains the text content (primary field)
+    - message.text is a property that formats entities
+    - Forwarded messages still have text in message.message
+    - Media messages may have captions
     
     Args:
         message: Telethon message object
@@ -27,43 +26,42 @@ def extract_message_text(message) -> str:
         str: Extracted text content, or empty string if none found
     """
     try:
-        # Try direct text first (most common case)
-        if hasattr(message, 'text') and message.text and message.text.strip():
-            return message.text.strip()
+        # Try message.message first (this is the actual text field in Telethon)
+        if hasattr(message, 'message') and message.message:
+            text = message.message.strip() if isinstance(message.message, str) else str(message.message).strip()
+            if text:
+                return text
         
-        # Handle forwarded messages (new Telegram structure)
-        if hasattr(message, 'forward') and message.forward:
-            forward_msg = message.forward
+        # Try message.text (formatted with entities)
+        if hasattr(message, 'text') and message.text:
+            text = message.text.strip() if isinstance(message.text, str) else str(message.text).strip()
+            if text:
+                return text
+        
+        # Try caption for media messages (photos, videos, documents, etc.)
+        if hasattr(message, 'caption') and message.caption:
+            text = message.caption.strip() if isinstance(message.caption, str) else str(message.caption).strip()
+            if text:
+                return text
+        
+        # Handle poll messages
+        if hasattr(message, 'media') and message.media:
+            # Check for poll
+            if hasattr(message.media, 'poll') and message.media.poll:
+                poll = message.media.poll
+                if hasattr(poll, 'question') and poll.question:
+                    return f"Poll: {poll.question.strip()}"
             
-            # Try text from forwarded message
-            if hasattr(forward_msg, 'text') and forward_msg.text and forward_msg.text.strip():
-                return forward_msg.text.strip()
-            
-            # Try message field from forwarded message
-            if hasattr(forward_msg, 'message') and forward_msg.message and forward_msg.message.strip():
-                return forward_msg.message.strip()
-            
-            # Try caption from forwarded media
-            if hasattr(forward_msg, 'caption') and forward_msg.caption and forward_msg.caption.strip():
-                return forward_msg.caption.strip()
-        
-        # Handle fwd_from structure (older Telegram versions)
-        if hasattr(message, 'fwd_from') and message.fwd_from:
-            fwd = message.fwd_from
-            if hasattr(fwd, 'text') and fwd.text and fwd.text.strip():
-                return fwd.text.strip()
-            if hasattr(fwd, 'message') and fwd.message and fwd.message.strip():
-                return fwd.message.strip()
-            if hasattr(fwd, 'caption') and fwd.caption and fwd.caption.strip():
-                return fwd.caption.strip()
-        
-        # Try message.message as fallback
-        if hasattr(message, 'message') and message.message and message.message.strip():
-            return message.message.strip()
-        
-        # Try message.caption for media messages
-        if hasattr(message, 'caption') and message.caption and message.caption.strip():
-            return message.caption.strip()
+            # Check for web page preview
+            if hasattr(message.media, 'webpage') and message.media.webpage:
+                webpage = message.media.webpage
+                parts = []
+                if hasattr(webpage, 'title') and webpage.title:
+                    parts.append(f"Title: {webpage.title}")
+                if hasattr(webpage, 'description') and webpage.description:
+                    parts.append(webpage.description)
+                if parts:
+                    return " - ".join(parts).strip()
         
         # Return empty string if no text found
         return ""
@@ -133,11 +131,11 @@ def get_message_info(message) -> dict:
     
     # Determine message type
     msg_type = "unknown"
+    is_forwarded = hasattr(message, 'fwd_from') and message.fwd_from is not None
+    
     if message_text:
-        if hasattr(message, 'forward') and message.forward:
+        if is_forwarded:
             msg_type = "forwarded_text"
-        elif hasattr(message, 'fwd_from') and message.fwd_from:
-            msg_type = "legacy_forwarded_text"
         elif hasattr(message, 'media') and message.media:
             msg_type = "media_with_caption"
         else:
@@ -152,15 +150,53 @@ def get_message_info(message) -> dict:
         "type": msg_type,
         "text": message_text,
         "text_preview": message_text[:100] + "..." if len(message_text) > 100 else message_text,
-        "sender_id": message.sender_id,
-        "date": message.date,
-        "has_forward": hasattr(message, 'forward') and message.forward,
-        "has_fwd_from": hasattr(message, 'fwd_from') and message.fwd_from,
+        "sender_id": getattr(message, 'sender_id', None),
+        "date": getattr(message, 'date', None),
+        "is_forwarded": is_forwarded,
         "has_media": hasattr(message, 'media') and message.media,
+        "media_type": type(message.media).__name__ if hasattr(message, 'media') and message.media else None,
         "is_bot_command": is_bot_command(message_text),
         "is_empty": is_empty_message(message_text),
         "should_process": should_process_message(message)
     }
+
+def debug_message_structure(message) -> dict:
+    """
+    Debug helper to see all available attributes on a message.
+    Useful for troubleshooting when messages are being skipped.
+    
+    Args:
+        message: Telethon message object
+        
+    Returns:
+        dict: All available attributes and their types
+    """
+    debug_info = {
+        "message_id": getattr(message, 'id', None),
+        "attributes": {},
+        "media_info": None
+    }
+    
+    # List key attributes
+    key_attrs = ['message', 'text', 'caption', 'media', 'fwd_from', 'sender_id', 'date']
+    for attr in key_attrs:
+        if hasattr(message, attr):
+            value = getattr(message, attr)
+            debug_info["attributes"][attr] = {
+                "type": type(value).__name__,
+                "value": str(value)[:100] if value else None,
+                "is_none": value is None
+            }
+    
+    # Media details
+    if hasattr(message, 'media') and message.media:
+        debug_info["media_info"] = {
+            "media_type": type(message.media).__name__,
+            "has_poll": hasattr(message.media, 'poll'),
+            "has_webpage": hasattr(message.media, 'webpage')
+        }
+    
+    return debug_info
 
 # Export commonly used functions
 __all__ = [
@@ -168,5 +204,6 @@ __all__ = [
     'is_bot_command', 
     'is_empty_message',
     'should_process_message',
-    'get_message_info'
+    'get_message_info',
+    'debug_message_structure'
 ]
