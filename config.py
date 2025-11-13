@@ -80,6 +80,8 @@ Example format:
     "application_link": "https://techcorp.com/careers",
     "recruiter_name": "Sarah Johnson",
     "email_subject": null,
-    "jd_text": "We are looking for a Software Engineer to join our team..."
+    "jd_text": "We are looking for a Software Engineer to join our team...",
+    "experience_required": "0-1 years",
+    "job_relevance": "relevant"
   }
 ]"""
