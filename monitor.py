@@ -78,7 +78,7 @@ class TelegramMonitor:
         
         while True:
             try:
-                session_string = self.db.get_telegram_session()
+                session_string = self.db.auth.get_telegram_session()
                 
                 if session_string and session_string.strip():
                     logging.info("Restoring Telegram session from database...")
@@ -91,15 +91,15 @@ class TelegramMonitor:
                             await self.client.connect()
                             if not await self.client.is_user_authorized():
                                 logging.warning("Stored session is invalid or expired. Clearing from database.")
-                                self.db.set_telegram_session('')
-                                self.db.set_telegram_login_status('session_expired')
+                                self.db.auth.set_telegram_session('')
+                                self.db.auth.set_telegram_login_status('session_expired')
                                 await self.client.disconnect()
                                 self.client = None
                                 await asyncio.sleep(30)
                                 continue
                             
                             # Update login status to connected
-                            self.db.set_telegram_login_status('connected')
+                            self.db.auth.set_telegram_login_status('connected')
                             logging.info("Successfully restored Telegram session and connected.")
                             await self.send_admin_notification("[OK] Bot connected to Telegram.")
                             
@@ -113,12 +113,12 @@ class TelegramMonitor:
                             error_msg = str(e).lower()
                             if "not a valid string" in error_msg or "invalid" in error_msg:
                                 logging.warning(f"Stored session string is invalid: {e}. Clearing from database.")
-                                self.db.set_telegram_session('')
-                                self.db.set_telegram_login_status('session_expired') # This will trigger re-auth flow on UI
+                                self.db.auth.set_telegram_session('')
+                                self.db.auth.set_telegram_login_status('session_expired') # This will trigger re-auth flow on UI
                             else:
                                 logging.error(f"Failed to connect with stored session: {e}")
-                                if self.db.get_telegram_login_status() != 'session_expired':
-                                    self.db.set_telegram_login_status('connection_failed')
+                                if self.db.auth.get_telegram_login_status() != 'session_expired':
+                                    self.db.auth.set_telegram_login_status('connection_failed')
                             self.client = None
                             await asyncio.sleep(30)
                             continue
@@ -135,7 +135,7 @@ class TelegramMonitor:
                         await self.stop()
                 else:
                     logging.info("No active Telegram session found in database. Waiting for setup via web UI.")
-                    self.db.set_telegram_login_status('not_authenticated')
+                    self.db.auth.set_telegram_login_status('not_authenticated')
                     await asyncio.sleep(30) # Wait before checking for a session again
                     
             except (psycopg2.Error, aiohttp.ClientError, OSError) as e:
@@ -189,7 +189,7 @@ class TelegramMonitor:
                 logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
                 return
             # Add to database
-            new_id = self.db.add_raw_message(
+            new_id = self.db.messages.add_raw_message(
                 message_id=message.id,
                 message_text=msg_info['text'],
                 sender_id=message.sender_id,
@@ -228,7 +228,7 @@ class TelegramMonitor:
         if not force_check and self._handler_registered:
             return
 
-        groups_val = self.db.get_config('monitored_groups') or ''
+        groups_val = self.db.config.get_config('monitored_groups') or ''
         groups_config_list_str = [s.strip() for s in groups_val.split(',') if s.strip()]
 
         # Convert numeric strings to integers to handle group IDs correctly
@@ -312,22 +312,19 @@ class TelegramMonitor:
     
     async def save_session_to_db(self):
         """Save current session string to database"""
-        try:
-            if self.client and self.client.is_connected():
-                session_string = self.client.session.save()
-                self.db.set_telegram_session(session_string)
-                self.db.set_telegram_login_status('connected')
-                logging.info("Telegram session saved to database")
-                return True
-        except Exception as e:
-            logging.error(f"Failed to save Telegram session to database: {e}")
+        if self.client and self.client.is_connected():
+            session_string = self.client.session.save()
+            self.db.auth.set_telegram_session(session_string)
+            self.db.auth.set_telegram_login_status('connected')
+            logging.info("Telegram session saved to database")
+            return True
         return False
     
     async def clear_session_from_db(self):
         """Clear session from database"""
         try:
-            self.db.set_telegram_session('')
-            self.db.set_telegram_login_status('not_authenticated')
+            self.db.auth.set_telegram_session('')
+            self.db.auth.set_telegram_login_status('not_authenticated')
             logging.info("Telegram session cleared from database")
             return True
         except Exception as e:
