@@ -1033,10 +1033,20 @@ def fetch_historical_messages():
         if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
             return jsonify({"error": "Telegram API credentials not configured"}), 500
         
-        fetcher = HistoricalMessageFetcher(TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, db)
-        
         async def run_enhanced_fetch():
+            client = None
             try:
+                # Create a temporary client for this operation
+                session_string = db.get_telegram_session()
+                if not session_string:
+                    raise ConnectionError("No active Telegram session found. Please authenticate first.")
+                
+                client = TelegramClient(StringSession(session_string), int(TELEGRAM_API_ID), TELEGRAM_API_HASH)
+                await client.connect()
+                if not await client.is_user_authorized():
+                    raise ConnectionError("Telegram session is invalid or expired.")
+
+                fetcher = HistoricalMessageFetcher(db, client)
                 # Connect to Telegram
                 if await fetcher.connect_client():
                     logging.info("Connected to Telegram for enhanced historical message fetch")
@@ -1066,7 +1076,8 @@ def fetch_historical_messages():
                     "error": str(e)
                 }
             finally:
-                await fetcher.close()
+                if client and client.is_connected():
+                    await client.disconnect()
 
         # Run the async function
         loop = asyncio.new_event_loop()

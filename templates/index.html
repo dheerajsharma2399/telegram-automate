@@ -859,11 +859,6 @@
                 return;
             }
 
-            const actionText = status === 'archived' ? 'archive' : `mark as ${status} and archive`;
-            if (!confirm(`Are you sure you want to ${actionText} ${selectedIds.length} jobs?`)) {
-                return;
-            }
-
             try {
                 const response = await fetch('/api/dashboard/jobs/bulk_update', {
                     method: 'POST',

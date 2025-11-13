@@ -28,7 +28,7 @@ logging.basicConfig(
 from telethon.sessions import StringSession
 
 class TelegramMonitor:
-    def __init__(self, api_id: str, api_hash: str, phone: str, group_usernames, db: Database, historical_fetcher=None):
+    def __init__(self, api_id: str, api_hash: str, phone: str, group_usernames, db: Database):
         self.api_id = int(api_id)
         self.api_hash = api_hash
         self.phone = phone
@@ -45,14 +45,12 @@ class TelegramMonitor:
                 cleaned.append(g)
         self.group_usernames = cleaned
         self.db = db
-        self.historical_fetcher = historical_fetcher
         self.client = None # Initialize client as None
         self._handler_registered = False
         self._current_monitored_group_ids = set()
         self.initial_group_usernames = group_usernames
+        self._update_handlers_task = None
         self.authorized_users = [int(x) for x in AUTHORIZED_USER_IDS if x] if AUTHORIZED_USER_IDS else []
-        if ADMIN_USER_ID and int(ADMIN_USER_ID) not in self.authorized_users:
-            self.authorized_users.append(int(ADMIN_USER_ID))
 
     async def _command_handler(self, event):
         """Handle incoming commands from authorized users."""
@@ -161,16 +159,17 @@ class TelegramMonitor:
                             await self.send_admin_notification("[OK] Bot connected to Telegram.")
                             
                             await self._prime_dialog_cache()
-
+                            
                         except Exception as e:
                             error_msg = str(e).lower()
                             if "not a valid string" in error_msg or "invalid" in error_msg:
                                 logging.warning(f"Stored session string is invalid: {e}. Clearing from database.")
                                 self.db.set_telegram_session('')
-                                self.db.set_telegram_login_status('session_expired')
+                                self.db.set_telegram_login_status('session_expired') # This will trigger re-auth flow on UI
                             else:
                                 logging.error(f"Failed to connect with stored session: {e}")
-                                self.db.set_telegram_login_status('connection_failed')
+                                if self.db.get_telegram_login_status() != 'session_expired':
+                                    self.db.set_telegram_login_status('connection_failed')
                             self.client = None
                             await asyncio.sleep(30)
                             continue
@@ -178,10 +177,7 @@ class TelegramMonitor:
                     logging.info("Client connected and authorized. Setting up message handlers.")
                     try:
                         await self._ensure_handler_registered()
-                        await self.client.run_until_disconnected()
-                        logging.info("Client disconnected. Will attempt to reconnect.")
-                        self.db.set_telegram_login_status('disconnected')
-                        await self.send_admin_notification("[ERROR] Bot disconnected from Telegram.")
+                        # This is the correct blocking call to listen for events
                     except Exception as e:
                         logging.error(f"Error during monitor execution: {e}")
                     finally:
@@ -266,7 +262,10 @@ class TelegramMonitor:
 
     async def _ensure_handler_registered(self):
         """Ensure the NewMessage handler is registered for the current monitored groups configured in DB."""
-        if not self.client or self._handler_registered:
+        if not self.client:
+            return
+        # If not forcing a check, and handlers are already registered, do nothing.
+        if self._handler_registered:
             return
 
         groups_val = self.db.get_config('monitored_groups') or ''
@@ -291,18 +290,6 @@ class TelegramMonitor:
                 logging.error(f"Failed to get entity for {g_str}. Please ensure the bot has access to this group/channel and the ID/username is correct: {e}")
         
         new_group_ids = {get_peer_id(entity) for entity in group_entities}
-
-        if new_group_ids == self._current_monitored_group_ids and self._handler_registered:
-            logging.info("Monitored groups unchanged and handlers already registered.")
-            return
-
-        # Remove existing handlers to prevent duplicates if called multiple times
-        if self._handler_registered:
-            if hasattr(self, 'job_message_handler'):
-                self.client.remove_event_handler(self.job_message_handler)
-            if hasattr(self, 'command_dispatch_handler'):
-                self.client.remove_event_handler(self.command_dispatch_handler)
-            self._handler_registered = False
 
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))

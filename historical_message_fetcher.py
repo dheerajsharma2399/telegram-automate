@@ -17,36 +17,21 @@ logger = logging.getLogger(__name__)
 from message_utils import extract_message_text, should_process_message
 
 class HistoricalMessageFetcher:
-    def __init__(self, api_id: str, api_hash: str, phone: str, db: Database):
-        self.api_id = int(api_id)
-        self.api_hash = api_hash
-        self.phone = phone
+    def __init__(self, db: Database, client: TelegramClient):
         self.db = db
-        self.client = None
+        self.client = client
     
     async def connect_client(self):
-        """Connect to Telegram client using stored session"""
+        """
+        Checks if the provided client is connected.
+        The monitor is now responsible for creating and connecting the client.
+        """
         try:
-            session_string = self.db.get_telegram_session()
-            if not session_string:
-                logger.error("No Telegram session found in database")
-                return False
-            
-            if not self.client:
-                self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
-                await self.client.connect()
-                
-                if not await self.client.is_user_authorized():
-                    logger.error("Telegram session is invalid or expired")
-                    return False
-                
-                # Prime the entity cache to prevent 'Cannot find any entity' errors
-                logger.info("Priming entity cache in historical fetcher...")
-                await self.client.get_dialogs(limit=10)
-                logger.info("Entity cache primed.")
-                    
+            if self.client and self.client.is_connected():
+                logger.info("Using existing connected client for historical fetch.")
+                return True
+            logger.error("No connected Telegram client provided to HistoricalMessageFetcher.")
             return True
-            
         except Exception as e:
             logger.error(f"Failed to connect Telegram client: {e}")
             return False
@@ -162,12 +147,6 @@ class HistoricalMessageFetcher:
         except Exception as e:
             logger.error(f"Failed to store message {message.id}: {e}")
             return False
-    
-    async def close(self):
-        """Close Telegram client connection"""
-        if self.client and self.client.is_connected():
-            await self.client.disconnect()
-            self.client = None
     
     async def fetch_and_process_historical_messages(self, hours_back: int = 12) -> dict:
         """
@@ -388,33 +367,3 @@ class HistoricalMessageFetcher:
                 groups.append(group)
         
         return groups
-
-# Main function to run from command line
-async def main():
-    from config import TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
-    
-    # Initialize database and fetcher
-    db = Database(DATABASE_URL)
-    fetcher = HistoricalMessageFetcher(TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, db)
-    
-    try:
-        # Connect to Telegram
-        if await fetcher.connect_client():
-            logger.info("Connected to Telegram successfully")
-            
-            # Fetch historical messages
-            hours_back = 12  # Change this to adjust time range
-            fetched_count = await fetcher.fetch_historical_messages(hours_back)
-            
-            logger.info(f"Historical message fetch complete: {fetched_count} messages processed")
-            
-        else:
-            logger.error("Failed to connect to Telegram")
-            
-    except Exception as e:
-        logger.error(f"Error in main: {e}")
-    finally:
-        await fetcher.close()
-
-if __name__ == "__main__":
-    asyncio.run(main())

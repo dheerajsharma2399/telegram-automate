@@ -198,6 +198,7 @@ def init_database(pool):
                 is_duplicate BOOLEAN DEFAULT FALSE,
                 duplicate_of_id INTEGER,
                 conflict_status TEXT DEFAULT 'none',
+                is_hidden BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -213,6 +214,13 @@ def init_database(pool):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Add indexes to dashboard_jobs for faster filtering and lookups
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_application_status ON dashboard_jobs (application_status);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_job_relevance ON dashboard_jobs (job_relevance);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_source_job_id ON dashboard_jobs (source_job_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_is_hidden ON dashboard_jobs (is_hidden);")
+
         
         logging.info("All tables initialized in Supabase")
 

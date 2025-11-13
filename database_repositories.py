@@ -529,9 +529,9 @@ class DashboardRepository(BaseRepository):
             final_status = 'archived' if archive else status
             cursor.execute("""
                 UPDATE dashboard_jobs
-                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
+                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP, is_hidden = %s
                 WHERE id = ANY(%s)
-            """, (final_status, application_date, job_ids))
+            """, (final_status, application_date, archive, job_ids))
             return cursor.rowcount
 
     def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
