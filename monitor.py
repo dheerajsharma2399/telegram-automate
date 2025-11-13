@@ -145,6 +145,9 @@ class TelegramMonitor:
 
     async def _periodically_update_handlers(self):
         """A background task that periodically checks for group changes and updates handlers."""
+        # Initial delay to prevent race condition with startup handler registration
+        await asyncio.sleep(10)
+        
         while self.client and self.client.is_connected():
             try:
                 await self._ensure_handler_registered(force_check=True)
