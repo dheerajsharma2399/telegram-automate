@@ -14,6 +14,7 @@ from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
 from message_utils import extract_message_text, should_process_message, get_message_info
 import aiohttp
+from datetime import datetime, timedelta
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -67,15 +68,15 @@ class TelegramMonitor:
                 unprocessed_count = self.db.get_unprocessed_count()
                 jobs_today = self.db.get_jobs_today_stats()
                 
-                status_emoji = "🟢" if processing_status == 'running' else "🔴"
+                status_emoji = "[RUNNING]" if processing_status == 'running' else "[STOPPED]"
                 status_text = "Running" if processing_status == 'running' else "Stopped"
                 
                 message = (
-                    f"📊 **Job Scraper Status**\n\n"
-                    f"⚪️ **Message Monitoring:** `Running`\n"
-                    f"⚙️ **Automatic Processing:** `{status_text}` {status_emoji}\n"
-                    f"📨 **Unprocessed Messages:** `{unprocessed_count}`\n"
-                    f"✅ **Processed Jobs (Today):** `{jobs_today.get('total', 0)}`\n"
+                    f"[STATUS] **Job Scraper Status**\n\n"
+                    f"[MONITOR] **Message Monitoring:** `Running`\n"
+                    f"[PROCESSING] **Automatic Processing:** `{status_text}` {status_emoji}\n"
+                    f"[QUEUE] **Unprocessed Messages:** `{unprocessed_count}`\n"
+                    f"[OK] **Processed Jobs (Today):** `{jobs_today.get('total', 0)}`\n"
                     f"    - With Email: `{jobs_today.get('with_email', 0)}`\n"
                     f"    - Without Email: `{jobs_today.get('without_email', 0)}`"
                 )
@@ -91,7 +92,7 @@ class TelegramMonitor:
                     days = int(command_parts[1])
                 
                 stats = self.db.get_stats(days)
-                message = f"📊 **Statistics for the last {days} days**\n\n"
+                message = f"[STATUS] **Statistics for the last {days} days**\n\n"
                 
                 if stats.get("by_method"):
                     message += "**Jobs by Application Method:**\n"
@@ -153,8 +154,11 @@ class TelegramMonitor:
                             # Update login status to connected
                             self.db.set_telegram_login_status('connected')
                             logging.info("Successfully restored Telegram session and connected.")
-                            await self.send_admin_notification("✅ Bot connected to Telegram.")
+                            await self.send_admin_notification("[OK] Bot connected to Telegram.")
                             
+                            # Catch up on missed messages
+                            await self._catch_up_missed_messages()
+
                         except Exception as e:
                             error_msg = str(e).lower()
                             if "not a valid string" in error_msg or "invalid" in error_msg:
@@ -187,7 +191,7 @@ class TelegramMonitor:
                             await self.client.run_until_disconnected()
                             logging.info("Client disconnected. Will attempt to reconnect.")
                             self.db.set_telegram_login_status('disconnected')
-                            await self.send_admin_notification("❌ Bot disconnected from Telegram.")
+                            await self.send_admin_notification("[ERROR] Bot disconnected from Telegram.")
                         finally:
                             refresher.cancel()
                     except Exception as e:
@@ -224,82 +228,93 @@ class TelegramMonitor:
             logging.info("Stopping Telegram monitor...")
             await self.client.disconnect()
 
-    async def _ensure_handler_registered(self):
-        """Ensure the NewMessage handler is registered for the current monitored groups configured in DB.
-        Re-registers the handler when the list of monitored groups changes.
-        """
-        if not self.client:
+    async def _process_and_store_message(self, message, group_id):
+        """Process and store a single message."""
+        try:
+            # Check if message should be processed
+            if not should_process_message(message):
+                return
+
+            msg_info = get_message_info(message)
+
+            # Ignore commands from authorized users in job groups
+            if message.sender_id in self.authorized_users and msg_info['is_bot_command']:
+                logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
+                return
+
+            # Add to database
+            new_id = self.db.add_raw_message(
+                message_id=message.id,
+                message_text=msg_info['text'],
+                sender_id=message.sender_id,
+                sent_at=message.date,
+                group_id=group_id
+            )
+
+            if new_id:
+                logging.info(f"Stored new message {message.id} from group {group_id}")
+            else:
+                logging.debug(f"Message {message.id} from group {group_id} already exists.")
+
+        except Exception as e:
+            logging.error(f"Failed to process/store message {message.id}: {e}")
+
+    async def _catch_up_missed_messages(self, hours_back=12):
+        """Fetch messages from the last N hours to catch up."""
+        logging.info(f"Catching up on missed messages from the last {hours_back} hours...")
+        start_time = datetime.now() - timedelta(hours=hours_back)
+        
+        groups_val = self.db.get_config('monitored_groups') or ''
+        groups = [s.strip() for s in groups_val.split(',') if s.strip()]
+        if not groups:
+            logging.info("No monitored groups configured for catch-up.")
             return
 
-        groups_val = self.db.get_config('monitored_groups') or ''
-        groups = [s for s in groups_val.split(',') if s] or list(self.initial_group_usernames or [])
-
-        cleaned = []
-        for g in groups:
+        total_fetched = 0
+        for group_str in groups:
             try:
-                cleaned.append(int(g))
-            except Exception:
-                cleaned.append(g)
+                group_entity = await self.client.get_entity(group_str)
+                group_id = group_entity.id
+                logging.info(f"Fetching historical messages from group: {group_str} ({group_id})")
 
-        if self._handler_registered:
-            return
+                async for message in self.client.iter_messages(group_entity):
+                    message_date = message.date.replace(tzinfo=None) if message.date.tzinfo else message.date
+                    if message_date < start_time:
+                        break
+                    
+                    await self._process_and_store_message(message, group_id)
+                    total_fetched += 1
 
-        # Handler 1: For scraping new job messages from groups
-        group_entities = []
-        groups_val = self.db.get_config('monitored_groups') or ''
-        groups = [s for s in groups_val.split(',') if s] or list(self.initial_group_usernames or [])
-        for g in groups:
-            try:
-                cleaned_g = int(g)
-            except (ValueError, TypeError):
-                cleaned_g = g
-            try:
-                ent = await self.client.get_entity(cleaned_g)
-                group_entities.append(ent)
-                logging.info(f"Monitoring group for jobs: {g}")
             except Exception as e:
-                logging.error(f"Failed to get entity for {g}: {e}")
+                logging.error(f"Failed to fetch historical messages from group {group_str}: {e}")
+        
+        logging.info(f"Catch-up finished. Processed {total_fetched} historical messages.")
+
+    async def _ensure_handler_registered(self):
+        """Ensure the NewMessage handler is registered for the current monitored groups configured in DB."""
+        if not self.client or self._handler_registered:
+            return
+
+        groups_val = self.db.get_config('monitored_groups') or ''
+        groups = [s.strip() for s in groups_val.split(',') if s.strip()] or list(self.initial_group_usernames or [])
+
+        group_entities = []
+        for g_str in groups:
+            try:
+                entity = await self.client.get_entity(g_str)
+                group_entities.append(entity)
+                logging.info(f"Will monitor group for jobs: {g_str} (ID: {entity.id})")
+            except Exception as e:
+                logging.error(f"Failed to get entity for {g_str}: {e}")
 
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
-                # Check if message should be processed using enhanced text extraction
-                if not should_process_message(event.message):
-                    return
-
-                # Get message info for logging
-                msg_info = get_message_info(event.message)
-                
-                # Ignore commands from authorized users in job groups to prevent duplication
-                if event.sender_id in self.authorized_users and msg_info['is_bot_command']:
-                    logging.info(f"Ignoring command '{msg_info['text']}' in job group to avoid adding to raw messages.")
-                    return
-
-                try:
-                    # Log message details
-                    if msg_info['has_forward']:
-                        logging.info(f"New forwarded job message received: {event.message.id} (type: {msg_info['type']})")
-                    else:
-                        logging.info(f"New direct job message received: {event.message.id}")
-                    
-                    # Add to database with enhanced text extraction
-                    self.db.add_raw_message(
-                        message_id=event.message.id,
-                        message_text=msg_info['text'],
-                        sender_id=event.message.sender_id,
-                        sent_at=event.message.date,
-                    )
-                    
-                    # Log successful processing
-                    if msg_info['text_preview']:
-                        logging.debug(f"Message text: {msg_info['text_preview']}")
-                    
-                except Exception as e:
-                    logging.error(f"Failed to add raw message {event.message.id}: {e}")
+                group_id = event.chat_id
+                await self._process_and_store_message(event.message, group_id)
         else:
             logging.warning("No group entities resolved to monitor for jobs.")
 
-        # Handler 2: For commands from authorized users
         if self.authorized_users:
             @self.client.on(events.NewMessage(from_users=self.authorized_users, pattern=r'^/\w+'))
             async def command_dispatch(event):

@@ -413,8 +413,8 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 #             with db.get_connection() as conn:
 #                 cur = conn.cursor()
 #                 # Use %s for psycopg2 placeholders
-#                 q = f"SELECT * FROM processed_jobs WHERE job_id IN ({','.join(['%s']*len(target_ids))}) AND email IS NOT NULL AND email != ''"
-#                 cur.execute(q, target_ids)
+#                 q = "SELECT * FROM processed_jobs WHERE job_id IN %s AND email IS NOT NULL AND email != ''"
+#                 cur.execute(q, (tuple(target_ids),))
 #                 jobs = [dict(r) for r in cur.fetchall()]
 #         else:
 #             # Only get email sheet jobs that need email generation

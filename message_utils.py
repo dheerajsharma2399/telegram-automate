@@ -157,7 +157,8 @@ def get_message_info(message) -> dict:
         "media_type": type(message.media).__name__ if hasattr(message, 'media') and message.media else None,
         "is_bot_command": is_bot_command(message_text),
         "is_empty": is_empty_message(message_text),
-        "should_process": should_process_message(message)
+        "should_process": should_process_message(message),
+        "is_service_message": getattr(message, 'service', None) is not None
     }
 
 def debug_message_structure(message) -> dict:
@@ -174,7 +175,8 @@ def debug_message_structure(message) -> dict:
     debug_info = {
         "message_id": getattr(message, 'id', None),
         "attributes": {},
-        "media_info": None
+        "media_info": None,
+        "forward_info": None
     }
     
     # List key attributes
@@ -194,6 +196,14 @@ def debug_message_structure(message) -> dict:
             "media_type": type(message.media).__name__,
             "has_poll": hasattr(message.media, 'poll'),
             "has_webpage": hasattr(message.media, 'webpage')
+        }
+        
+    # Forward details
+    if hasattr(message, 'fwd_from') and message.fwd_from:
+        debug_info["forward_info"] = {
+            "from_id": getattr(message.fwd_from, 'from_id', None),
+            "from_name": getattr(message.fwd_from, 'from_name', None),
+            "date": getattr(message.fwd_from, 'date', None)
         }
     
     return debug_info
