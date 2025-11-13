@@ -349,6 +349,23 @@
                         </div>
                     </div>
 
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6><i class="bi bi-collection me-1"></i>Bulk Actions (for selected jobs)</h6>
+                            <div class="btn-group flex-wrap" role="group">
+                                <button class="btn btn-sm btn-outline-success" onclick="bulkUpdateStatus('applied')">
+                                    <i class="bi bi-check-all me-1"></i>Mark Applied & Archive
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="bulkUpdateStatus('rejected')">
+                                    <i class="bi bi-x-octagon me-1"></i>Mark Rejected & Archive
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="bulkUpdateStatus('archived')">
+                                    <i class="bi bi-archive me-1"></i>Archive Selected
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-striped table-hover" id="dashboard-jobs-table">
                             <thead class="table-dark">
@@ -815,22 +832,50 @@
             }).join('');
         }
 
-        async function updateJobStatus(jobId, status) {
+        async function updateJobStatus(jobId, statusatgs
             try {
                 const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: status })
+                    body: JSON.stringify({ status: status, archive: archive })
                 });
-                const data = await response.json();
                 if (response.ok) {
-                    showToast(`Job status updated to ${status}`, 'success');
-                    fetchDashboardJobs();
-                } else {
+                    showToast(`Job status updated to '${status}' and archived.`, 'success');
+                    fetchDashboa
                     showToast(`Error: ${data.error}`, 'error');
                 }
             } catch (error) {
                 showToast(`Failed to update job status: ${error}`, 'error');
+            }
+        }
+
+        async function bulkUpdateStatus(status) {
+            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) {
+                showToast('No jobs selected for bulk action.', 'warning');
+                return;
+            }
+
+            const actionText = status === 'archived' ? 'archive' : `mark as ${status} and archive`;
+            if (!confirm(`Are you sure you want to ${actionText} ${selectedIds.length} jobs?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/dashboard/jobs/bulk_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: selectedIds, status: status, archive: true })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`${data.updated_count} jobs have been updated and archived.`, 'success');
+                    fetchDashboardJobs(); // Refresh the list
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to perform bulk update: ${error}`, 'error');
             }
         }
 
