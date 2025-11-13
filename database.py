@@ -58,7 +58,7 @@ def init_database(pool):
             CREATE TABLE IF NOT EXISTS raw_messages (
                 id SERIAL PRIMARY KEY,
                 message_id BIGINT NOT NULL,
-                message_text TEXT NOT NULL,
+                message_text TEXT,
                 sender_id INTEGER,
                 group_id BIGINT,
                 sent_at TIMESTAMP,
@@ -78,7 +78,7 @@ def init_database(pool):
         # Alter sender_id to BIGINT to support larger user/channel IDs
         cursor.execute("""
             ALTER TABLE raw_messages
-            ALTER COLUMN sender_id TYPE BIGINT;
+            ALTER COLUMN sender_id TYPE BIGINT USING sender_id::BIGINT;
         """)
         
         # Processed jobs table
