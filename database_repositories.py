@@ -73,7 +73,7 @@ class MessageRepository(BaseRepository):
                 INSERT INTO raw_messages 
                 (message_id, message_text, sender_id, sent_at, status, group_id)
                 VALUES (%s, %s, %s, %s, 'unprocessed', %s)
-                ON CONFLICT (message_id) DO NOTHING
+                ON CONFLICT (group_id, message_id) DO NOTHING
                 RETURNING id
             """, (message_id, message_text, sender_id, sent_at, group_id))
             result = cursor.fetchone()
