@@ -63,21 +63,13 @@ class HistoricalMessageFetcher:
             for g in groups:
                 if not g:  # Skip empty groups
                     continue
+                # Convert numeric strings to integers, leave others as strings
                 try:
-                    group_id = int(g)
-                    group_entities.append(group_id)
+                    # This will handle negative IDs like '-100...'
+                    group_entities.append(int(g))
                 except (ValueError, TypeError):
-                    # Try to get entity by username, but only if we have a client
-                    if self.client:
-                        try:
-                            entity = await self.client.get_entity(g)
-                            group_entities.append(entity)
-                        except Exception as e:
-                            logging.warning(f"Could not get entity for group '{g}': {e}")
-                            continue
-                    else:
-                        logging.warning("No Telegram client available to resolve group entity")
-                        continue
+                    # If it's not a number, it's a username
+                    group_entities.append(g)
             
             return group_entities
             
