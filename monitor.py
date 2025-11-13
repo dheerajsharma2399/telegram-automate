@@ -281,13 +281,14 @@ class TelegramMonitor:
         group_entities = []
         for g_str in groups_config_list:
             try:
+                from telethon.utils import get_peer_id
                 entity = await self.client.get_entity(g_str)
                 group_entities.append(entity)
-                logging.info(f"Resolved entity for monitoring: {g_str} (ID: {getattr(entity, 'id', 'N/A')})")
+                logging.info(f"Resolved entity for monitoring: {g_str} (ID: {get_peer_id(entity)})")
             except Exception as e:
                 logging.error(f"Failed to get entity for {g_str}. Please ensure the bot has access to this group/channel and the ID/username is correct: {e}")
         
-        new_group_ids = {entity.id for entity in group_entities}
+        new_group_ids = {get_peer_id(entity) for entity in group_entities}
 
         if new_group_ids == self._current_monitored_group_ids and self._handler_registered:
             logging.info("Monitored groups unchanged and handlers already registered.")
