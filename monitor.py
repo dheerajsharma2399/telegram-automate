@@ -56,14 +56,14 @@ class TelegramMonitor:
 
     async def _command_handler(self, event):
         """Handle incoming commands from authorized users."""
-        # Use event.sender_id, which is more reliable across update types
-        sender_id = getattr(event, 'sender_id', None)
-        if not sender_id:
-            logging.warning(f"Could not determine sender_id for event: {type(event).__name__}")
+        # For events.NewMessage, event.sender_id is directly available
+        if not event.sender_id:
+            logging.warning(f"Could not determine sender_id for command event: {type(event).__name__}")
             return
 
-        if sender_id not in self.authorized_users:
+        if event.sender_id not in self.authorized_users:
             return
+        sender_id = event.sender_id # Assign for clarity
 
         command_parts = event.message.text.strip().split()
         command = command_parts[0].lower()
@@ -229,6 +229,9 @@ class TelegramMonitor:
             msg_info = get_message_info(message)
 
             # Ignore commands from authorized users in job groups
+            if message.sender_id in self.authorized_users and msg_info.get('is_bot_command'):
+                logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
+                return
             # Add to database
             new_id = self.db.add_raw_message(
                 message_id=message.id,
@@ -304,15 +307,16 @@ class TelegramMonitor:
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
-                # Use get_peer_id for robustly getting the chat/channel ID
-                from telethon.utils import get_peer_id
-                group_id = None
-                # Handle different event types gracefully
-                if hasattr(event, 'chat_id') and event.chat_id:
-                    group_id = get_peer_id(event.chat_id)
-                elif hasattr(event, 'message') and hasattr(event.message, 'peer_id'):
-                    group_id = get_peer_id(event.message.peer_id)
-                
+                # For events.NewMessage, 'event' is already the Message object.
+                # event.chat_id directly gives the chat ID (integer).
+                # event.sender_id directly gives the sender ID (integer).
+                if not event.chat_id:
+                    logging.warning(f"Could not determine group_id for event type {type(event).__name__}. Skipping.")
+                    return
+                if not event.message: # Ensure there's actual message content
+                    return
+
+                group_id = event.chat_id
                 if group_id:
                     await self._process_and_store_message(event.message, group_id)
                 else:
