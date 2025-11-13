@@ -37,70 +37,21 @@ Thumbs.db
 # Logs and databases
 # ==================
 *.log
-bot.log
-monitor.log
 *.csv
-jobs.db
-test.db
-test_*.db
-*test*.db
-*_test.db
-db_status_check.py
-execute_db_fix.py
+*.db
+*.sql
 
 # Telegram session files
 # ======================
 *.session
 *.session-journal
 
-# Specific generated files
-# ========================
-render.exe
-google script.txt
+# Google Scripts
+*.gs
+*.txt
 
-# Test files and documentation created during development
-# =======================================================
-test_*.py
-*_test.py
-integration_*.py
-simple_*_test.py
-separated_flow_test.py
-integration_guide.py
-email_integration_example.py
-enhanced_email_generator.py
-GITIGNORE_SUMMARY.md
-DEPLOYMENT_FIX.md
-FINAL_UPDATE_SUMMARY.md
-EMAIL_GENERATION_ACTION_PLAN.md
-FINAL_EMAIL_GENERATION_SUMMARY.md
-GOOGLE_SHEETS_FIX_SUMMARY.md
-test_complete_app.py
-test_simple.py
-test_webserver_updated.py
-test_integration.py
-test_separated_flow.py
-simple_separated_test.py
-web_server_no_bot.py
-outreach.py
-
-# Development debug and fix scripts
-# =================================
-manual_fix.sql
-fix_queue_issues.py
-debug_monitor_queue.py
-fix_queue_now.bat
-db_status_check.py
-execute_db_fix.py
-RENDER_DEPLOYMENT_GUIDE.md
-DEPLOYMENT_CHECKLIST.md
-DEPLOYMENT_CLARIFICATION.md
-
-# Additional development scripts and files
-# =========================================
-main_fixed.py
-add_sheet_headers.py
-export_jobs_csv.py
-simple_headers_append.py
+# Pytest cache
+.pytest_cache/
 
 # Docker files (exclude for GitHub - keep Dockerfile and compose in main code)
 # ===========================================================================
@@ -116,7 +67,6 @@ telegram-job-bot.service
 # Data files and exports
 # ======================
 data/
-*.csv
 !data/processed_jobs_*.csv
 
 # Backup and temporary files
@@ -134,37 +84,6 @@ data/
 !COOLIFY_DEPLOYMENT.md
 !DOCKER_DEPLOYMENT.md
 !TROUBLESHOOTING.md
-
-# Additional test and development files
-# =====================================
-*test*.py
-*_test.py
-test_*.py
-*_summary.md
-*_action_plan.md
-*_fix_summary.md
-*_guide.py
-*_example.py
-
-# Web server and testing artifacts
-# ================================
-*.session
-*.session-journal
-web_server_test.py
-deployment_test.py
-integration_test.py
-
-# Enhanced email generation files (keep in main code only)
-# =========================================================
-enhanced_email_generator.py
-
-# Development tracking files
-# ==========================
-*.track
-*.dev
-*_dev.py
-*_fix.py
-*_debug.py
 
 # Render deployment specific
 # ==========================

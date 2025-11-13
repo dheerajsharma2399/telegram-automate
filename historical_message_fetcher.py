@@ -103,14 +103,10 @@ class HistoricalMessageFetcher:
                     
                     # Get messages in the time range
                     messages = []
-                    async for message in self.client.iter_messages(
-                        group,
-                        limit=1000,  # Increased limit to catch more messages
-                        offset_date=end_time,
-                        reverse=True
-                    ):
+                    async for message in self.client.iter_messages(group):
                         # Stop if message is older than our time range
-                        if message.date < start_time:
+                        message_date = message.date.replace(tzinfo=None) if message.date.tzinfo else message.date
+                        if message_date < start_time:
                             break
                         
                         if should_process_message(message):
@@ -118,8 +114,9 @@ class HistoricalMessageFetcher:
                     
                     # Process and store messages
                     processed_count = 0
+                    group_id_to_pass = group.id if hasattr(group, 'id') else group
                     for message in messages:
-                        if await self._store_message_if_new(message):
+                        if await self._store_message_if_new(message, group_id_to_pass):
                             processed_count += 1
                     
                     total_fetched += processed_count
@@ -136,45 +133,29 @@ class HistoricalMessageFetcher:
             logger.error(f"Failed to fetch historical messages: {e}")
             return 0
 
-    async def _store_message_if_new(self, message):
-        """Store message in database if it's not already stored"""
+    async def _store_message_if_new(self, message, group_id):
+        """Store message in database if it's not already stored."""
         try:
-            # Check if message is already in database
-            import psycopg2
-            conn = psycopg2.connect(DATABASE_URL)
-            cur = conn.cursor()
-            
-            cur.execute(
-                "SELECT id FROM raw_messages WHERE message_id = %s",
-                (message.id,)
-            )
-            
-            if cur.fetchone():
-                conn.close()
-                return False  # Message already exists
-            
-            # Extract message text using enhanced method for forwarded messages
             message_text = extract_message_text(message)
-            
-            # Log what we found for debugging
-            if message_text and len(message_text) > 50:
-                logger.debug(f"Storing message {message.id} with text: {message_text[:100]}...")
-            elif message_text:
-                logger.debug(f"Storing message {message.id}: {message_text}")
-            else:
-                logger.debug(f"Storing message {message.id} (no text content)")
-            
-            # Store new message
-            self.db.add_raw_message(
+
+            # The add_raw_message function uses ON CONFLICT DO NOTHING,
+            # so we don't need to check for existence first.
+            # It returns an ID if the message was new, or None if it already existed.
+            new_id = self.db.add_raw_message(
                 message_id=message.id,
                 message_text=message_text,
                 sender_id=message.sender_id,
-                sent_at=message.date
+                sent_at=message.date,
+                group_id=group_id
             )
-            
-            conn.close()
-            return True
-            
+
+            if new_id:
+                logger.debug(f"Stored new message {message.id}")
+                return True
+            else:
+                # Message already existed
+                return False
+
         except Exception as e:
             logger.error(f"Failed to store message {message.id}: {e}")
             return False
