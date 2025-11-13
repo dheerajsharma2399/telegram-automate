@@ -58,7 +58,8 @@ For EACH job posting found, extract the following fields as a JSON object:
 9. email_subject: Custom email subject line if specified (null if not mentioned)
 10. jd_text: Complete job description text including requirements, responsibilities, etc.
 11. experience_required: Experience requirements (e.g., "fresher", "0-1 years", "2+ years", "2024/2025/2026 batch")
-12. job_relevance: "relevant" for very recent or future graduates (e.g., 2025 batch, 2026 batch, "fresher", "entry level", 0-1 years experience), "irrelevant" for all other roles, especially those mentioning graduation years of 2024 or earlier (e.g., "2024 batch", "2023 or before", "2-5 years experience", "senior/lead/manager positions")
+12. job_relevance: "relevant" for recent/future graduates (e.g., 2025 batch, "fresher", 0-1 years), "irrelevant" for all other roles (e.g., "2024 batch", 2+ years experience).
+13. sheet_name: The target sheet name. Use "email" if job_relevance is 'relevant' and email is present. Use "non-email" if job_relevance is 'relevant' and email is not present. Use "email-exp" if job_relevance is 'irrelevant' and email is present. Use "non-email-exp" if job_relevance is 'irrelevant' and email is not present.
 
 CRITICAL REQUIREMENTS:
 - Return ONLY a JSON array of job objects
@@ -82,6 +83,7 @@ Example format:
     "email_subject": null,
     "jd_text": "We are looking for a Software Engineer to join our team...",
     "experience_required": "0-1 years",
-    "job_relevance": "relevant"
+    "job_relevance": "relevant",
+    "sheet_name": "email"
   }
 ]"""

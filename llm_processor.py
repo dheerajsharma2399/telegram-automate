@@ -249,21 +249,8 @@ class LLMProcessor:
         #     except Exception:
         #         email_body = None
 
-        # Determine sheet name
-        job_relevance = job_data.get('job_relevance', 'relevant')
-        has_email = bool(job_data.get('email'))
-        sheet_name = 'non-email' # default
-        if job_relevance == 'relevant':
-            if has_email:
-                sheet_name = 'email'
-            else:
-                sheet_name = 'non-email'
-        else:  # irrelevant
-            if has_email:
-                sheet_name = 'email-exp'
-            else:
-                sheet_name = 'non-email-exp'
-
+        # Use the sheet_name provided by the LLM, with a sensible fallback.
+        sheet_name = job_data.get('sheet_name', 'non-email')
         return {
             "raw_message_id": raw_message_id,
             "job_id": job_id,

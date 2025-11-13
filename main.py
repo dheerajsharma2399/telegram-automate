@@ -372,6 +372,45 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Manual sync with Google Sheets failed: {e}")
         await update.message.reply_text(f"❌ An error occurred during the sync process: {e}")
 
+async def backfill_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """One-time command to backfill sheet_name for old jobs."""
+    if not is_authorized(update.effective_user.id):
+        await update.message.reply_text("❌ Unauthorized access.")
+        return
+
+    await update.message.reply_text("🚀 Starting backfill process for `sheet_name` on old jobs. This may take a moment...")
+    
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            # Get all jobs where sheet_name is NULL
+            cursor.execute("SELECT id, job_relevance, email FROM processed_jobs WHERE sheet_name IS NULL")
+            jobs_to_update = cursor.fetchall()
+
+            if not jobs_to_update:
+                await update.message.reply_text("✅ No jobs found needing a backfill. All records are up-to-date.")
+                return
+
+            await update.message.reply_text(f"Found {len(jobs_to_update)} jobs to update. Starting now...")
+            
+            updated_count = 0
+            for job in jobs_to_update:
+                job_relevance = job.get('job_relevance', 'relevant')
+                has_email = bool(job.get('email'))
+                
+                if job_relevance == 'relevant':
+                    sheet_name = 'email' if has_email else 'non-email'
+                else:
+                    sheet_name = 'email-exp' if has_email else 'non-email-exp'
+                
+                cursor.execute("UPDATE processed_jobs SET sheet_name = %s WHERE id = %s", (sheet_name, job['id']))
+                updated_count += 1
+
+        await update.message.reply_text(f"✅ Backfill complete! Updated {updated_count} jobs.")
+    except Exception as e:
+        logger.error(f"Backfill failed: {e}")
+        await update.message.reply_text(f"❌ An error occurred during the backfill process: {e}")
+
 
 # async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     """Handle /generate_emails command - generate personalized email bodies for processed jobs."""
@@ -499,6 +538,7 @@ async def setup_webhook_bot():
     application.add_handler(CommandHandler("export", export_command))
     # application.add_handler(CommandHandler("generate_emails", generate_emails_command))
     application.add_handler(CommandHandler("sync_sheets", sync_sheets_command))
+    application.add_handler(CommandHandler("backfill_sheets", backfill_sheets_command)) # Add new handler
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_text_handler))
     
@@ -603,6 +643,9 @@ async def setup_bot():
                                     executed_ok = True
                                 elif text.startswith('/sync_sheets'):
                                     await sync_sheets_command(fake_update, application)
+                                    executed_ok = True
+                                elif text.startswith('/backfill_sheets'):
+                                    await backfill_sheets_command(fake_update, application)
                                     executed_ok = True
                                 else:
                                     # Unknown command: send it as admin message to bot chat as fallback
