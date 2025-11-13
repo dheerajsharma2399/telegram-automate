@@ -307,6 +307,11 @@ class TelegramMonitor:
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
+                # Ensure we are only processing actual message events
+                if not isinstance(event, events.NewMessage.Event):
+                    logging.debug(f"Skipping non-message event in job handler: {type(event).__name__}")
+                    return
+
                 # For events.NewMessage, 'event' is already the Message object.
                 # event.chat_id directly gives the chat ID (integer).
                 # event.sender_id directly gives the sender ID (integer).
@@ -330,6 +335,11 @@ class TelegramMonitor:
         if self.authorized_users:
             @self.client.on(events.NewMessage(from_users=self.authorized_users, pattern=r'^/\w+'))
             async def command_dispatch_handler(event):
+                # Ensure we are only processing actual message events
+                if not isinstance(event, events.NewMessage.Event):
+                    logging.debug(f"Skipping non-message event in command handler: {type(event).__name__}")
+                    return
+
                 await self._command_handler(event)
             self.client.add_event_handler(command_dispatch_handler)
             self.command_dispatch_handler = command_dispatch_handler # Store handler for removal
