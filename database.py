@@ -75,6 +75,12 @@ def init_database(pool):
             ADD COLUMN IF NOT EXISTS group_id BIGINT;
         """)
         
+        # Alter sender_id to BIGINT to support larger user/channel IDs
+        cursor.execute("""
+            ALTER TABLE raw_messages
+            ALTER COLUMN sender_id TYPE BIGINT;
+        """)
+        
         # Processed jobs table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS processed_jobs (
