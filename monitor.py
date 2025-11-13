@@ -305,7 +305,9 @@ class TelegramMonitor:
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
-                group_id = event.chat_id
+                # Use get_peer_id for robustly getting the chat/channel ID
+                from telethon.utils import get_peer_id
+                group_id = get_peer_id(event.message.peer_id)
                 await self._process_and_store_message(event.message, group_id)
             self.client.add_event_handler(job_message_handler)
             self.job_message_handler = job_message_handler # Store handler for removal
