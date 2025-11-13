@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from telethon import TelegramClient, events
 from config import (
     TELEGRAM_API_ID,
