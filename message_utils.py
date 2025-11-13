@@ -32,6 +32,12 @@ def extract_message_text(message) -> str:
             if text:
                 return text
         
+        # Try message.raw_text (often the most reliable for full text)
+        if hasattr(message, 'raw_text') and message.raw_text:
+            text = message.raw_text.strip()
+            if text:
+                return text
+        
         # Try message.text (formatted with entities)
         if hasattr(message, 'text') and message.text:
             text = message.text.strip() if isinstance(message.text, str) else str(message.text).strip()

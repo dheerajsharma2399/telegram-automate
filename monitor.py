@@ -28,7 +28,7 @@ logging.basicConfig(
 from telethon.sessions import StringSession
 
 class TelegramMonitor:
-    def __init__(self, api_id: str, api_hash: str, phone: str, group_usernames, db: Database):
+    def __init__(self, api_id: str, api_hash: str, phone: str, group_usernames, db: Database, historical_fetcher=None):
         self.api_id = int(api_id)
         self.api_hash = api_hash
         self.phone = phone
@@ -44,8 +44,10 @@ class TelegramMonitor:
                 cleaned.append(g)
         self.group_usernames = cleaned
         self.db = db
+        self.historical_fetcher = historical_fetcher
         self.client = None # Initialize client as None
         self._handler_registered = False
+        self._current_monitored_group_ids = set()
         self.initial_group_usernames = group_usernames
         self.authorized_users = [int(x) for x in AUTHORIZED_USER_IDS if x] if AUTHORIZED_USER_IDS else []
         if ADMIN_USER_ID and int(ADMIN_USER_ID) not in self.authorized_users:
@@ -132,13 +134,8 @@ class TelegramMonitor:
                     logging.info("Restoring Telegram session from database...")
                     if not self.client or not self.client.is_connected():
                         try:
-                            # Validate session string format before creating client
-                            if not session_string.startswith('1@') and len(session_string) < 100:
-                                logging.warning("Stored session string appears invalid format. Clearing from database.")
-                                self.db.set_telegram_session('')
-                                self.db.set_telegram_login_status('session_expired')
-                                await asyncio.sleep(30)
-                                continue
+                            # The client.is_user_authorized() check below is sufficient to validate the session.
+                            # No need for a heuristic check here.
                                 
                             self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
                             await self.client.connect()
@@ -156,6 +153,7 @@ class TelegramMonitor:
                             logging.info("Successfully restored Telegram session and connected.")
                             await self.send_admin_notification("[OK] Bot connected to Telegram.")
                             
+                            await self._prime_dialog_cache()
                             # Catch up on missed messages
                             await self._catch_up_missed_messages()
 
@@ -175,25 +173,10 @@ class TelegramMonitor:
                     logging.info("Client connected and authorized. Setting up message handlers.")
                     try:
                         await self._ensure_handler_registered()
-
-                        async def _refresh_loop():
-                            while True:
-                                try:
-                                    await asyncio.sleep(60)
-                                    await self._ensure_handler_registered()
-                                except asyncio.CancelledError:
-                                    break
-                                except Exception as e:
-                                    logging.error(f"Error in monitor refresh loop: {e}")
-
-                        refresher = asyncio.create_task(_refresh_loop())
-                        try:
-                            await self.client.run_until_disconnected()
-                            logging.info("Client disconnected. Will attempt to reconnect.")
-                            self.db.set_telegram_login_status('disconnected')
-                            await self.send_admin_notification("[ERROR] Bot disconnected from Telegram.")
-                        finally:
-                            refresher.cancel()
+                        await self.client.run_until_disconnected()
+                        logging.info("Client disconnected. Will attempt to reconnect.")
+                        self.db.set_telegram_login_status('disconnected')
+                        await self.send_admin_notification("[ERROR] Bot disconnected from Telegram.")
                     except Exception as e:
                         logging.error(f"Error during monitor execution: {e}")
                     finally:
@@ -259,36 +242,20 @@ class TelegramMonitor:
         except Exception as e:
             logging.error(f"Failed to process/store message {message.id}: {e}")
 
-    async def _catch_up_missed_messages(self, hours_back=12):
-        """Fetch messages from the last N hours to catch up."""
-        logging.info(f"Catching up on missed messages from the last {hours_back} hours...")
-        start_time = datetime.now() - timedelta(hours=hours_back)
-        
-        groups_val = self.db.get_config('monitored_groups') or ''
-        groups = [s.strip() for s in groups_val.split(',') if s.strip()]
-        if not groups:
-            logging.info("No monitored groups configured for catch-up.")
+    async def _prime_dialog_cache(self):
+        """
+        Fetches all dialogs to prime the client's entity cache.
+        This helps prevent 'Cannot find any entity' errors for groups the client is in.
+        """
+        if not self.client or not self.client.is_connected():
             return
+        try:
+            logging.info("Priming entity cache by fetching dialogs...")
+            await self.client.get_dialogs(limit=10) # Fetch a few dialogs to get started
+            logging.info("Entity cache primed.")
+        except Exception as e:
+            logging.warning(f"Could not prime entity cache: {e}")
 
-        total_fetched = 0
-        for group_str in groups:
-            try:
-                group_entity = await self.client.get_entity(group_str)
-                group_id = group_entity.id
-                logging.info(f"Fetching historical messages from group: {group_str} ({group_id})")
-
-                async for message in self.client.iter_messages(group_entity):
-                    message_date = message.date.replace(tzinfo=None) if message.date.tzinfo else message.date
-                    if message_date < start_time:
-                        break
-                    
-                    await self._process_and_store_message(message, group_id)
-                    total_fetched += 1
-
-            except Exception as e:
-                logging.error(f"Failed to fetch historical messages from group {group_str}: {e}")
-        
-        logging.info(f"Catch-up finished. Processed {total_fetched} historical messages.")
 
     async def _ensure_handler_registered(self):
         """Ensure the NewMessage handler is registered for the current monitored groups configured in DB."""
@@ -296,34 +263,54 @@ class TelegramMonitor:
             return
 
         groups_val = self.db.get_config('monitored_groups') or ''
-        groups = [s.strip() for s in groups_val.split(',') if s.strip()] or list(self.initial_group_usernames or [])
+        groups_config_list = [s.strip() for s in groups_val.split(',') if s.strip()]
 
         group_entities = []
-        for g_str in groups:
+        for g_str in groups_config_list:
             try:
                 entity = await self.client.get_entity(g_str)
                 group_entities.append(entity)
-                logging.info(f"Will monitor group for jobs: {g_str} (ID: {entity.id})")
+                logging.info(f"Resolved entity for monitoring: {g_str} (ID: {entity.id})")
             except Exception as e:
-                logging.error(f"Failed to get entity for {g_str}: {e}")
+                logging.error(f"Failed to get entity for {g_str}. Please ensure the bot has access to this group/channel and the ID/username is correct: {e}")
+        
+        new_group_ids = {entity.id for entity in group_entities}
+
+        if new_group_ids == self._current_monitored_group_ids and self._handler_registered:
+            logging.info("Monitored groups unchanged and handlers already registered.")
+            return
+
+        # Remove existing handlers to prevent duplicates if called multiple times
+        if self._handler_registered:
+            if hasattr(self, 'job_message_handler'):
+                self.client.remove_event_handler(self.job_message_handler)
+            if hasattr(self, 'command_dispatch_handler'):
+                self.client.remove_event_handler(self.command_dispatch_handler)
+            self._handler_registered = False
 
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
                 group_id = event.chat_id
                 await self._process_and_store_message(event.message, group_id)
+            self.client.add_event_handler(job_message_handler)
+            self.job_message_handler = job_message_handler # Store handler for removal
+            logging.info(f"NewMessage handler registered for {len(group_entities)} groups.")
         else:
-            logging.warning("No group entities resolved to monitor for jobs.")
+            logging.warning("No group entities resolved to monitor for jobs. NewMessage handler not registered.")
 
         if self.authorized_users:
             @self.client.on(events.NewMessage(from_users=self.authorized_users, pattern=r'^/\w+'))
-            async def command_dispatch(event):
+            async def command_dispatch_handler(event):
                 await self._command_handler(event)
+            self.client.add_event_handler(command_dispatch_handler)
+            self.command_dispatch_handler = command_dispatch_handler # Store handler for removal
             logging.info(f"Command handler registered for {len(self.authorized_users)} authorized users.")
         else:
-            logging.warning("No authorized users configured for commands.")
+            logging.warning("No authorized users configured for commands. Command handler not registered.")
 
         self._handler_registered = True
+        self._current_monitored_group_ids = new_group_ids
         logging.info("Event handlers registered.")
     
     async def save_session_to_db(self):

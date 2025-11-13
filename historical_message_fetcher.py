@@ -39,6 +39,11 @@ class HistoricalMessageFetcher:
                 if not await self.client.is_user_authorized():
                     logger.error("Telegram session is invalid or expired")
                     return False
+                
+                # Prime the entity cache to prevent 'Cannot find any entity' errors
+                logger.info("Priming entity cache in historical fetcher...")
+                await self.client.get_dialogs(limit=10)
+                logger.info("Entity cache primed.")
                     
             return True
             
@@ -98,7 +103,7 @@ class HistoricalMessageFetcher:
             total_fetched = 0
             
             for group in groups:
-                try:
+                try: # Try to resolve the entity before iterating
                     logger.info(f"Fetching messages from group: {group}")
                     
                     # Get messages in the time range
@@ -122,7 +127,7 @@ class HistoricalMessageFetcher:
                     total_fetched += processed_count
                     logger.info(f"Processed {processed_count} new messages from group {group}")
                     
-                except Exception as e:
+                except (ValueError, TypeError) as e:
                     logger.error(f"Failed to fetch from group {group}: {e}")
                     continue
             

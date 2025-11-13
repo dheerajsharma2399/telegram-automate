@@ -18,6 +18,7 @@ from config import *
 from database import Database
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
+from historical_message_fetcher import HistoricalMessageFetcher
 from monitor import TelegramMonitor
 
 # Setup logging
@@ -90,22 +91,7 @@ def get_sheets_sync():
 
 scheduler = AsyncIOScheduler()
 
-# New background job to import any missed jobs to dashboard
-async def auto_import_jobs_to_dashboard():
-    """Background service to automatically import non-email jobs to dashboard"""
-    try:
-        logger.info("Running background job import...")
-        
-        # Import any non-email jobs that aren't in dashboard yet
-        imported_count = db.import_jobs_from_processed('non-email', max_jobs=50)
-        
-        if imported_count > 0:
-            logger.info(f"Background import completed: {imported_count} jobs imported to dashboard")
-        else:
-            logger.info("Background import: No new jobs to import")
-            
-    except Exception as e:
-        logger.error(f"Background import job failed: {e}")
+
 
 # Authorization check
 def is_authorized(user_id: int) -> bool:
@@ -193,8 +179,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not scheduler.running:
         scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[context])
-        # Add background import job that runs every 5 minutes
-        scheduler.add_job(auto_import_jobs_to_dashboard, IntervalTrigger(minutes=5))
+
         scheduler.start()
         db.set_config('monitoring_status', 'running')
         await update.message.reply_text(
@@ -536,13 +521,22 @@ async def setup_bot():
             
         application = await setup_webhook_bot()
 
+        # Initialize HistoricalMessageFetcher
+        historical_fetcher = HistoricalMessageFetcher(
+            TELEGRAM_API_ID,
+            TELEGRAM_API_HASH,
+            TELEGRAM_PHONE,
+            db
+        )
+
         # Start the telegram monitor
         monitor = TelegramMonitor(
-            TELEGRAM_API_ID, 
+            TELEGRAM_API_ID,
             TELEGRAM_API_HASH,
             TELEGRAM_PHONE,
             TELEGRAM_GROUP_USERNAMES,
-            db
+            db,
+            historical_fetcher # Pass the historical fetcher instance
         )
         
         # Start the Telegram monitor in a separate thread
@@ -553,6 +547,11 @@ async def setup_bot():
             except Exception as e:
                 logger.exception(f"Monitor thread exited with error: {e}")
         threading.Thread(target=_start_monitor_thread, daemon=True).start()
+
+        # Catch up on missed messages and process them using the HistoricalMessageFetcher
+        logger.info("Starting initial historical message fetch and processing...")
+        fetch_results = await historical_fetcher.fetch_and_process_historical_messages(hours_back=INITIAL_HISTORICAL_FETCH_HOURS)
+        logger.info(f"Initial historical fetch and processing complete: {fetch_results}")
 
         # Start command poller
         async def poll_commands():
@@ -652,23 +651,6 @@ async def setup_bot():
             threading.Thread(target=_start_poller_thread, daemon=True).start()
         except Exception:
             logger.exception("Failed to start command poller")
-
-        # Start job processing scheduler
-        def _scheduler_thread():
-            import time
-            logger.info("Job scheduler thread started")
-            while True:
-                try:
-                    asyncio.run(process_jobs(application))
-                except Exception as e:
-                    logger.exception(f"Scheduler thread error when running process_jobs: {e}")
-                time.sleep(max(1, PROCESSING_INTERVAL_MINUTES * 60))
-
-        # try:
-        #     threading.Thread(target=_scheduler_thread, daemon=True).start()
-        #     db.set_config('monitoring_status', 'running')
-        # except Exception:
-        #     logger.exception("Failed to start scheduler thread")
 
         logger.info("Telegram bot setup complete!")
         return application
