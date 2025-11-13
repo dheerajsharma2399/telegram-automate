@@ -217,16 +217,19 @@ class TelegramMonitor:
             await self.client.disconnect()
 
     async def _process_and_store_message(self, message, group_id):
-        """Process and store a single message."""
+        """Process and store a single message, which can be a Telethon Message object or a string."""
         try:
-            # Check if message should be processed
+            # This function expects a Telethon Message object.
+            if not message or not hasattr(message, 'id'):
+                return
+
             if not should_process_message(message):
                 return
 
             msg_info = get_message_info(message)
 
             # Ignore commands from authorized users in job groups
-            if message.sender_id in self.authorized_users and msg_info['is_bot_command']:
+            if message.sender_id in self.authorized_users and msg_info.get('is_bot_command'):
                 logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
                 return
 
@@ -245,7 +248,7 @@ class TelegramMonitor:
                 logging.debug(f"Message {message.id} from group {group_id} already exists.")
 
         except Exception as e:
-            logging.error(f"Failed to process/store message {message.id}: {e}")
+            logging.error(f"Failed to process/store message: {e}")
 
     async def _prime_dialog_cache(self):
         """
@@ -307,8 +310,8 @@ class TelegramMonitor:
             async def job_message_handler(event):
                 # Use get_peer_id for robustly getting the chat/channel ID
                 from telethon.utils import get_peer_id
-                group_id = get_peer_id(event.message.peer_id)
-                await self._process_and_store_message(event.message, group_id)
+                group_id = get_peer_id(event.chat_id)
+                await self._process_and_store_message(event.message, group_id) # Pass the full message object
             self.client.add_event_handler(job_message_handler)
             self.job_message_handler = job_message_handler # Store handler for removal
             logging.info(f"NewMessage handler registered for {len(group_entities)} groups.")
