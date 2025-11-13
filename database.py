@@ -57,7 +57,7 @@ def init_database(pool):
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS raw_messages (
                 id SERIAL PRIMARY KEY,
-                message_id INTEGER UNIQUE NOT NULL,
+                message_id BIGINT NOT NULL,
                 message_text TEXT NOT NULL,
                 sender_id INTEGER,
                 group_id BIGINT,
@@ -65,7 +65,8 @@ def init_database(pool):
                 status TEXT DEFAULT 'unprocessed',
                 error_message TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS raw_messages_group_message_id_idx ON raw_messages (group_id, message_id);
         """)
         
         # Add group_id column if it doesn't exist for backward compatibility
