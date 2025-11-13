@@ -121,6 +121,12 @@ def init_database(pool):
             ADD COLUMN IF NOT EXISTS job_relevance TEXT DEFAULT 'relevant';
         """)
         
+        # Add sheet_name column to processed_jobs if it doesn't exist
+        cursor.execute("""
+            ALTER TABLE processed_jobs
+            ADD COLUMN IF NOT EXISTS sheet_name TEXT;
+        """)
+        
         # Bot config table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bot_config (
