@@ -275,12 +275,12 @@ class TelegramMonitor:
             logging.warning(f"Could not prime entity cache: {e}")
 
 
-    async def _ensure_handler_registered(self):
+    async def _ensure_handler_registered(self, force_check: bool = False):
         """Ensure the NewMessage handler is registered for the current monitored groups configured in DB."""
         if not self.client:
             return
         # If not forcing a check, and handlers are already registered, do nothing.
-        if self._handler_registered:
+        if not force_check and self._handler_registered:
             return
 
         groups_val = self.db.get_config('monitored_groups') or ''
@@ -306,6 +306,17 @@ class TelegramMonitor:
         
         new_group_ids = {get_peer_id(entity) for entity in group_entities}
 
+        if new_group_ids == self._current_monitored_group_ids and self._handler_registered:
+            logging.debug("Monitored groups unchanged.")
+            return
+
+        # Remove existing handlers to prevent duplicates if called multiple times
+        if self._handler_registered:
+            if hasattr(self, 'job_message_handler'):
+                self.client.remove_event_handler(self.job_message_handler)
+            if hasattr(self, 'command_dispatch_handler'):
+                self.client.remove_event_handler(self.command_dispatch_handler)
+            self._handler_registered = False
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
