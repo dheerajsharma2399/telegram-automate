@@ -6,6 +6,8 @@ Shared utilities for extracting text from both direct and forwarded messages
 
 import asyncio
 import logging
+import os
+import tempfile
 from typing import Optional
 import time
 import aiohttp
@@ -220,36 +222,62 @@ def debug_message_structure(message) -> dict:
 
 # --- Centralized Notification Utility ---
 
-_last_notification_time = 0
+def _get_lock_files():
+    """Returns the paths for the lock and timestamp files."""
+    temp_dir = tempfile.gettempdir()
+    return (
+        os.path.join(temp_dir, 'notification.lock'),
+        os.path.join(temp_dir, 'last_notification_time')
+    )
 
 async def send_rate_limited_telegram_notification(message: str):
     """
-    Sends a notification to the admin, respecting a global rate limit to avoid flooding.
+    Sends a notification to the admin, respecting a process-safe global rate limit.
     """
-    global _last_notification_time
-    
     if not (TELEGRAM_BOT_TOKEN and ADMIN_USER_ID):
         return
 
-    # Ensure at least 2 seconds between notifications
-    now = time.time()
-    if now - _last_notification_time < 2.0:
-        await asyncio.sleep(2.0 - (now - _last_notification_time))
+    lock_file, time_file = _get_lock_files()
     
-    _last_notification_time = time.time()
-
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": ADMIN_USER_ID,
-        "text": message,
-    }
+    # Acquire lock
+    while os.path.exists(lock_file):
+        await asyncio.sleep(0.1)
+    
     try:
+        # Create lock file
+        with open(lock_file, 'w') as f:
+            f.write('locked')
+
+        # Check timestamp
+        last_time = 0
+        if os.path.exists(time_file):
+            with open(time_file, 'r') as f:
+                try:
+                    last_time = float(f.read())
+                except (ValueError, TypeError):
+                    pass
+        
+        # Enforce delay
+        now = time.time()
+        if now - last_time < 2.0:
+            await asyncio.sleep(2.0 - (now - last_time))
+        
+        # Send notification
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": ADMIN_USER_ID, "text": message}
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=10) as response:
-                if response.status != 200:
-                    logger.error(f"Failed to send admin notification: {await response.text()}")
+            await session.post(url, json=payload, timeout=10)
+
+        # Update timestamp
+        with open(time_file, 'w') as f:
+            f.write(str(time.time()))
+
     except Exception as e:
         logger.error(f"Exception while sending admin notification: {e}")
+    finally:
+        # Release lock
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
 
 # Export commonly used functions
 __all__ = [
