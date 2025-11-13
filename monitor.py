@@ -15,6 +15,7 @@ from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
 from message_utils import extract_message_text, should_process_message, get_message_info
 import aiohttp
 from datetime import datetime, timedelta
+import psycopg2
 
 logging.basicConfig(
     level=logging.INFO, 

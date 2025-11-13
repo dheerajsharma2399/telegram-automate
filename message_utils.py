@@ -4,6 +4,7 @@ Message Text Extraction Utilities
 Shared utilities for extracting text from both direct and forwarded messages
 """
 
+import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
