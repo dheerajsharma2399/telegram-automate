@@ -281,9 +281,9 @@ class TelegramMonitor:
         group_entities = []
         for g_str in groups_config_list:
             try:
-                entity = await self.client.get_input_entity(g_str)
+                entity = await self.client.get_entity(g_str)
                 group_entities.append(entity)
-                logging.info(f"Resolved entity for monitoring: {g_str} (ID: {entity.id})")
+                logging.info(f"Resolved entity for monitoring: {g_str} (ID: {getattr(entity, 'id', 'N/A')})")
             except Exception as e:
                 logging.error(f"Failed to get entity for {g_str}. Please ensure the bot has access to this group/channel and the ID/username is correct: {e}")
         
