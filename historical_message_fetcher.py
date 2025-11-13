@@ -155,215 +155,32 @@ class HistoricalMessageFetcher:
         """
         try:
             logger.info(f"Starting enhanced historical fetch and process for {hours_back} hours")
-            
+
             # Step 1: Fetch messages
             fetched_count = await self.fetch_historical_messages(hours_back)
-            
+
             if fetched_count == 0:
                 return {
                     "fetched_count": 0,
-                    "processed_count": 0,
-                    "duplicates_found": 0,
-                    "duplicates_removed": 0,
                     "status": "no_new_messages"
                 }
-            
-            # Step 2: Process the newly fetched messages
-            logger.info("Processing newly fetched messages...")
-            processed_count = await self._process_new_messages()
-            
-            # Step 3: Detect and handle duplicates
-            logger.info("Running duplicate detection and removal...")
-            duplicate_results = await self._detect_and_remove_duplicates()
-            
+
+            # Step 2: Trigger the standard job processor to handle the newly added messages
+            # We enqueue a command for the main bot to run the processor.
+            # This avoids duplicating logic and potential race conditions.
+            command_id = self.db.commands.enqueue_command("/process")
+            logger.info(f"Enqueued '/process' command (ID: {command_id}) to handle {fetched_count} newly fetched messages.")
+
             return {
                 "fetched_count": fetched_count,
-                "processed_count": processed_count,
-                "duplicates_found": duplicate_results["found"],
-                "duplicates_removed": duplicate_results["removed"],
                 "status": "success",
-                "details": {
-                    "messages_fetched": fetched_count,
-                    "jobs_extracted": processed_count,
-                    "duplicate_groups": duplicate_results["groups"],
-                    "processing_time": duplicate_results["processing_time"]
-                }
+                "detail": f"Successfully fetched {fetched_count} new messages. They have been queued for processing."
             }
-            
+
         except Exception as e:
             logger.error(f"Error in enhanced historical fetch: {e}")
             return {
                 "fetched_count": 0,
-                "processed_count": 0,
-                "duplicates_found": 0,
-                "duplicates_removed": 0,
                 "status": "error",
                 "error": str(e)
             }
-    
-    async def _process_new_messages(self) -> int:
-        """Process newly fetched messages using the existing job processing pipeline"""
-        try:
-            # Import the LLM processor
-            from llm_processor import LLMProcessor
-            from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL
-            
-            llm_processor = LLMProcessor(OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL)
-            
-            # Get unprocessed messages that were just added
-            unprocessed_messages = self.db.get_unprocessed_messages(limit=100)  # Process more for historical
-            
-            processed_count = 0
-            for message in unprocessed_messages:
-                try:
-                    self.db.update_message_status(message["id"], "processing")
-                    
-                    # Parse jobs using LLM
-                    parsed_jobs = await llm_processor.parse_jobs(message["message_text"])
-                    
-                    if not parsed_jobs:
-                        self.db.update_message_status(message["id"], "processed", "No jobs found")
-                        continue
-
-                    # Process each job
-                    for job_data in parsed_jobs:
-                        processed_data = llm_processor.process_job_data(job_data, message["id"])
-                        
-                        try:
-                            job_id = self.db.add_processed_job(processed_data)
-                            if job_id:
-                                processed_count += 1
-                                logger.info(f"Processed job {job_id} from message {message['id']}")
-                        except Exception as e:
-                            logger.error(f"Failed to add processed job: {e}")
-                    
-                    self.db.update_message_status(message["id"], "processed")
-                    logger.info(f"Successfully processed message {message['id']} and found {len(parsed_jobs)} jobs.")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to process message {message['id']}: {e}")
-                    self.db.update_message_status(message["id"], "failed", str(e))
-            
-            return processed_count
-            
-        except Exception as e:
-            logger.error(f"Error processing new messages: {e}")
-            return 0
-    
-    async def _detect_and_remove_duplicates(self) -> dict:
-        """Enhanced duplicate detection and removal"""
-        import time
-        start_time = time.time()
-        
-        try:
-            # Get all processed jobs from the last 48 hours (to focus on recent ones)
-            with self.db.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT * FROM processed_jobs
-                    WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '48 hours'
-                    ORDER BY created_at DESC
-                """)
-                recent_jobs = [dict(row) for row in cursor.fetchall()]
-            
-            duplicate_groups = []
-            processed_job_ids = set()
-            removed_count = 0
-            
-            # Group jobs by company + role (with fuzzy matching)
-            job_groups = self._group_similar_jobs(recent_jobs)
-            
-            for group in job_groups:
-                if len(group) > 1:  # Potential duplicates found
-                    # Mark all but the first as duplicates
-                    primary_job = group[0]
-                    duplicate_jobs = group[1:]
-                    
-                    for duplicate_job in duplicate_jobs:
-                        try:
-                            # Mark as duplicate
-                            with self.db.get_connection() as conn:
-                                cursor = conn.cursor()
-                                cursor.execute("""
-                                    UPDATE processed_jobs
-                                    SET is_hidden = TRUE
-                                    WHERE id = %s
-                                """, (duplicate_job['id'],))
-                                
-                                if cursor.rowcount > 0:
-                                    removed_count += 1
-                                    processed_job_ids.add(duplicate_job['id'])
-                            
-                            logger.info(f"Marked duplicate job {duplicate_job['id']} as hidden (duplicate of {primary_job['id']})")
-                            
-                        except Exception as e:
-                            logger.error(f"Error marking duplicate job {duplicate_job['id']}: {e}")
-            
-            # Also run the dashboard duplicate detection
-            dashboard_duplicates = self.db.detect_duplicate_jobs()
-            
-            processing_time = time.time() - start_time
-            
-            return {
-                "found": len(duplicate_groups),
-                "removed": removed_count + dashboard_duplicates,
-                "groups": len(duplicate_groups),
-                "processing_time": round(processing_time, 2)
-            }
-            
-        except Exception as e:
-            logger.error(f"Error in duplicate detection: {e}")
-            return {
-                "found": 0,
-                "removed": 0,
-                "groups": 0,
-                "processing_time": 0
-            }
-    
-    def _group_similar_jobs(self, jobs: list) -> list:
-        """Group jobs by similarity (company + role matching)"""
-        import re
-        from difflib import SequenceMatcher
-        
-        def normalize_text(text: str) -> str:
-            """Normalize text for comparison"""
-            if not text:
-                return ""
-            # Remove extra spaces, convert to lowercase
-            text = re.sub(r'\s+', ' ', text.lower().strip())
-            # Remove common company suffixes
-            text = re.sub(r'\b(technologies|tech|solutions|services|systems|inc|corp|ltd|private|limited)\b', '', text)
-            return text.strip()
-        
-        def similarity(a: str, b: str) -> float:
-            """Calculate similarity between two strings"""
-            return SequenceMatcher(None, normalize_text(a), normalize_text(b)).ratio()
-        
-        # Group jobs by company similarity
-        groups = []
-        used_jobs = set()
-        
-        for i, job1 in enumerate(jobs):
-            if i in used_jobs:
-                continue
-                
-            group = [job1]
-            used_jobs.add(i)
-            
-            for j, job2 in enumerate(jobs[i+1:], i+1):
-                if j in used_jobs:
-                    continue
-                
-                # Check company and role similarity
-                company_sim = similarity(job1.get('company_name', ''), job2.get('company_name', ''))
-                role_sim = similarity(job1.get('job_role', ''), job2.get('job_role', ''))
-                
-                # If both company and role are similar enough, consider as duplicates
-                if company_sim > 0.8 and role_sim > 0.7:
-                    group.append(job2)
-                    used_jobs.add(j)
-            
-            if len(group) > 1:  # Only keep groups with duplicates
-                groups.append(group)
-        
-        return groups

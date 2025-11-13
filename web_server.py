@@ -1,5 +1,6 @@
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 import asyncio
 import ssl
 from flask import Flask, render_template, jsonify, request
@@ -20,6 +21,19 @@ from llm_processor import LLMProcessor
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from sheets_sync import GoogleSheetsSync
 from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
+
+# --- Logging Setup ---
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Webhook logger
+webhook_log_handler = RotatingFileHandler('webhook.log', maxBytes=1024*1024, backupCount=5)
+webhook_log_handler.setFormatter(log_formatter)
+
+werkzeug_logger = logging.getLogger('werkzeug') # Gunicorn/Flask's internal logger
+werkzeug_logger.addHandler(webhook_log_handler)
+
+app_logger = logging.getLogger(__name__)
+app_logger.addHandler(webhook_log_handler)
 
 app = Flask(__name__)
 application = app  # Gunicorn expects 'application'
@@ -188,11 +202,11 @@ def api_status():
     """API endpoint to get current application status."""
     try:
         status = {
-            "monitoring_status": db.get_config("monitoring_status"),
-            "unprocessed_count": db.get_unprocessed_count(),
-            "jobs_today": db.get_jobs_today_stats(),
-            "telegram_status": db.get_telegram_login_status(),
-            "telegram_session_exists": bool(db.get_telegram_session()),
+            "monitoring_status": db.config.get_config("monitoring_status"),
+            "unprocessed_count": db.messages.get_unprocessed_count(),
+            "jobs_today": db.jobs.get_jobs_today_stats(),
+            "telegram_status": db.auth.get_telegram_login_status(),
+            "telegram_session_exists": bool(db.auth.get_telegram_session()),
         }
         return jsonify(status)
     except Exception as e:
@@ -241,7 +255,7 @@ def api_cancel_command(cmd_id):
 @app.route('/api/monitored_groups', methods=['GET'])
 def api_get_monitored_groups():
     try:
-        val = db.get_config('monitored_groups') or ''
+        val = db.config.get_config('monitored_groups') or ''
         groups = [s for s in val.split(',') if s]
         return jsonify({'groups': groups})
     except Exception as e:
@@ -256,12 +270,12 @@ def api_add_monitored_group():
         group = data.get('group')
         if not group:
             return jsonify({'error': 'group required'}), 400
-        current = db.get_config('monitored_groups') or ''
+        current = db.config.get_config('monitored_groups') or ''
         groups = [s for s in current.split(',') if s]
         if group in groups:
             return jsonify({'message': 'already present', 'groups': groups})
         groups.append(group)
-        db.set_config('monitored_groups', ','.join(groups))
+        db.config.set_config('monitored_groups', ','.join(groups))
         return jsonify({'message': 'added', 'groups': groups})
     except Exception as e:
         logging.exception('Failed to add monitored group')
@@ -275,12 +289,12 @@ def api_remove_monitored_group():
         group = data.get('group')
         if not group:
             return jsonify({'error': 'group required'}), 400
-        current = db.get_config('monitored_groups') or ''
+        current = db.config.get_config('monitored_groups') or ''
         groups = [s for s in current.split(',') if s]
         if group not in groups:
             return jsonify({'error': 'not found', 'groups': groups}), 404
         groups = [g for g in groups if g != group]
-        db.set_config('monitored_groups', ','.join(groups))
+        db.config.set_config('monitored_groups', ','.join(groups))
         return jsonify({'message': 'removed', 'groups': groups})
     except Exception as e:
         logging.exception('Failed to remove monitored group')
@@ -290,7 +304,7 @@ def api_remove_monitored_group():
 def api_queue():
     """API endpoint to get the unprocessed message queue."""
     try:
-        queue = db.get_unprocessed_messages(limit=100)
+        queue = db.messages.get_unprocessed_messages(limit=100)
         return jsonify(queue)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -316,8 +330,8 @@ def api_command():
         return jsonify({"error": "Command not specified"}), 400
     # Enqueue command in database for the bot process to pick up
     try:
-        if hasattr(db, 'enqueue_command') and callable(getattr(db, 'enqueue_command')):
-            cmd_id = db.enqueue_command(command)
+        if hasattr(db.commands, 'enqueue_command') and callable(getattr(db.commands, 'enqueue_command')):
+            cmd_id = db.commands.enqueue_command(command)
             return jsonify({"message": f"Command '{command}' enqueued.", "command_id": cmd_id})
         else:
             logging.error("Database object missing 'enqueue_command' method, falling back to Telegram send.")
@@ -339,11 +353,11 @@ def api_relevant_jobs():
     try:
         has_email = request.args.get('has_email')
         if has_email == 'true':
-            jobs = db.get_relevant_jobs(has_email=True)
+            jobs = db.jobs.get_relevant_jobs(has_email=True)
         elif has_email == 'false':
-            jobs = db.get_relevant_jobs(has_email=False)
+            jobs = db.jobs.get_relevant_jobs(has_email=False)
         else:
-            jobs = db.get_relevant_jobs()
+            jobs = db.jobs.get_relevant_jobs()
         
         return jsonify({
             "jobs": jobs,
@@ -360,11 +374,11 @@ def api_irrelevant_jobs():
     try:
         has_email = request.args.get('has_email')
         if has_email == 'true':
-            jobs = db.get_irrelevant_jobs(has_email=True)
+            jobs = db.jobs.get_irrelevant_jobs(has_email=True)
         elif has_email == 'false':
-            jobs = db.get_irrelevant_jobs(has_email=False)
+            jobs = db.jobs.get_irrelevant_jobs(has_email=False)
         else:
-            jobs = db.get_irrelevant_jobs()
+            jobs = db.jobs.get_irrelevant_jobs()
         
         return jsonify({
             "jobs": jobs,
@@ -379,23 +393,27 @@ def api_irrelevant_jobs():
 def api_jobs_stats():
     """Get job statistics including relevance breakdown"""
     try:
-        relevant_with_email = db.get_relevant_jobs(has_email=True)
-        relevant_without_email = db.get_relevant_jobs(has_email=False)
-        irrelevant_with_email = db.get_irrelevant_jobs(has_email=True)
-        irrelevant_without_email = db.get_irrelevant_jobs(has_email=False)
-        
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                # Use COUNT for efficiency
+                query = """
+                    SELECT
+                        COUNT(*) FILTER (WHERE job_relevance = 'relevant' AND email IS NOT NULL AND email != '') as relevant_with_email,
+                        COUNT(*) FILTER (WHERE job_relevance = 'relevant' AND (email IS NULL OR email = '')) as relevant_without_email,
+                        COUNT(*) FILTER (WHERE job_relevance = 'irrelevant' AND email IS NOT NULL AND email != '') as irrelevant_with_email,
+                        COUNT(*) FILTER (WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '')) as irrelevant_without_email
+                    FROM processed_jobs
+                """
+                cursor.execute(query)
+                stats = cursor.fetchone()
+
+        relevant_total = stats['relevant_with_email'] + stats['relevant_without_email']
+        irrelevant_total = stats['irrelevant_with_email'] + stats['irrelevant_without_email']
+
         return jsonify({
-            "relevant": {
-                "total": len(relevant_with_email) + len(relevant_without_email),
-                "with_email": len(relevant_with_email),
-                "without_email": len(relevant_without_email)
-            },
-            "irrelevant": {
-                "total": len(irrelevant_with_email) + len(irrelevant_without_email),
-                "with_email": len(irrelevant_with_email),
-                "without_email": len(irrelevant_without_email)
-            },
-            "total_jobs": len(relevant_with_email) + len(relevant_without_email) + len(irrelevant_with_email) + len(irrelevant_without_email)
+            "relevant": {"total": relevant_total, "with_email": stats['relevant_with_email'], "without_email": stats['relevant_without_email']},
+            "irrelevant": {"total": irrelevant_total, "with_email": stats['irrelevant_with_email'], "without_email": stats['irrelevant_without_email']},
+            "total_jobs": relevant_total + irrelevant_total
         })
     except Exception as e:
         logging.error(f"Failed to fetch job stats: {e}")
@@ -405,7 +423,7 @@ def api_jobs_stats():
 def api_jobs():
     """API endpoint to get all processed jobs that are not hidden."""
     try:
-        jobs = db.get_jobs_by_sheet_name('non-email')
+        jobs = db.jobs.get_jobs_by_sheet_name('non-email')
         return jsonify(jobs)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -419,7 +437,7 @@ def api_hide_jobs():
         if not job_ids or not isinstance(job_ids, list):
             return jsonify({"error": "job_ids must be a non-empty list"}), 400
         
-        rows_affected = db.hide_jobs(job_ids)
+        rows_affected = db.jobs.hide_jobs(job_ids)
         return jsonify({"message": f"{rows_affected} jobs hidden successfully."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -470,7 +488,7 @@ def add_job_to_dashboard():
         data.setdefault('conflict_status', 'none')
         data.setdefault('is_duplicate', False)
         
-        job_id = db.add_dashboard_job(data)
+        job_id = db.dashboard.add_dashboard_job(data)
         if job_id:
             return jsonify({
                 "message": "Job added to dashboard successfully",
@@ -490,6 +508,7 @@ def update_job_status(job_id):
         data = request.get_json(force=True) or {}
         status = data.get('status')
         application_date = data.get('application_date')
+        archive = data.get('archive', False)
         
         if not status:
             return jsonify({"error": "Status is required"}), 400
@@ -498,7 +517,10 @@ def update_job_status(job_id):
         if status not in valid_statuses:
             return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
         
-        success = db.update_dashboard_job_status(job_id, status, application_date)
+        if archive:
+            success = db.dashboard.bulk_update_status([job_id], status, application_date, archive=True) > 0
+        else:
+            success = db.dashboard.update_dashboard_job_status(job_id, status, application_date)
         if success:
             return jsonify({"message": f"Job status updated to {status}"})
         else:
@@ -518,7 +540,7 @@ def add_job_notes(job_id):
         if not notes:
             return jsonify({"error": "Notes cannot be empty"}), 400
         
-        success = db.add_job_notes(job_id, notes)
+        success = db.dashboard.add_job_notes(job_id, notes)
         if success:
             return jsonify({"message": "Notes added successfully"})
         else:
@@ -528,7 +550,7 @@ def add_job_notes(job_id):
         logging.error(f"Failed to add notes to job: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/dashboard/jobs/bulk_status", methods=["POST"])
+@app.route("/api/dashboard/jobs/bulk_update", methods=["POST"])
 def bulk_update_status():
     """Update status for multiple jobs"""
     try:
@@ -536,6 +558,7 @@ def bulk_update_status():
         job_ids = data.get('job_ids', [])
         status = data.get('status')
         application_date = data.get('application_date')
+        archive = data.get('archive', False)
         
         if not job_ids or not isinstance(job_ids, list):
             return jsonify({"error": "job_ids must be a non-empty list"}), 400
@@ -547,7 +570,7 @@ def bulk_update_status():
         if status not in valid_statuses:
             return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
         
-        updated_count = db.bulk_update_status(job_ids, status, application_date)
+        updated_count = db.dashboard.bulk_update_status(job_ids, status, application_date, archive=archive)
         return jsonify({
             "message": f"Updated {updated_count} jobs to {status}",
             "updated_count": updated_count
@@ -568,7 +591,7 @@ def import_jobs_from_sheets():
         if sheet_name != 'non-email':
             return jsonify({"error": "Currently only 'non-email' sheet is supported"}), 400
         
-        imported_count = db.import_jobs_from_processed(sheet_name, max_jobs)
+        imported_count = db.dashboard.import_jobs_from_processed(sheet_name, max_jobs)
         
         return jsonify({
             "message": f"Imported {imported_count} jobs from {sheet_name} sheet",
@@ -613,7 +636,7 @@ def mark_as_duplicate_endpoint(job_id):
         if not duplicate_of_id:
             return jsonify({"error": "duplicate_of_id is required"}), 400
         
-        success = db.mark_as_duplicate(job_id, duplicate_of_id, confidence_score)
+        success = db.dashboard.mark_as_duplicate(job_id, duplicate_of_id, confidence_score)
         if success:
             return jsonify({"message": "Job marked as duplicate"})
         else:
@@ -627,7 +650,7 @@ def mark_as_duplicate_endpoint(job_id):
 def detect_duplicates_endpoint():
     """Detect duplicate jobs in dashboard"""
     try:
-        detected_count = db.detect_duplicate_jobs()
+        detected_count = db.dashboard.detect_duplicate_jobs()
         return jsonify({
             "message": f"Detected {detected_count} potential duplicates",
             "detected_count": detected_count
@@ -642,7 +665,7 @@ def export_dashboard_jobs():
     """Export dashboard jobs to CSV format"""
     try:
         format_type = request.args.get('format', 'csv')
-        export_data = db.export_dashboard_jobs(format_type)
+        export_data = db.dashboard.export_dashboard_jobs(format_type)
         
         if format_type == 'csv':
             # For now, return JSON with CSV data
@@ -658,32 +681,33 @@ def export_dashboard_jobs():
 def get_dashboard_stats():
     """Get dashboard job statistics"""
     try:
-        # Get jobs by status
-        all_jobs = db.get_dashboard_jobs()
-        
-        stats = {
-            "total_jobs": len(all_jobs),
-            "by_status": {},
-            "by_relevance": {},
-            "recent_additions": 0
-        }
-        
-        # Calculate statistics
-        from datetime import datetime, timedelta
-        yesterday = datetime.now() - timedelta(days=1)
-        
-        for job in all_jobs:
-            status = job.get('application_status', 'unknown')
-            relevance = job.get('job_relevance', 'unknown')
-            
-            stats["by_status"][status] = stats["by_status"].get(status, 0) + 1
-            stats["by_relevance"][relevance] = stats["by_relevance"].get(relevance, 0) + 1
-            
-            # Count recent additions
-            if job.get('created_at') and job['created_at'] > yesterday:
-                stats["recent_additions"] += 1
-        
-        return jsonify(stats)
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                # Total jobs
+                cursor.execute("SELECT COUNT(*) as total FROM dashboard_jobs WHERE is_hidden = FALSE")
+                total_jobs = cursor.fetchone()['total']
+
+                # By status
+                cursor.execute("""
+                    SELECT application_status, COUNT(*) as count
+                    FROM dashboard_jobs WHERE is_hidden = FALSE
+                    GROUP BY application_status
+                """)
+                by_status = {row['application_status']: row['count'] for row in cursor.fetchall()}
+
+                # By relevance
+                cursor.execute("""
+                    SELECT job_relevance, COUNT(*) as count
+                    FROM dashboard_jobs WHERE is_hidden = FALSE
+                    GROUP BY job_relevance
+                """)
+                by_relevance = {row['job_relevance']: row['count'] for row in cursor.fetchall()}
+
+        return jsonify({
+            "total_jobs": total_jobs,
+            "by_status": by_status,
+            "by_relevance": by_relevance,
+        })
         
     except Exception as e:
         logging.error(f"Failed to get dashboard stats: {e}")
@@ -978,8 +1002,8 @@ def telegram_signin():
 
 
         session_string = client.session.save()
-        db.set_telegram_session(session_string)
-        db.set_telegram_login_status('connected')
+        db.auth.set_telegram_session(session_string)
+        db.auth.set_telegram_login_status('connected')
 
         # Clean up
         del telegram_clients[phone]
@@ -994,8 +1018,8 @@ def telegram_signin():
 def api_clear_telegram_session():
     """Clear Telegram session from database"""
     try:
-        db.set_telegram_session('')
-        db.set_telegram_login_status('not_authenticated')
+        db.auth.set_telegram_session('')
+        db.auth.set_telegram_login_status('not_authenticated')
         return jsonify({"message": "Telegram session cleared successfully."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1005,9 +1029,9 @@ def api_telegram_status():
     """Get detailed Telegram connection status"""
     try:
         status = {
-            "login_status": db.get_telegram_login_status(),
-            "session_exists": bool(db.get_telegram_session()),
-            "authorized": db.get_telegram_login_status() == 'connected'
+            "login_status": db.auth.get_telegram_login_status(),
+            "session_exists": bool(db.auth.get_telegram_session()),
+            "authorized": db.auth.get_telegram_login_status() == 'connected'
         }
         return jsonify(status)
     except Exception as e:
@@ -1038,7 +1062,7 @@ def fetch_historical_messages():
             client = None
             try:
                 # Create a temporary client for this operation
-                session_string = db.get_telegram_session()
+                session_string = db.auth.get_telegram_session()
                 if not session_string:
                     raise ConnectionError("No active Telegram session found. Please authenticate first.")
                 

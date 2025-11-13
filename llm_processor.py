@@ -8,7 +8,8 @@ from config import SYSTEM_PROMPT
 import os
 from pathlib import Path
 
-class LLMProcessor:
+class LLMProcessor:    
+
     def __init__(self, api_key: str, model: str, fallback_model: str):
         self.api_key = api_key
         self.model = model
