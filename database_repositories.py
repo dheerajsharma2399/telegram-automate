@@ -139,8 +139,8 @@ class JobRepository(BaseRepository):
                 INSERT INTO processed_jobs (
                     raw_message_id, job_id, first_name, last_name, email,
                     company_name, job_role, location, eligibility, application_link,
-                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 job_data.get('raw_message_id'),
@@ -159,7 +159,8 @@ class JobRepository(BaseRepository):
                 job_data.get('email_body'),
                 job_data.get('status'),
                 job_data.get('updated_at'),
-                job_data.get('is_hidden', False)
+                job_data.get('is_hidden', False),
+                job_data.get('sheet_name')
             ))
             result = cursor.fetchone()
             return result['id'] if result else None
