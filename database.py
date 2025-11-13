@@ -204,17 +204,6 @@ def init_database(pool):
             )
         """)
         
-        # Create job_duplicate_groups table for duplicate tracking
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS job_duplicate_groups (
-                id SERIAL PRIMARY KEY,
-                primary_job_id INTEGER,
-                duplicate_jobs JSON,
-                confidence_score FLOAT DEFAULT 0.8,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
         # Add is_hidden column to dashboard_jobs if it doesn't exist for backward compatibility
         cursor.execute("""
             ALTER TABLE dashboard_jobs
@@ -226,6 +215,17 @@ def init_database(pool):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_job_relevance ON dashboard_jobs (job_relevance);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_source_job_id ON dashboard_jobs (source_job_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_is_hidden ON dashboard_jobs (is_hidden);")
+        
+        # Create job_duplicate_groups table for duplicate tracking
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS job_duplicate_groups (
+                id SERIAL PRIMARY KEY,
+                primary_job_id INTEGER,
+                duplicate_jobs JSON,
+                confidence_score FLOAT DEFAULT 0.8,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
         
         logging.info("All tables initialized in Supabase")
