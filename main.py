@@ -170,6 +170,37 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Failed to process message {message['id']}: {e}")
             db.update_message_status(message["id"], "failed", str(e))
+    
+    # After processing the batch, automatically sync to sheets
+    logger.info("Job processing batch finished. Starting automatic Google Sheets sync.")
+    await sync_sheets_automatically()
+
+async def sync_sheets_automatically():
+    """
+    Automatically finds all unsynced jobs and syncs them to Google Sheets.
+    This function is designed for background execution and logs outcomes.
+    """
+    sheets_sync = get_sheets_sync()
+    if not (sheets_sync and sheets_sync.client):
+        logger.info("Google Sheets not configured, skipping automatic sync.")
+        return
+
+    try:
+        unsynced_jobs = db.get_unsynced_jobs()
+        if not unsynced_jobs:
+            logger.info("No new jobs to sync to Google Sheets.")
+            return
+
+        logger.info(f"Found {len(unsynced_jobs)} new jobs to sync to Google Sheets.")
+        synced_count = 0
+        for job in unsynced_jobs:
+            if sheets_sync.sync_job(job):
+                db.mark_job_synced(job.get('job_id'))
+                synced_count += 1
+        
+        logger.info(f"Google Sheets sync complete. Synced {synced_count} new jobs.")
+    except Exception as e:
+        logger.error(f"Automatic Google Sheets sync failed: {e}")
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command to begin the automatic job processing schedule."""
@@ -324,56 +355,22 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("Google Sheets is not configured.")
         return
 
-    await update.message.reply_text("🔄 Syncing database with Google Sheets...")
+    await update.message.reply_text("🔄 Checking for new jobs to sync to Google Sheets...")
     
     try:
-        unsynced_jobs = db.get_unsynced_jobs()
-        if not unsynced_jobs:
-            await update.message.reply_text("No jobs to sync. All jobs are already synced with Google Sheets.")
-            return
-
-        logger.info(f"Starting sync for {len(unsynced_jobs)} unsynced jobs")
-        await update.message.reply_text(f"📊 Found {len(unsynced_jobs)} jobs to sync. Starting process...")
-
-        synced_count = 0
-        failed_count = 0
+        # Use the new automatic sync function
+        await sync_sheets_automatically()
         
-        for i, job in enumerate(unsynced_jobs, 1):
-            job_id = job.get('job_id', f'job_{i}')
-            company = job.get('company_name', 'Unknown Company')
-            role = job.get('job_role', 'Unknown Role')
-            
-            try:
-                logger.info(f"Syncing job {i}/{len(unsynced_jobs)}: {job_id}")
-                await update.message.reply_text(f"🔄 Syncing job {i}/{len(unsynced_jobs)}: {company} - {role}")
-                
-                if sheets_sync.sync_job(job):
-                    db.mark_job_synced(job_id)
-                    synced_count += 1
-                    logger.info(f"Successfully synced job {job_id}")
-                else:
-                    failed_count += 1
-                    logger.warning(f"Failed to sync job {job_id}")
-                    
-            except Exception as e:
-                failed_count += 1
-                logger.error(f"Error syncing job {job_id}: {e}")
-                await update.message.reply_text(f"❌ Failed to sync job {i}: {company} - {e}")
-        
-        # Final status message
-        if synced_count > 0:
-            await update.message.reply_text(
-                f"✅ Sync completed!\n\n"
-                f"📊 Results:\n"
-                f"✅ Synced: {synced_count} jobs\n"
-                f"{f'❌ Failed: {failed_count} jobs' if failed_count > 0 else '🎉 All jobs synced successfully'}"
-            )
+        # Check again to see if any are left (in case of mid-sync failures)
+        remaining_unsynced = db.get_unsynced_jobs()
+        if not remaining_unsynced:
+            await update.message.reply_text("✅ All jobs are now synced with Google Sheets.")
         else:
-            await update.message.reply_text(f"❌ No jobs were synced successfully. Please check the logs for details.")
+            await update.message.reply_text(f"⚠️ Sync finished, but {len(remaining_unsynced)} jobs could not be synced. Please check the logs.")
 
     except Exception as e:
-        logger.error(f"Failed to sync with Google Sheets: {e}")
-        await update.message.reply_text(f"❌ Failed to sync with Google Sheets: {e}")
+        logger.error(f"Manual sync with Google Sheets failed: {e}")
+        await update.message.reply_text(f"❌ An error occurred during the sync process: {e}")
 
 
 # async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
