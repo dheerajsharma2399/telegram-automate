@@ -832,16 +832,19 @@
             }).join('');
         }
 
-        async function updateJobStatus(jobId, statusatgs
+        async function updateJobStatus(jobId, status, archive = true) {
+            // By default, archive after updating status
             try {
                 const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: status, archive: archive })
                 });
+                const data = await response.json();
                 if (response.ok) {
                     showToast(`Job status updated to '${status}' and archived.`, 'success');
-                    fetchDashboa
+                    fetchDashboardJobs();
+                } else {
                     showToast(`Error: ${data.error}`, 'error');
                 }
             } catch (error) {
