@@ -537,7 +537,13 @@ def bulk_update_status():
         status = data.get('status')
         application_date = data.get('application_date')
         archive = data.get('archive', False)
-        
+
+        # Convert job_ids from string to int to prevent SQL type errors
+        try:
+            job_ids = [int(job_id) for job_id in job_ids]
+        except (ValueError, TypeError):
+            return jsonify({"error": "job_ids must be a list of valid integers"}), 400
+
         if not job_ids or not isinstance(job_ids, list):
             return jsonify({"error": "job_ids must be a non-empty list"}), 400
         
