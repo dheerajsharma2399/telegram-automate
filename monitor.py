@@ -65,68 +65,12 @@ class TelegramMonitor:
 
         command_parts = event.message.text.strip().split()
         command = command_parts[0].lower()
-        logging.info(f"Received command: '{command}' from user {event.sender_id}")
-
-        supported_commands = ['/status', '/start', '/stop', '/process', '/generate_emails', '/export', '/sync_sheets', '/stats']
-
-        if command == '/status':
-            try:
-                processing_status = self.db.get_config('monitoring_status') or 'stopped'
-                unprocessed_count = self.db.get_unprocessed_count()
-                jobs_today = self.db.get_jobs_today_stats()
-                
-                status_emoji = "[RUNNING]" if processing_status == 'running' else "[STOPPED]"
-                status_text = "Running" if processing_status == 'running' else "Stopped"
-                
-                message = (
-                    f"[STATUS] **Job Scraper Status**\n\n"
-                    f"[MONITOR] **Message Monitoring:** `Running`\n"
-                    f"[PROCESSING] **Automatic Processing:** `{status_text}` {status_emoji}\n"
-                    f"[QUEUE] **Unprocessed Messages:** `{unprocessed_count}`\n"
-                    f"[OK] **Processed Jobs (Today):** `{jobs_today.get('total', 0)}`\n"
-                    f"    - With Email: `{jobs_today.get('with_email', 0)}`\n"
-                    f"    - Without Email: `{jobs_today.get('without_email', 0)}`"
-                )
-                await event.respond(message, parse_mode='markdown')
-            except Exception as e:
-                logging.error(f"Error processing /status command: {e}")
-                await event.respond("Sorry, there was an error retrieving the status.")
+        command_text = event.message.text.strip()
+        logging.info(f"Received command: '{command_text}' from user {event.sender_id}, queuing for execution.")
         
-        elif command == '/stats':
-            try:
-                days = 7
-                if len(command_parts) > 1 and command_parts[1].isdigit():
-                    days = int(command_parts[1])
-                
-                stats = self.db.get_stats(days)
-                message = f"[STATUS] **Statistics for the last {days} days**\n\n"
-                
-                if stats.get("by_method"):
-                    message += "**Jobs by Application Method:**\n"
-                    for method, count in stats["by_method"].items():
-                        message += f"  - {method.capitalize()}: {count}\n"
-                
-                if stats.get("top_companies"):
-                    message += "\n**Top 5 Companies:**\n"
-                    for company, count in stats["top_companies"].items():
-                        message += f"  - {company}: {count} jobs\n"
-                
-                await event.respond(message, parse_mode='markdown')
-            except Exception as e:
-                logging.error(f"Error processing /stats command: {e}")
-                await event.respond("Sorry, there was an error retrieving statistics.")
-
-        elif command in supported_commands:
-            try:
-                command_text = event.message.text.strip()
-                self.db.enqueue_command(command_text)
-                await event.respond(f"Command `{command_text}` has been queued for execution.", parse_mode='markdown')
-            except Exception as e:
-                logging.error(f"Error enqueuing command {command_text}: {e}")
-                await event.respond(f"Sorry, there was an error queuing your command.")
-
-        else:
-            await event.respond(f"Command `{command}` is not recognized.", parse_mode='markdown')
+        # The monitor's only job is to queue the command. The main bot worker will execute it.
+        self.db.commands.enqueue_command(command_text)
+        await event.respond(f"Command `{command_text}` has been queued for execution by the bot.", parse_mode='markdown')
 
     async def start(self):
         logging.info("Starting Telegram monitor loop...")
@@ -193,7 +137,7 @@ class TelegramMonitor:
                     self.db.set_telegram_login_status('not_authenticated')
                     await asyncio.sleep(30) # Wait before checking for a session again
                     
-            except Exception as e:
+            except (psycopg2.Error, aiohttp.ClientError, OSError) as e:
                 logging.error(f"Error in monitor start loop: {e}")
                 await asyncio.sleep(30)
 
@@ -303,6 +247,7 @@ class TelegramMonitor:
                 logging.info(f"Resolved entity for monitoring: {g_str} (ID: {get_peer_id(entity)})")
             except Exception as e:
                 logging.error(f"Failed to get entity for {g_str}. Please ensure the bot has access to this group/channel and the ID/username is correct: {e}")
+                continue
         
         new_group_ids = {get_peer_id(entity) for entity in group_entities}
 
