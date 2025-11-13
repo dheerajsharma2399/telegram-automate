@@ -306,12 +306,17 @@ class TelegramMonitor:
             async def job_message_handler(event):
                 # Use get_peer_id for robustly getting the chat/channel ID
                 from telethon.utils import get_peer_id
+                group_id = None
                 # Handle different event types gracefully
                 if hasattr(event, 'chat_id') and event.chat_id:
                     group_id = get_peer_id(event.chat_id)
                 elif hasattr(event, 'message') and hasattr(event.message, 'peer_id'):
                     group_id = get_peer_id(event.message.peer_id)
-                await self._process_and_store_message(event.message, group_id)
+                
+                if group_id:
+                    await self._process_and_store_message(event.message, group_id)
+                else:
+                    logging.warning(f"Could not determine group_id for event type {type(event).__name__}")
             self.client.add_event_handler(job_message_handler)
             self.job_message_handler = job_message_handler # Store handler for removal
             logging.info(f"NewMessage handler registered for {len(group_entities)} groups.")
