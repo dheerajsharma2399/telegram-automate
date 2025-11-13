@@ -458,6 +458,45 @@ class DashboardRepository(BaseRepository):
             result = cursor.fetchone()
             return result['id'] if result else None
 
+    def get_dashboard_jobs(self, status_filter: Optional[str] = None,
+                          relevance_filter: Optional[str] = None,
+                          include_archived: bool = False,
+                          page: int = 1, page_size: int = 50) -> Dict:
+        """Get dashboard jobs with optional filtering"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                base_query = "FROM dashboard_jobs WHERE 1=1"
+                params = []
+                
+                if status_filter:
+                    base_query += " AND application_status = %s"
+                    params.append(status_filter)
+                
+                if relevance_filter:
+                    base_query += " AND job_relevance = %s"
+                    params.append(relevance_filter)
+                
+                if not include_archived:
+                    base_query += " AND is_hidden = FALSE"
+                
+                # Get total count for pagination
+                count_query = f"SELECT COUNT(*) {base_query}"
+                cursor.execute(count_query, tuple(params))
+                total_count = cursor.fetchone()['count']
+                
+                # Get paginated results
+                data_query = f"SELECT * {base_query} ORDER BY created_at DESC LIMIT %s OFFSET %s"
+                offset = (page - 1) * page_size
+                params.extend([page_size, offset])
+                cursor.execute(data_query, tuple(params))
+                
+                return {
+                    "jobs": [dict(row) for row in cursor.fetchall()],
+                    "total_count": total_count,
+                    "page": page,
+                    "page_size": page_size
+                }
+
     def update_dashboard_job_status(self, job_id: int, status: str,
                                    application_date: Optional[str] = None) -> bool:
         """Update job application status in dashboard"""

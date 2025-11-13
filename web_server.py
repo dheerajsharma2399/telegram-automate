@@ -220,8 +220,8 @@ def api_pending_commands():
 def api_cancel_command(cmd_id):
     try:
         ok = False
-        if hasattr(db, 'cancel_command'):
-            ok = db.cancel_command(cmd_id)
+        if hasattr(db.commands, 'cancel_command'):
+            ok = db.commands.cancel_command(cmd_id)
         if not ok:
             return jsonify({'error': 'Command not found or could not be cancelled'}), 404
         return jsonify({'message': 'Command cancelled'})
@@ -1087,6 +1087,8 @@ def fetch_historical_messages():
         asyncio.set_event_loop(loop)
         try:
             result = loop.run_until_complete(run_enhanced_fetch())
+            # Ensure hours_back is always in the result for the frontend
+            result['hours_back'] = hours_back
         finally:
             loop.close()
 
