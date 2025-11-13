@@ -581,6 +581,7 @@ async def setup_bot():
         # Start command poller
         async def poll_commands():
             from asyncio import sleep
+            is_first_run = True
             await sleep(5) # Initial delay to allow application to be fully ready
             while True:
                 try:
@@ -588,6 +589,14 @@ async def setup_bot():
                     if pending:
                         for cmd in pending:
                             text = cmd['command'].strip()
+
+                            # On the very first run, ignore stale start/stop commands
+                            # to prevent unintended state changes on startup.
+                            if is_first_run and (text.startswith('/start') or text.startswith('/stop')):
+                                logger.warning(f"Ignoring stale startup command: {text}")
+                                db.commands.update_command_result(cmd['id'], 'cancelled', result_text="Stale command ignored on startup.")
+                                continue
+
 
                             # build a robust fake update/context for handlers
                             class _FakeMessage:
@@ -653,6 +662,9 @@ async def setup_bot():
 
                             # Mark executed in DB
                             db.commands.update_command_result(cmd['id'], 'done' if executed_ok else 'failed', result_text=result_text, executed_by=str(AUTHORIZED_USER_IDS[0]) if AUTHORIZED_USER_IDS else 'dashboard')
+
+                    if is_first_run:
+                        is_first_run = False
 
                     await sleep(2)
                 except Exception as e:
