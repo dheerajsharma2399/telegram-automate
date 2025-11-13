@@ -520,15 +520,18 @@ class DashboardRepository(BaseRepository):
             return cursor.rowcount > 0
 
     def bulk_update_status(self, job_ids: List[int], status: str,
-                          application_date: Optional[str] = None) -> int:
+                          application_date: Optional[str] = None, archive: bool = False) -> int:
         """Update status for multiple jobs at once"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            
+            # If archiving, we set the status to 'archived' regardless of the input status
+            final_status = 'archived' if archive else status
             cursor.execute("""
                 UPDATE dashboard_jobs
                 SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ANY(%s)
-            """, (status, application_date, job_ids))
+            """, (final_status, application_date, job_ids))
             return cursor.rowcount
 
     def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
