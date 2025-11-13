@@ -114,11 +114,12 @@ class HistoricalMessageFetcher:
                         if should_process_message(message):
                             messages.append(message)
                     
+                    from telethon.utils import get_peer_id
                     # Process and store messages
                     processed_count = 0
-                    group_id_to_pass = group.id if hasattr(group, 'id') else group
+                    group_id_to_pass = get_peer_id(group)
                     for message in messages:
-                        if await self._store_message_if_new(message, group_id_to_pass):
+                        if self._store_message_if_new(message, group_id_to_pass):
                             processed_count += 1
                     
                     total_fetched += processed_count
@@ -135,7 +136,7 @@ class HistoricalMessageFetcher:
             logger.error(f"Failed to fetch historical messages: {e}")
             return 0
 
-    async def _store_message_if_new(self, message, group_id):
+    def _store_message_if_new(self, message, group_id):
         """Store message in database if it's not already stored."""
         try:
             message_text = extract_message_text(message)
