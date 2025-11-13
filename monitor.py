@@ -153,6 +153,9 @@ class TelegramMonitor:
 
     async def send_admin_notification(self, message):
         if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
+            # Add a small random delay to avoid rate-limiting on startup
+            await asyncio.sleep(random.uniform(0.5, 2.0))
+            
             url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
             payload = {
                 "chat_id": ADMIN_USER_ID,
@@ -239,8 +242,10 @@ class TelegramMonitor:
             except (ValueError, TypeError):
                 groups_config_list.append(g)
 
+        # Ensure unique groups before resolving entities
+        unique_groups = sorted(list(set(groups_config_list)))
         group_entities = []
-        for g_str in groups_config_list:
+        for g_str in unique_groups:
             try:
                 from telethon.utils import get_peer_id
                 entity = await self.client.get_entity(g_str)
