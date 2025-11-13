@@ -558,22 +558,13 @@ async def setup_bot():
             
         application = await setup_webhook_bot()
 
-        # Initialize HistoricalMessageFetcher
-        historical_fetcher = HistoricalMessageFetcher(
-            TELEGRAM_API_ID,
-            TELEGRAM_API_HASH,
-            TELEGRAM_PHONE,
-            db
-        )
-
         # Start the telegram monitor
         monitor = TelegramMonitor(
             TELEGRAM_API_ID,
             TELEGRAM_API_HASH,
             TELEGRAM_PHONE,
             TELEGRAM_GROUP_USERNAMES,
-            db,
-            historical_fetcher # Pass the historical fetcher instance
+            db
         )
         
         # Start the Telegram monitor in a separate thread
@@ -584,11 +575,6 @@ async def setup_bot():
             except Exception as e:
                 logger.exception(f"Monitor thread exited with error: {e}")
         threading.Thread(target=_start_monitor_thread, daemon=True).start()
-
-        # Catch up on missed messages and process them using the HistoricalMessageFetcher
-        logger.info("Starting initial historical message fetch and processing...")
-        fetch_results = await historical_fetcher.fetch_and_process_historical_messages(hours_back=INITIAL_HISTORICAL_FETCH_HOURS)
-        logger.info(f"Initial historical fetch and processing complete: {fetch_results}")
 
         # Start command poller
         async def poll_commands():
