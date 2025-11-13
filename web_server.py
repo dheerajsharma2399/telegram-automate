@@ -436,6 +436,29 @@ def api_hide_jobs():
         return jsonify({"error": str(e)}), 500
 
 # ===============================================
+# DASHBOARD JOBS API (Corrected)
+# ===============================================
+
+@app.route("/api/dashboard/jobs", methods=["GET"])
+def get_dashboard_jobs():
+    """Get all dashboard jobs with optional filtering"""
+    try:
+        status_filter = request.args.get('status')
+        relevance_filter = request.args.get('relevance')
+        include_archived = request.args.get('include_archived', 'false').lower() == 'true'
+        
+        jobs = db.dashboard.get_dashboard_jobs(
+            status_filter=status_filter,
+            relevance_filter=relevance_filter,
+            include_archived=include_archived
+        )
+        
+        return jsonify(jobs)
+    except Exception as e:
+        logging.error(f"Failed to fetch dashboard jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ===============================================
 # DASHBOARD JOBS API ENDPOINTS (NEW)
 # ===============================================
 

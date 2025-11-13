@@ -558,7 +558,7 @@ async def setup_bot():
             from asyncio import sleep
             while True:
                 try:
-                    pending = db.get_pending_commands(limit=10)
+                    pending = db.commands.get_pending_commands(limit=10)
                     if pending:
                         for cmd in pending:
                             text = cmd['command'].strip()
