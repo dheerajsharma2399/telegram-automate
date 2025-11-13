@@ -55,7 +55,7 @@ Thumbs.db
 
 # Docker files (exclude for GitHub - keep Dockerfile and compose in main code)
 # ===========================================================================
-docker-compose*.yml
+docker-compose.yml
 .dockerignore
 
 # Service files (systemd services)

@@ -136,7 +136,7 @@ class HistoricalMessageFetcher:
             logger.error(f"Failed to fetch historical messages: {e}")
             return 0
 
-    def _store_message_if_new(self, message, group_id):
+    def _store_message_if_new(self, message, group_id) -> bool:
         """Store message in database if it's not already stored."""
         try:
             message_text = extract_message_text(message)
