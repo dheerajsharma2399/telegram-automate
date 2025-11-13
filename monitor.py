@@ -56,12 +56,12 @@ class TelegramMonitor:
 
     async def _command_handler(self, event):
         """Handle incoming commands from authorized users."""
-        sender = await event.get_sender()
-        if not sender:
-            logging.warning("Could not get sender for a command event.")
+        # Use event.sender_id, which is more reliable across update types
+        sender_id = getattr(event, 'sender_id', None)
+        if not sender_id:
+            logging.warning(f"Could not determine sender_id for event: {type(event).__name__}")
             return
 
-        sender_id = sender.id
         if sender_id not in self.authorized_users:
             return
 
@@ -268,7 +268,15 @@ class TelegramMonitor:
             return
 
         groups_val = self.db.get_config('monitored_groups') or ''
-        groups_config_list = [s.strip() for s in groups_val.split(',') if s.strip()]
+        groups_config_list_str = [s.strip() for s in groups_val.split(',') if s.strip()]
+
+        # Convert numeric strings to integers to handle group IDs correctly
+        groups_config_list = []
+        for g in groups_config_list_str:
+            try:
+                groups_config_list.append(int(g))
+            except (ValueError, TypeError):
+                groups_config_list.append(g)
 
         group_entities = []
         for g_str in groups_config_list:
