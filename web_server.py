@@ -228,7 +228,7 @@ def force_restart_bot():
 def api_pending_commands():
     """Return all pending commands from the DB."""
     try:
-        pending = db.list_all_pending_commands()
+        pending = db.commands.list_all_pending_commands()
         return jsonify(pending)
     except Exception as e:
         logging.exception('Failed to fetch pending commands')
