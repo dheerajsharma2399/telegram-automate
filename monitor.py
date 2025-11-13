@@ -229,10 +229,6 @@ class TelegramMonitor:
             msg_info = get_message_info(message)
 
             # Ignore commands from authorized users in job groups
-            if message.sender_id in self.authorized_users and msg_info.get('is_bot_command'):
-                logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
-                return
-
             # Add to database
             new_id = self.db.add_raw_message(
                 message_id=message.id,
