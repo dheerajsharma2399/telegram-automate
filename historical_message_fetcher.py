@@ -88,6 +88,11 @@ class HistoricalMessageFetcher:
     async def fetch_historical_messages(self, hours_back=12):
         """Fetch messages from the past N hours"""
         try:
+            # Ensure client is connected before proceeding
+            if not await self.connect_client():
+                logger.error("Cannot fetch historical messages, client connection failed.")
+                return 0
+
             # Calculate time range
             end_time = datetime.now()
             start_time = end_time - timedelta(hours=hours_back)
