@@ -154,10 +154,6 @@ class TelegramMonitor:
                             await self.send_admin_notification("[OK] Bot connected to Telegram.")
                             
                             await self._prime_dialog_cache()
-                            # Catch up on missed messages
-                            await self._catch_up_missed_messages()
-
-                        except Exception as e:
                             error_msg = str(e).lower()
                             if "not a valid string" in error_msg or "invalid" in error_msg:
                                 logging.warning(f"Stored session string is invalid: {e}. Clearing from database.")
