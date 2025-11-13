@@ -36,6 +36,7 @@ class TelegramMonitor:
             self.group_usernames = [group_usernames]
         else:
             self.group_usernames = list(group_usernames or [])
+        # Convert numeric strings to integers, leave others as strings
         cleaned = []
         for g in self.group_usernames:
             try:
