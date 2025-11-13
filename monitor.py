@@ -218,12 +218,7 @@ class TelegramMonitor:
 
     async def _process_and_store_message(self, message, group_id):
         """Process and store a single message, which can be a Telethon Message object or a string."""
-        """Process and store a single message, which can be a Telethon Message object or a string."""
         try:
-            # This function expects a Telethon Message object.
-            if not message or not hasattr(message, 'id'):
-                return
-
             # This function expects a Telethon Message object.
             if not message or not hasattr(message, 'id'):
                 return
@@ -234,7 +229,6 @@ class TelegramMonitor:
             msg_info = get_message_info(message)
 
             # Ignore commands from authorized users in job groups
-            if message.sender_id in self.authorized_users and msg_info.get('is_bot_command'):
             if message.sender_id in self.authorized_users and msg_info.get('is_bot_command'):
                 logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
                 return
@@ -254,7 +248,6 @@ class TelegramMonitor:
                 logging.debug(f"Message {message.id} from group {group_id} already exists.")
 
         except Exception as e:
-            logging.error(f"Failed to process/store message: {e}")
             logging.error(f"Failed to process/store message: {e}")
 
     async def _prime_dialog_cache(self):
