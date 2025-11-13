@@ -93,17 +93,29 @@ def get_sheets_sync():
 # Auto-setup webhook URL in a background thread if webhook mode is enabled
 def auto_setup_webhook_thread():
     """Auto-setup webhook after web server starts"""
+    lock_file = os.path.join(tempfile.gettempdir(), 'webhook_setup.lock')
     import time
-    time.sleep(5)  # Wait for server to start
+    
+    # Check for lock file to prevent multiple workers from setting the webhook
+    if os.path.exists(lock_file):
+        logging.info("Webhook setup already in progress or completed by another worker. Skipping.")
+        return
+        
+    # Create lock file
+    with open(lock_file, 'w') as f:
+        f.write(str(os.getpid()))
+
+    time.sleep(10)  # Wait for server to be fully up
     try:
         webhook_url = "https://job.mooh.me/webhook"
         logging.info(f"Setting webhook to correct domain: {webhook_url}")
         # Create a temporary Application instance for setting webhook
         temp_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         asyncio.run(temp_app.bot.set_webhook(url=webhook_url, allowed_updates=['message', 'callback_query', 'edited_message']))
-        logging.info(f"Auto-configured webhook to: {webhook_url}")
+        logging.info(f"Webhook setup successful: {webhook_url}")
     except Exception as e:
         logging.warning(f"Failed to set webhook: {e}")
+    # The lock file is intentionally not deleted to ensure it runs only once per deployment start.
 
 # Start auto-setup in background thread if webhook mode is enabled
 if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
