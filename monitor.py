@@ -55,7 +55,13 @@ class TelegramMonitor:
 
     async def _command_handler(self, event):
         """Handle incoming commands from authorized users."""
-        if event.sender_id not in self.authorized_users:
+        sender = await event.get_sender()
+        if not sender:
+            logging.warning("Could not get sender for a command event.")
+            return
+
+        sender_id = sender.id
+        if sender_id not in self.authorized_users:
             return
 
         command_parts = event.message.text.strip().split()
@@ -266,7 +272,7 @@ class TelegramMonitor:
         group_entities = []
         for g_str in groups_config_list:
             try:
-                entity = await self.client.get_entity(g_str)
+                entity = await self.client.get_input_entity(g_str)
                 group_entities.append(entity)
                 logging.info(f"Resolved entity for monitoring: {g_str} (ID: {entity.id})")
             except Exception as e:
