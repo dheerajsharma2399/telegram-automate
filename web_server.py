@@ -89,8 +89,6 @@ def get_sheets_sync():
             pass
     return sheets_sync
 
-logging.basicConfig(level=logging.INFO)
-
 # --- Helper Functions ---
 
 def send_telegram_command(command):

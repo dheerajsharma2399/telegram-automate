@@ -129,7 +129,7 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
                     
                     # This call is now adapted to use the existing cursor/connection
                     # by passing the cursor object.
-                    db.jobs.add_processed_job(processed_data, cursor=cursor)
+                    db.jobs.add_processed_job(processed_data, cursor=cursor) # This uses the cursor for the INSERT
                     
                     # AUTOMATIC DASHBOARD POPULATION: Add non-email jobs to dashboard
                     if processed_data.get('application_method') != 'email':
@@ -148,11 +148,10 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
                             }
                             
                             # Add to dashboard if not already present (within the same transaction)
-                            with conn.cursor() as cursor:
-                                cursor.execute("SELECT id FROM dashboard_jobs WHERE source_job_id = %s", (processed_data.get('job_id'),))
-                                if not cursor.fetchone():
-                                    db.dashboard.add_dashboard_job(dashboard_job_data, cursor=cursor)
-                                    logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
+                            cursor.execute("SELECT id FROM dashboard_jobs WHERE source_job_id = %s", (processed_data.get('job_id'),))
+                            if not cursor.fetchone():
+                                db.dashboard.add_dashboard_job(dashboard_job_data, cursor=cursor)
+                                logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
                         except Exception as e:
                             logger.error(f"Failed to auto-import job to dashboard: {e}")
                 
@@ -208,7 +207,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not scheduler.get_job('process_jobs_task'):
             scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[context], id='process_jobs_task')
         
-        if not scheduler.running:
+        if scheduler.state == 2: # STATE_PAUSED
+            scheduler.resume()
+            logger.info("Job processing scheduler resumed.")
+        elif not scheduler.running:
             scheduler.start()
 
         db.config.set_config('monitoring_status', 'running')
@@ -590,7 +592,15 @@ async def setup_bot():
                             # build a robust fake update/context for handlers
                             class _FakeMessage:
                                 async def reply_text(self, text, **kwargs):
-                                    _ok = False
+                                    await send_rate_limited_telegram_notification(text)
+                                    return None
+                                async def reply_document(self, *a, **k):
+                                    return None
+
+                            from types import SimpleNamespace as _SN
+                            fake_update = _SN(effective_user=_SN(id=int(AUTHORIZED_USER_IDS[0]) if AUTHORIZED_USER_IDS else 0), message=_FakeMessage())
+
+                            executed_ok = False
                             result_text = None
                             try:
                                 if text.startswith('/start'):
@@ -651,6 +661,15 @@ async def setup_bot():
 
         # Start command poller thread
         threading.Thread(target=lambda: asyncio.run(poll_commands()), daemon=True).start()
+
+        # Start scheduler if it was previously running
+        try:
+            if db.config.get_config('monitoring_status') == 'running':
+                if not scheduler.get_job('process_jobs_task'):
+                    scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[application], id='process_jobs_task')
+                scheduler.start()
+        except Exception as e:
+            logger.error(f"Failed to auto-start scheduler: {e}")
 
         logger.info("Telegram bot setup complete!")
         return application

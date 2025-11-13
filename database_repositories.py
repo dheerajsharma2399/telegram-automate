@@ -137,51 +137,40 @@ class MessageRepository(BaseRepository):
             return dict(result) if result else None
 
 class JobRepository(BaseRepository):
-    def add_processed_job(self, job_data: Dict, cursor=None) -> Optional[int]:
+    def add_processed_job(self, job_data: Dict) -> Optional[int]:
         """Add a processed job"""
-        
-        def _execute(cur):
-            """The actual execution logic, to be used with or without a managed connection."""
-            cur.execute("""
-                INSERT INTO processed_jobs (
-                    raw_message_id, job_id, first_name, last_name, email,
-                    company_name, job_role, location, eligibility, application_link,
-                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
-                job_data.get('raw_message_id'),
-                job_data.get('job_id'),
-                job_data.get('first_name'),
-                job_data.get('last_name'),
-                job_data.get('email'),
-                job_data.get('company_name'),
-                job_data.get('job_role'),
-                job_data.get('location'),
-                job_data.get('eligibility'),
-                job_data.get('application_link'),
-                job_data.get('application_method'),
-                job_data.get('jd_text'),
-                job_data.get('email_subject'),
-                job_data.get('email_body'),
-                job_data.get('status'),
-                job_data.get('updated_at'),
-                job_data.get('is_hidden', False),
-                job_data.get('sheet_name')
-            ))
-            result = cur.fetchone()
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO processed_jobs (
+                        raw_message_id, job_id, first_name, last_name, email,
+                        company_name, job_role, location, eligibility, application_link,
+                        application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (
+                    job_data.get('raw_message_id'),
+                    job_data.get('job_id'),
+                    job_data.get('first_name'),
+                    job_data.get('last_name'),
+                    job_data.get('email'),
+                    job_data.get('company_name'),
+                    job_data.get('job_role'),
+                    job_data.get('location'),
+                    job_data.get('eligibility'),
+                    job_data.get('application_link'),
+                    job_data.get('application_method'),
+                    job_data.get('jd_text'),
+                    job_data.get('email_subject'),
+                    job_data.get('email_body'),
+                    job_data.get('status'),
+                    job_data.get('updated_at'),
+                    job_data.get('is_hidden', False),
+                    job_data.get('sheet_name')
+                ))
+                result = cursor.fetchone()
+            conn.commit()
             return result['id'] if result else None
-
-        if cursor:
-            # Use the provided cursor (part of an existing transaction)
-            return _execute(cursor)
-        else:
-            # Use a new connection and transaction
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    job_id = _execute(cur)
-                conn.commit()
-                return job_id
 
     def mark_job_synced(self, job_id: str):
         """Mark job as synced to Google Sheets"""
@@ -194,12 +183,22 @@ class JobRepository(BaseRepository):
                 """, (job_id,))
             conn.commit()
 
+    def get_processed_jobs_by_email_status(self, has_email: bool) -> List[Dict]:
+        """Get processed jobs based on whether they have an email."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if has_email:
+                cursor.execute('SELECT * FROM processed_jobs WHERE email IS NOT NULL AND email != "" ORDER BY created_at DESC')
+            else:
+                cursor.execute('SELECT * FROM processed_jobs WHERE email IS NULL OR email = "" ORDER BY created_at DESC')
+            return [dict(row) for row in cursor.fetchall()]
+
     def get_unsynced_jobs(self) -> List[Dict]:
         """Get all processed jobs that have not been synced to Google Sheets."""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute('SELECT * FROM processed_jobs WHERE synced_to_sheets = FALSE ORDER BY created_at ASC')
-                return [dict(row) for row in cursor.fetchall()]
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM processed_jobs WHERE synced_to_sheets = FALSE ORDER BY created_at ASC')
+            return [dict(row) for row in cursor.fetchall()]
 
     def update_job_email_body(self, job_id: str, email_body: str):
         """Update the email_body for an existing processed job."""
@@ -463,63 +462,59 @@ class DashboardRepository(BaseRepository):
                                    application_date: Optional[str] = None) -> bool:
         """Update job application status in dashboard"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE dashboard_jobs
-                    SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s
-                """, (status, application_date, job_id))
-                rowcount = cursor.rowcount
-            conn.commit()
-            return rowcount > 0
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (status, application_date, job_id))
+            return cursor.rowcount > 0
 
     def add_job_notes(self, job_id: int, notes: str) -> bool:
         """Add or update notes for a job"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE dashboard_jobs
-                    SET notes = %s, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s
-                """, (notes, job_id))
-                rowcount = cursor.rowcount
-            conn.commit()
-            return rowcount > 0
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET notes = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (notes, job_id))
+            return cursor.rowcount > 0
 
     def mark_as_duplicate(self, job_id: int, duplicate_of_id: int, confidence_score: float = 0.8) -> bool:
         """Mark a job as duplicate of another job"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                # Update the job record
-                cursor.execute("""
-                    UPDATE dashboard_jobs
-                    SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s
-                """, (duplicate_of_id, job_id))
-                rowcount = cursor.rowcount
-                # Add to duplicate groups table (cast array to JSON)
-                cursor.execute("""
-                    INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
-                    VALUES (%s, %s::jsonb, %s)
-                """, (duplicate_of_id, f'["{job_id}"]', confidence_score))
-            conn.commit()
-            return rowcount > 0
+            cursor = conn.cursor()
+            
+            # Update the job record
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (duplicate_of_id, job_id))
+            
+            # Add to duplicate groups table (cast array to JSON)
+            cursor.execute("""
+                INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
+                VALUES (%s, %s::jsonb, %s)
+            """, (duplicate_of_id, f'["{job_id}"]', confidence_score))
+            
+            return cursor.rowcount > 0
 
     def bulk_update_status(self, job_ids: List[int], status: str,
                           application_date: Optional[str] = None, archive: bool = False) -> int:
         """Update status for multiple jobs at once"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                # If archiving, we set the status to 'archived' regardless of the input status
-                final_status = 'archived' if archive else status
-                cursor.execute("""
-                    UPDATE dashboard_jobs
-                    SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP, is_hidden = %s
-                    WHERE id = ANY(%s)
-                """, (final_status, application_date, archive, job_ids))
-                rowcount = cursor.rowcount
-            conn.commit()
-            return rowcount
+            cursor = conn.cursor()
+            
+            # If archiving, we set the status to 'archived' regardless of the input status
+            final_status = 'archived' if archive else status
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP, is_hidden = %s
+                WHERE id = ANY(%s)
+            """, (final_status, application_date, archive, job_ids))
+            return cursor.rowcount
 
     def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
         """Import non-email jobs from processed_jobs to dashboard_jobs"""
@@ -567,48 +562,49 @@ class DashboardRepository(BaseRepository):
     def detect_duplicate_jobs(self) -> int:
         """Detect duplicate jobs in dashboard_jobs table"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                # Find potential duplicates by company name and role
-                query = """
-                    WITH potential_duplicates AS (
-                        SELECT
-                            id, company_name, job_role,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY LOWER(TRIM(company_name)), LOWER(TRIM(job_role))
-                                ORDER BY created_at
-                            ) as rn
-                        FROM dashboard_jobs
-                        WHERE is_duplicate = FALSE
-                    )
-                    SELECT id, company_name, job_role, rn
-                    FROM potential_duplicates
-                    WHERE rn > 1
-                """
-                
-                cursor.execute(query)
-                duplicates = cursor.fetchall()
-                
-                detected_count = 0
-                for duplicate in duplicates:
-                    if duplicate['rn'] > 1:
-                        try:
-                            cursor.execute("""
-                                INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
-                                VALUES (%s, %s::jsonb, %s)
-                            """, (None, f'["{duplicate["id"]}"]', 0.9))
-                            
-                            # Update job status
-                            cursor.execute("""
-                                UPDATE dashboard_jobs
-                                SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
-                                WHERE id = %s
-                            """, (None, duplicate['id']))
-                            
-                            detected_count += 1
-                        except Exception as e:
-                            self.logger.error(f"Error marking duplicate job {duplicate['id']}: {e}")
-                conn.commit()
-                return detected_count
+            cursor = conn.cursor()
+            
+            # Find potential duplicates by company name and role
+            query = """
+                WITH potential_duplicates AS (
+                    SELECT
+                        id, company_name, job_role,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY LOWER(TRIM(company_name)), LOWER(TRIM(job_role))
+                            ORDER BY created_at
+                        ) as rn
+                    FROM dashboard_jobs
+                    WHERE is_duplicate = FALSE
+                )
+                SELECT id, company_name, job_role, rn
+                FROM potential_duplicates
+                WHERE rn > 1
+            """
+            
+            cursor.execute(query)
+            duplicates = cursor.fetchall()
+            
+            detected_count = 0
+            for duplicate in duplicates:
+                if duplicate['rn'] > 1:
+                    try:
+                        cursor.execute("""
+                            INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
+                            VALUES (%s, %s::jsonb, %s)
+                        """, (None, f'["{duplicate["id"]}"]', 0.9))
+                        
+                        # Update job status
+                        cursor.execute("""
+                            UPDATE dashboard_jobs
+                            SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                        """, (None, duplicate['id']))
+                        
+                        detected_count += 1
+                    except Exception as e:
+                        self.logger.error(f"Error marking duplicate job {duplicate['id']}: {e}")
+            
+            return detected_count
 
     def export_dashboard_jobs(self, format_type: str = 'csv') -> Dict:
         """Export dashboard jobs to CSV format"""
