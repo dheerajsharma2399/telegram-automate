@@ -4,8 +4,12 @@ Message Text Extraction Utilities
 Shared utilities for extracting text from both direct and forwarded messages
 """
 
+import asyncio
 import logging
 from typing import Optional
+import time
+import aiohttp
+from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +218,39 @@ def debug_message_structure(message) -> dict:
     
     return debug_info
 
+# --- Centralized Notification Utility ---
+
+_last_notification_time = 0
+
+async def send_rate_limited_telegram_notification(message: str):
+    """
+    Sends a notification to the admin, respecting a global rate limit to avoid flooding.
+    """
+    global _last_notification_time
+    
+    if not (TELEGRAM_BOT_TOKEN and ADMIN_USER_ID):
+        return
+
+    # Ensure at least 2 seconds between notifications
+    now = time.time()
+    if now - _last_notification_time < 2.0:
+        await asyncio.sleep(2.0 - (now - _last_notification_time))
+    
+    _last_notification_time = time.time()
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": ADMIN_USER_ID,
+        "text": message,
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload, timeout=10) as response:
+                if response.status != 200:
+                    logger.error(f"Failed to send admin notification: {await response.text()}")
+    except Exception as e:
+        logger.error(f"Exception while sending admin notification: {e}")
+
 # Export commonly used functions
 __all__ = [
     'extract_message_text',
@@ -221,5 +258,6 @@ __all__ = [
     'is_empty_message',
     'should_process_message',
     'get_message_info',
-    'debug_message_structure'
+    'debug_message_structure',
+    'send_rate_limited_telegram_notification'
 ]
