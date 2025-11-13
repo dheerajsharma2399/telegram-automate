@@ -536,19 +536,17 @@ class DashboardRepository(BaseRepository):
             cursor = conn.cursor()
             
             # Get processed jobs that are not already in dashboard
-            if sheet_name == 'non-email':
-                query = """
-                    SELECT pj.* FROM processed_jobs pj
-                    LEFT JOIN dashboard_jobs dj ON pj.job_id = dj.source_job_id
-                    WHERE dj.source_job_id IS NULL
-                    AND (pj.email IS NULL OR pj.email = '')
-                    ORDER BY pj.created_at DESC
-                    LIMIT %s
-                """
-                params = (max_jobs,)
-            else:
-                raise ValueError(f"Unsupported sheet_name: {sheet_name}")
-            
+            query = """
+                SELECT pj.* FROM processed_jobs pj
+                LEFT JOIN dashboard_jobs dj ON pj.job_id = dj.source_job_id
+                WHERE dj.id IS NULL
+                AND pj.sheet_name = %s
+                AND pj.is_hidden = FALSE
+                ORDER BY pj.created_at DESC
+                LIMIT %s
+            """
+            params = (sheet_name, max_jobs)
+
             cursor.execute(query, params)
             jobs = [dict(row) for row in cursor.fetchall()]
             
@@ -557,7 +555,7 @@ class DashboardRepository(BaseRepository):
             for job in jobs:
                 dashboard_job = {
                     'source_job_id': job['job_id'],
-                    'original_sheet': 'non-email',
+                    'original_sheet': sheet_name,
                     'company_name': job['company_name'],
                     'job_role': job['job_role'],
                     'location': job['location'],
