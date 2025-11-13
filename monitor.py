@@ -13,7 +13,7 @@ from config import (
 )
 from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
-from message_utils import extract_message_text, should_process_message, get_message_info
+from message_utils import extract_message_text, should_process_message, get_message_info, send_rate_limited_telegram_notification
 import aiohttp
 from datetime import datetime, timedelta
 import psycopg2
@@ -102,7 +102,7 @@ class TelegramMonitor:
                             # Update login status to connected
                             self.db.auth.set_telegram_login_status('connected')
                             logging.info("Successfully restored Telegram session and connected.")
-                            await self.send_admin_notification("[OK] Bot connected to Telegram.")
+                            await send_rate_limited_telegram_notification("[OK] Bot connected to Telegram.")
                             
                             await self._prime_dialog_cache()
                             
@@ -154,24 +154,6 @@ class TelegramMonitor:
             except Exception as e:
                 logging.error(f"Error in periodic handler update: {e}")
             await asyncio.sleep(60) # Check for group changes every 60 seconds
-
-    async def send_admin_notification(self, message):
-        if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
-            # Add a small random delay to avoid rate-limiting on startup
-            await asyncio.sleep(random.uniform(0.5, 2.0))
-            
-            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-            payload = {
-                "chat_id": ADMIN_USER_ID,
-                "text": message,
-            }
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url, json=payload) as response:
-                        if response.status != 200:
-                            logging.error(f"Failed to send admin notification: {await response.text()}")
-            except Exception as e:
-                logging.error(f"Failed to send admin notification: {e}")
 
     async def stop(self):
         """Stops the Telegram client."""

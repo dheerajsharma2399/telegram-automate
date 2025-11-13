@@ -19,6 +19,7 @@ from database import Database
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
 from historical_message_fetcher import HistoricalMessageFetcher
+from message_utils import send_rate_limited_telegram_notification
 from monitor import TelegramMonitor
 
 # Setup logging
@@ -589,22 +590,7 @@ async def setup_bot():
                             # build a robust fake update/context for handlers
                             class _FakeMessage:
                                 async def reply_text(self, text, **kwargs):
-                                    if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
-                                        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-                                        payload = {"chat_id": ADMIN_USER_ID, "text": text}
-                                        try:
-                                            async with aiohttp.ClientSession() as session:
-                                                await session.post(url, json=payload)
-                                        except Exception as e:
-                                            logger.error(f"Failed to send reply from fake message: {e}")
-                                    return None
-                                async def reply_document(self, *a, **k):
-                                    return None
-
-                            from types import SimpleNamespace as _SN
-                            fake_update = _SN(effective_user=_SN(id=int(AUTHORIZED_USER_IDS[0]) if AUTHORIZED_USER_IDS else 0), message=_FakeMessage())
-
-                            executed_ok = False
+                                    _ok = False
                             result_text = None
                             try:
                                 if text.startswith('/start'):
