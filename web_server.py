@@ -434,19 +434,20 @@ def get_dashboard_jobs():
     try:
         status_filter = request.args.get('status')
         relevance_filter = request.args.get('relevance')
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 50, type=int)
         include_archived = request.args.get('include_archived', 'false').lower() == 'true'
         
         # Correctly call the repository method
-        jobs = db.dashboard.get_dashboard_jobs(
+        result = db.dashboard.get_dashboard_jobs(
             status_filter=status_filter,
             relevance_filter=relevance_filter,
-            include_archived=include_archived
+            include_archived=include_archived,
+            page=page,
+            page_size=page_size
         )
         
-        return jsonify({
-            "jobs": jobs,
-            "count": len(jobs)
-        })
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Failed to fetch dashboard jobs: {e}")
         return jsonify({"error": str(e)}), 500
