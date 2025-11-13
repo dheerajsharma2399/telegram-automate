@@ -17,32 +17,35 @@ class BaseRepository:
     @contextmanager
     def get_connection(self):
         """Get PostgreSQL connection from pool"""
-        conn = self.pool.getconn()
-        conn.autocommit = True
+        connection = self.pool.getconn()
         try:
-            yield conn
+            yield connection
+        except Exception:
+            connection.rollback()
+            raise
         finally:
-            self.pool.putconn(conn)
+            self.pool.putconn(connection)
 
 class TelegramAuthRepository(BaseRepository):
     def get_telegram_session(self) -> Optional[str]:
         """Get stored Telegram session string from Supabase"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT session_string FROM telegram_auth WHERE id = 1")
-            result = cursor.fetchone()
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT session_string FROM telegram_auth WHERE id = 1")
+                result = cursor.fetchone()
             return result['session_string'] if result and result['session_string'] else None
 
     def set_telegram_session(self, session_string: str):
         """Store Telegram session string in Supabase"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
+            with conn.cursor() as cursor:
+                cursor.execute("""
                 UPDATE telegram_auth 
                 SET session_string = %s, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = 1
-            """, (session_string,))
-            self.logger.info("Telegram session updated in Supabase")
+                """, (session_string,))
+                self.logger.info("Telegram session updated in Supabase")
+            conn.commit()
 
     def get_telegram_login_status(self) -> str:
         """Get Telegram login status from Supabase"""
@@ -55,52 +58,55 @@ class TelegramAuthRepository(BaseRepository):
     def set_telegram_login_status(self, status: str):
         """Set Telegram login status in Supabase"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
+            with conn.cursor() as cursor:
+                cursor.execute("""
                 UPDATE telegram_auth 
                 SET login_status = %s, updated_at = CURRENT_TIMESTAMP 
                 WHERE id = 1
-            """, (status,))
-            self.logger.info(f"Telegram login status updated: {status}")
+                """, (status,))
+                self.logger.info(f"Telegram login status updated: {status}")
+            conn.commit()
 
 class MessageRepository(BaseRepository):
     def add_raw_message(self, message_id: int, message_text: str, 
                        sender_id: int, sent_at, group_id: int) -> Optional[int]:
         """Add a new raw message"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO raw_messages 
-                (message_id, message_text, sender_id, sent_at, status, group_id)
-                VALUES (%s, %s, %s, %s, 'unprocessed', %s)
-                ON CONFLICT (group_id, message_id) DO NOTHING
-                RETURNING id
-            """, (message_id, message_text, sender_id, sent_at, group_id))
-            result = cursor.fetchone()
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO raw_messages 
+                    (message_id, message_text, sender_id, sent_at, status, group_id)
+                    VALUES (%s, %s, %s, %s, 'unprocessed', %s)
+                    ON CONFLICT (group_id, message_id) DO NOTHING
+                    RETURNING id
+                """, (message_id, message_text, sender_id, sent_at, group_id))
+                result = cursor.fetchone()
+            conn.commit()
             return result['id'] if result else None
 
     def get_unprocessed_messages(self, limit: int = 10) -> List[Dict]:
         """Get unprocessed messages"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM raw_messages 
-                WHERE status = 'unprocessed'
-                ORDER BY created_at ASC
-                LIMIT %s
-            """, (limit,))
-            return [dict(row) for row in cursor.fetchall()]
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM raw_messages 
+                    WHERE status = 'unprocessed'
+                    ORDER BY created_at ASC
+                    LIMIT %s
+                """, (limit,))
+                return [dict(row) for row in cursor.fetchall()]
 
     def update_message_status(self, message_id: int, status: str, 
                             error_message: str = None):
         """Update message processing status"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
+            with conn.cursor() as cursor:
+                cursor.execute("""
                 UPDATE raw_messages 
                 SET status = %s, error_message = %s
                 WHERE id = %s
-            """, (status, error_message, message_id))
+                """, (status, error_message, message_id))
+            conn.commit()
 
     def get_unprocessed_count(self) -> int:
         """Get count of unprocessed messages"""
@@ -134,46 +140,48 @@ class JobRepository(BaseRepository):
     def add_processed_job(self, job_data: Dict) -> Optional[int]:
         """Add a processed job"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO processed_jobs (
-                    raw_message_id, job_id, first_name, last_name, email,
-                    company_name, job_role, location, eligibility, application_link,
-                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
-                job_data.get('raw_message_id'),
-                job_data.get('job_id'),
-                job_data.get('first_name'),
-                job_data.get('last_name'),
-                job_data.get('email'),
-                job_data.get('company_name'),
-                job_data.get('job_role'),
-                job_data.get('location'),
-                job_data.get('eligibility'),
-                job_data.get('application_link'),
-                job_data.get('application_method'),
-                job_data.get('jd_text'),
-                job_data.get('email_subject'),
-                job_data.get('email_body'),
-                job_data.get('status'),
-                job_data.get('updated_at'),
-                job_data.get('is_hidden', False),
-                job_data.get('sheet_name')
-            ))
-            result = cursor.fetchone()
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO processed_jobs (
+                        raw_message_id, job_id, first_name, last_name, email,
+                        company_name, job_role, location, eligibility, application_link,
+                        application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (
+                    job_data.get('raw_message_id'),
+                    job_data.get('job_id'),
+                    job_data.get('first_name'),
+                    job_data.get('last_name'),
+                    job_data.get('email'),
+                    job_data.get('company_name'),
+                    job_data.get('job_role'),
+                    job_data.get('location'),
+                    job_data.get('eligibility'),
+                    job_data.get('application_link'),
+                    job_data.get('application_method'),
+                    job_data.get('jd_text'),
+                    job_data.get('email_subject'),
+                    job_data.get('email_body'),
+                    job_data.get('status'),
+                    job_data.get('updated_at'),
+                    job_data.get('is_hidden', False),
+                    job_data.get('sheet_name')
+                ))
+                result = cursor.fetchone()
+            conn.commit()
             return result['id'] if result else None
 
     def mark_job_synced(self, job_id: str):
         """Mark job as synced to Google Sheets"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE processed_jobs 
-                SET synced_to_sheets = TRUE
-                WHERE job_id = %s
-            """, (job_id,))
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE processed_jobs 
+                    SET synced_to_sheets = TRUE
+                    WHERE job_id = %s
+                """, (job_id,))
+            conn.commit()
 
     def get_processed_jobs_by_email_status(self, has_email: bool) -> List[Dict]:
         """Get processed jobs based on whether they have an email."""
@@ -452,29 +460,43 @@ class DashboardRepository(BaseRepository):
 
     def get_dashboard_jobs(self, status_filter: Optional[str] = None,
                           relevance_filter: Optional[str] = None,
-                          include_archived: bool = False) -> List[Dict]:
+                          include_archived: bool = False,
+                          page: int = 1, page_size: int = 50) -> Dict:
         """Get dashboard jobs with optional filtering"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            query = "SELECT * FROM dashboard_jobs WHERE 1=1"
+            base_query = "FROM dashboard_jobs WHERE 1=1"
             params = []
             
             if status_filter:
-                query += " AND application_status = %s"
+                base_query += " AND application_status = %s"
                 params.append(status_filter)
             
             if relevance_filter:
-                query += " AND job_relevance = %s"
+                base_query += " AND job_relevance = %s"
                 params.append(relevance_filter)
             
             if not include_archived:
-                query += " AND application_status != 'archived'"
+                base_query += " AND is_hidden = FALSE"
             
-            query += " ORDER BY created_at DESC"
+            # Get total count for pagination
+            count_query = f"SELECT COUNT(*) {base_query}"
+            cursor.execute(count_query, tuple(params))
+            total_count = cursor.fetchone()['count']
             
-            cursor.execute(query, tuple(params))
-            return [dict(row) for row in cursor.fetchall()]
+            # Get paginated results
+            data_query = f"SELECT * {base_query} ORDER BY created_at DESC LIMIT %s OFFSET %s"
+            offset = (page - 1) * page_size
+            params.extend([page_size, offset])
+            cursor.execute(data_query, tuple(params))
+            
+            return {
+                "jobs": [dict(row) for row in cursor.fetchall()],
+                "total_count": total_count,
+                "page": page,
+                "page_size": page_size
+            }
 
     def update_dashboard_job_status(self, job_id: int, status: str,
                                    application_date: Optional[str] = None) -> bool:

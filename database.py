@@ -215,6 +215,12 @@ def init_database(pool):
             )
         """)
 
+        # Add is_hidden column to dashboard_jobs if it doesn't exist for backward compatibility
+        cursor.execute("""
+            ALTER TABLE dashboard_jobs
+            ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE;
+        """)
+
         # Add indexes to dashboard_jobs for faster filtering and lookups
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_application_status ON dashboard_jobs (application_status);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_dashboard_jobs_job_relevance ON dashboard_jobs (job_relevance);")

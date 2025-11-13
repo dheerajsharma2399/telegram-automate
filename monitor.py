@@ -160,6 +160,10 @@ class TelegramMonitor:
                             
                             await self._prime_dialog_cache()
                             
+                            # Start the background task to update handlers
+                            if self._update_handlers_task is None or self._update_handlers_task.done():
+                                self._update_handlers_task = asyncio.create_task(self._periodically_update_handlers())
+
                         except Exception as e:
                             error_msg = str(e).lower()
                             if "not a valid string" in error_msg or "invalid" in error_msg:
@@ -178,6 +182,8 @@ class TelegramMonitor:
                     try:
                         await self._ensure_handler_registered()
                         # This is the correct blocking call to listen for events
+                        await self.client.run_until_disconnected()
+                        # This is the correct blocking call to listen for events
                     except Exception as e:
                         logging.error(f"Error during monitor execution: {e}")
                     finally:
@@ -190,6 +196,15 @@ class TelegramMonitor:
             except Exception as e:
                 logging.error(f"Error in monitor start loop: {e}")
                 await asyncio.sleep(30)
+
+    async def _periodically_update_handlers(self):
+        """A background task that periodically checks for group changes and updates handlers."""
+        while self.client and self.client.is_connected():
+            try:
+                await self._ensure_handler_registered(force_check=True)
+            except Exception as e:
+                logging.error(f"Error in periodic handler update: {e}")
+            await asyncio.sleep(60) # Check for group changes every 60 seconds
 
     async def send_admin_notification(self, message):
         if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
