@@ -40,6 +40,7 @@ if not DATABASE_URL:
 BATCH_SIZE = 10
 PROCESSING_INTERVAL_MINUTES = 10
 MAX_RETRIES = 3
+INITIAL_HISTORICAL_FETCH_HOURS = 12
 
 # IMPROVED System Prompt for LLM - ALIGNED with proper Google Sheets headers
 SYSTEM_PROMPT = """You are an expert job posting parser. Extract ALL job postings from the given text.
