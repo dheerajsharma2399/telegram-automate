@@ -17,6 +17,7 @@ import tempfile
 import json
 from urllib.parse import urljoin
 from llm_processor import LLMProcessor
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from sheets_sync import GoogleSheetsSync
 from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
 
@@ -33,6 +34,38 @@ except Exception:
 
 sheets_sync = None
 
+# Global Application instance for this web worker to handle webhooks
+_webhook_app_instance = None
+
+async def _get_or_create_webhook_application():
+    """
+    Lazily initializes and returns the telegram.ext.Application instance for this worker.
+    This ensures it's created once per Gunicorn worker.
+    """
+    global _webhook_app_instance
+    if _webhook_app_instance is None:
+        if not TELEGRAM_BOT_TOKEN:
+            logging.error("TELEGRAM_BOT_TOKEN not configured - cannot initialize webhook Application.")
+            return None
+        
+        _webhook_app_instance = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+        # Add handlers that mirror those in main.py's setup_webhook_bot to ensure updates are processed correctly.
+        # These handlers will typically be dummy handlers as the actual bot logic runs in main.py.
+        _webhook_app_instance.add_handler(MessageHandler(filters.ALL, lambda update, context: None), group=-1)
+        _webhook_app_instance.add_handler(CommandHandler("start", lambda update, context: None))
+        _webhook_app_instance.add_handler(CommandHandler("stop", lambda update, context: None))
+        _webhook_app_instance.add_handler(CommandHandler("status", lambda update, context: None))
+        _webhook_app_instance.add_handler(CommandHandler("process", lambda update, context: None))
+        _webhook_app_instance.add_handler(CommandHandler("stats", lambda update, context: None))
+        _webhook_app_instance.add_handler(CommandHandler("export", lambda update, context: None))
+        _webhook_app_instance.add_handler(CommandHandler("sync_sheets", lambda update, context: None))
+        _webhook_app_instance.add_handler(CallbackQueryHandler(lambda update, context: None))
+        _webhook_app_instance.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: None))
+
+        await _webhook_app_instance.initialize()
+        logging.info("Webhook Application initialized for this web worker.")
+    return _webhook_app_instance
+
 def get_sheets_sync():
     global sheets_sync
     if sheets_sync is None and GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID:
@@ -42,69 +75,25 @@ def get_sheets_sync():
             pass
     return sheets_sync
 
-# Bot application for webhook mode
-bot_application = None
 
-async def setup_bot_webhook():
-    """Setup bot for webhook mode"""
-    global bot_application
+# Auto-setup webhook URL in a background thread if webhook mode is enabled
+def auto_setup_webhook_thread():
+    """Auto-setup webhook after web server starts"""
+    import time
+    time.sleep(5)  # Wait for server to start
     try:
-        # Check if token exists first
-        from config import TELEGRAM_BOT_TOKEN
-        if not TELEGRAM_BOT_TOKEN:
-            logging.error("TELEGRAM_BOT_TOKEN not configured - skipping bot initialization")
-            return False
-            
-        # Import the main module and setup bot
-        import main
-        bot_application = await main.setup_webhook_bot()
-        if bot_application:
-            logging.info("Bot application loaded for webhook mode")
-            return True
-        else:
-            logging.error("Failed to setup bot application")
-            return False
+        webhook_url = "https://job.mooh.me/webhook"
+        logging.info(f"Setting webhook to correct domain: {webhook_url}")
+        # Create a temporary Application instance for setting webhook
+        temp_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+        asyncio.run(temp_app.bot.set_webhook(url=webhook_url, allowed_updates=['message', 'callback_query', 'edited_message']))
+        logging.info(f"Auto-configured webhook to: {webhook_url}")
     except Exception as e:
-        logging.error(f"Failed to setup bot webhook: {e}")
-        return False
+        logging.warning(f"Failed to set webhook: {e}")
 
-# Initialize bot if webhook mode is enabled
+# Start auto-setup in background thread if webhook mode is enabled
 if os.getenv('BOT_RUN_MODE', '').lower() == 'webhook':
-    try:
-        bot_application = asyncio.run(setup_bot_webhook())
-        # Auto-setup webhook URL if bot was successfully loaded
-        if bot_application:
-            def auto_setup_webhook():
-                """Auto-setup webhook after web server starts"""
-                import time
-                time.sleep(5)  # Wait for server to start
-                try:
-                    # Use the correct domain for the new deployment
-                    webhook_url = "https://job.mooh.me/webhook"
-                    logging.info(f"Setting webhook to correct domain: {webhook_url}")
-                    
-                    # FIXED: Check if bot_application is properly initialized
-                    if hasattr(bot_application, 'bot'):
-                        async def do_set_webhook():
-                            await bot_application.bot.set_webhook(
-                                url=webhook_url,
-                                allowed_updates=['message', 'callback_query', 'edited_message']
-                            )
-                        
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(do_set_webhook())
-                        
-                        logging.info(f"Auto-configured webhook to: {webhook_url}")
-                    else:
-                        logging.warning("bot_application is not properly initialized - skipping webhook setup")
-                except Exception as e:
-                    logging.warning(f"Failed to set webhook: {e}")
-            
-            # Start auto-setup in background thread
-            threading.Thread(target=auto_setup_webhook, daemon=True).start()
-    except Exception as e:
-        logging.error(f"Bot webhook initialization failed: {e}")
+    threading.Thread(target=auto_setup_webhook_thread, daemon=True).start()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -748,14 +737,14 @@ def get_dashboard_job_message(job_id: int):
 async def process_webhook_async(update_data):
     """Process webhook update in an async context"""
     try:
-        if not bot_application:
-            logging.error("Bot application not available for webhook")
+        # Get the Application instance for this worker
+        bot_application = await _get_or_create_webhook_application()
+        if bot_application is None:
+            logging.error("Failed to get webhook Application instance.")
             return False
         
-        # FIXED: Check if bot_application is properly initialized
-        if not hasattr(bot_application, 'bot'):
-            logging.error("Bot application not properly initialized for webhook")
-            return False
+        # _get_or_create_webhook_application already initializes it.
+        # No need for an additional initialize() call here.
         
         from telegram import Update
         update = Update.de_json(update_data, bot_application.bot)
@@ -781,15 +770,9 @@ def telegram_webhook():
     """Handle incoming Telegram webhook updates"""
     webhook_logger.info("--- WEBHOOK ENDPOINT HIT ---")
     try:
-        headers = {k: v for k, v in request.headers.items()}
-        webhook_logger.info(f"Request Headers: {headers}")
+        webhook_logger.info(f"Request Headers: {request.headers}")
         raw_body = request.get_data(as_text=True)
         webhook_logger.info(f"Raw Request Body: {raw_body}")
-
-        # Check if bot application is available
-        if not bot_application:
-            webhook_logger.error("Bot application not available for webhook")
-            return jsonify({"error": "Bot not initialized"}), 500
         
         # Get the update data from the raw body
         update_data = json.loads(raw_body)
@@ -817,14 +800,13 @@ def telegram_webhook():
 @app.route("/api/setup_webhook", methods=["POST"])
 def setup_webhook():
     """Setup webhook URL for the bot"""
+    # This endpoint needs to set the webhook for the *main bot's* Application instance.
+    # If main.py is running as a separate worker, it should be responsible for setting its own webhook.
+    # For now, let's create a temporary Application instance to set the webhook.
+    if not TELEGRAM_BOT_TOKEN:
+        return jsonify({"error": "TELEGRAM_BOT_TOKEN not configured"}), 500
+
     try:
-        if not bot_application:
-            return jsonify({"error": "Bot application not available"}), 500
-        
-        # FIXED: Check if bot_application is properly initialized
-        if not hasattr(bot_application, 'bot'):
-            return jsonify({"error": "Bot application not properly initialized"}), 500
-        
         data = request.get_json(force=True) or {}
         webhook_url = data.get('webhook_url')
         
@@ -835,8 +817,9 @@ def setup_webhook():
             else:
                 return jsonify({"error": "No webhook URL provided and unable to construct it"}), 400
         
+        temp_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         async def do_set_webhook():
-            await bot_application.bot.set_webhook(
+            await temp_app.bot.set_webhook(
                 url=webhook_url,
                 allowed_updates=['message', 'callback_query', 'edited_message']
             )
@@ -855,16 +838,14 @@ def setup_webhook():
 @app.route("/api/remove_webhook", methods=["POST"])
 def remove_webhook():
     """Remove webhook and switch to polling"""
+    if not TELEGRAM_BOT_TOKEN:
+        return jsonify({"error": "TELEGRAM_BOT_TOKEN not configured"}), 500
+
     try:
-        if not bot_application:
-            return jsonify({"error": "Bot application not available"}), 500
-        
-        # FIXED: Check if bot_application is properly initialized
-        if not hasattr(bot_application, 'bot'):
-            return jsonify({"error": "Bot application not properly initialized"}), 500
-        
+        # Create a temporary Application instance just for deleting webhook
+        temp_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         async def do_delete_webhook():
-            await bot_application.bot.delete_webhook()
+            await temp_app.bot.delete_webhook()
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
