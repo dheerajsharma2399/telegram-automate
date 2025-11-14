@@ -453,6 +453,12 @@
                     <div class="log-header">
                         <h4><i class="bi bi-file-text me-2"></i>System Logs</h4>
                         <div class="log-controls">
+                            <select id="log-lines-selector" class="form-select-sm" onchange="fetchLogs()">
+                                <option value="100">100 lines</option>
+                                <option value="500">500 lines</option>
+                                <option value="1000" selected>1000 lines</option>
+                                <option value="-1">All lines</option>
+                            </select>
                             <button class="btn btn-sm btn-outline-light" onclick="refreshLogs()">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                             </button>
@@ -1121,8 +1127,9 @@
         }
 
         async function fetchLogs() {
+            const lines = document.getElementById('log-lines-selector').value;
             try {
-                const response = await fetch('/api/logs');
+                const response = await fetch(`/api/logs?lines=${lines}`);
                 const data = await response.json();
                 
                 let unifiedLog = data.app_logs || 'No logs available.';
