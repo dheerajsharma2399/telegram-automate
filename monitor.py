@@ -22,7 +22,7 @@ logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("monitor.log"),
+        logging.FileHandler("/app/logs/app.log"),
         logging.StreamHandler()
     ]
 )
