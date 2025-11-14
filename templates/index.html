@@ -22,11 +22,16 @@
         }
         
         .custom-toast {
-            min-width: 300px;
+            min-width: 150px;
             margin-bottom: 10px;
             border: none;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .custom-toast .toast-body {
+            font-size: 12px;
+            padding: 8px 12px;
         }
         
         .toast-success { border-left: 4px solid #28a745; }
@@ -608,6 +613,17 @@
         // === TOAST NOTIFICATION SYSTEM ===
         function showToast(message, type = 'info', duration = 5000) {
             const toastContainer = document.getElementById('toast-container');
+            
+            // Limit the number of toasts to 2
+            const existingToasts = toastContainer.querySelectorAll('.toast');
+            if (existingToasts.length >= 2) {
+                const oldestToast = existingToasts[0];
+                const toastInstance = bootstrap.Toast.getInstance(oldestToast);
+                if (toastInstance) {
+                    toastInstance.hide();
+                }
+            }
+
             const toastId = 'toast-' + Date.now();
             
             const iconMap = {
@@ -895,7 +911,7 @@
                 });
                 const data = await response.json();
                 if (response.ok) {
-                    showToast(`Job status updated to '${status}' and archived.`, 'success');
+                    showToast(`'${status}' and archived.`, 'success');
                     fetchDashboardJobs();
                 } else {
                     showToast(`Error: ${data.error}`, 'error');
@@ -908,7 +924,7 @@
         async function bulkUpdateStatus(status) {
             const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => cb.value);
             if (selectedIds.length === 0) {
-                showToast('No jobs selected for bulk action.', 'warning');
+                showToast('No jobs selected.', 'warning');
                 return;
             }
 
