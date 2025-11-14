@@ -22,7 +22,7 @@
         }
         
         .custom-toast {
-            max-width: 250px; /* Reduced width */
+            max-width: 125px; /* Reduced width by half */
             margin-bottom: 10px;
             border: none;
             border-radius: 8px;
@@ -380,8 +380,9 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th><input type="checkbox" id="select-all-dashboard-jobs" onchange="toggleAllJobs()"></th>
-                                    <th>Job Role</th>
-                                    <th>Application</th>
+                                    <th data-sort-by="index" class="sortable">#</th>
+                                    <th data-sort-by="job_role" class="sortable">Job Role</th>
+                                    <th data-sort-by="application_source" class="sortable">Source</th>
                                     <th>Status</th>
                                     <th>Relevance</th>
                                     <th>Notes</th>
@@ -588,195 +589,249 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // === GLOBAL VARIABLES ===
-        let allDashboardJobs = [];
-        let lastTelegramStatus = null;
-        let autoRefreshEnabled = false;
-        let autoRefreshInterval = null;
-
-        // === TOAST NOTIFICATION SYSTEM ===
-        function showToast(message, type = 'info', duration = 5000) {
-            const toastContainer = document.getElementById('toast-container');
-            
-            // Limit the number of toasts to 2
-            const existingToasts = toastContainer.querySelectorAll('.toast');
-            if (existingToasts.length >= 2) {
-                const oldestToast = existingToasts[0];
-                const toastInstance = bootstrap.Toast.getInstance(oldestToast);
-                if (toastInstance) {
-                    toastInstance.hide();
-                } else {
-                    oldestToast.remove();
-                }
-            }
-
-            const toastId = 'toast-' + Date.now();
-            
-            const iconMap = {
-                'success': 'bi-check-circle-fill text-success',
-                'error': 'bi-exclamation-triangle-fill text-danger',
-                'info': 'bi-info-circle-fill text-info',
-                'warning': 'bi-exclamation-circle-fill text-warning'
-            };
-            
-            // Truncate long messages
-            const displayMessage = message.length > 100 ? message.substring(0, 97) + '...' : message;
-
-            const toastHTML = `
-                <div class="toast custom-toast toast-${type}" id="${toastId}" role="alert" data-bs-delay="${duration}">
-                    <div class="toast-header">
-                        <i class="bi ${iconMap[type]} me-2"></i>
-                        <strong class="me-auto">${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                    <div class="toast-body">
-                        ${displayMessage}
-                    </div>
-                </div>
-            `;
-            
-            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
-            
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement);
-            toast.show();
-            
-            // Auto-remove from DOM after hiding
-            toastElement.addEventListener('hidden.bs.toast', function() {
-                this.remove();
-            });
-        }
-
-        // === HELPER FUNCTIONS ===
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function getStatusBadge(status) {
-            const badges = {
-                'not_applied': '<span class="badge bg-secondary">Not Applied</span>',
-                'applied': '<span class="badge bg-success">Applied</span>',
-                'interview': '<span class="badge bg-info">Interview</span>',
-                'rejected': '<span class="badge bg-danger">Rejected</span>',
-                'offer': '<span class="badge bg-warning">Offer</span>',
-                'archived': '<span class="badge bg-dark">Archived</span>'
-            };
-            return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
-        }
-
-        function getRelevanceBadge(relevance) {
-            if (relevance === 'relevant') {
-                return '<span class="badge bg-success">Relevant</span>';
-            } else if (relevance === 'irrelevant') {
-                return '<span class="badge bg-danger">Irrelevant</span>';
-            }
-            return '<span class="badge bg-secondary">Unknown</span>';
-        }
-
-        async function toggleRelevance(jobId) {
-            const job = allDashboardJobs.find(j => j.id === jobId);
-            if (!job) return;
-
-            const newRelevance = job.job_relevance === 'relevant' ? 'irrelevant' : 'relevant';
-
-            try {
-                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ relevance: newRelevance })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(`Relevance updated to ${newRelevance}.`, 'success');
-                    job.job_relevance = newRelevance;
-                    const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
-                    if (row) {
-                        const cell = row.querySelector('.relevance-cell');
-                        if (cell) {
-                            cell.innerHTML = getRelevanceBadge(newRelevance);
+                // === GLOBAL VARIABLES ===
+                let allDashboardJobs = [];
+                let lastTelegramStatus = null;
+                let autoRefreshEnabled = false;
+                let autoRefreshInterval = null;
+                let currentSortColumn = 'index'; // Default sort column
+                let currentSortDirection = 'asc'; // Default sort direction
+        
+                // === TOAST NOTIFICATION SYSTEM ===
+                function showToast(message, type = 'info', duration = 5000) {
+                    const toastContainer = document.getElementById('toast-container');
+                    
+                    // Limit the number of toasts to 2
+                    const existingToasts = toastContainer.querySelectorAll('.toast');
+                    if (existingToasts.length >= 2) {
+                        const oldestToast = existingToasts[0];
+                        const toastInstance = bootstrap.Toast.getInstance(oldestToast);
+                        if (toastInstance) {
+                            toastInstance.hide();
+                        } else {
+                            oldestToast.remove();
                         }
                     }
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to update relevance: ${error}`, 'error');
-            }
-        }
-
-        async function editNotes(jobId) {
-            const job = allDashboardJobs.find(j => j.id === jobId);
-            const currentNotes = job ? job.notes : '';
-            const newNotes = prompt('Enter new notes:', currentNotes);
-
-            if (newNotes !== null) {
-                try {
-                    const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ notes: newNotes })
+        
+                    const toastId = 'toast-' + Date.now();
+                    
+                    const iconMap = {
+                        'success': 'bi-check-circle-fill text-success',
+                        'error': 'bi-exclamation-triangle-fill text-danger',
+                        'info': 'bi-info-circle-fill text-info',
+                        'warning': 'bi-exclamation-circle-fill text-warning'
+                    };
+                    
+                    // Truncate long messages
+                    const displayMessage = message.length > 100 ? message.substring(0, 97) + '...' : message;
+        
+                    const toastHTML = `
+                        <div class="toast custom-toast toast-${type}" id="${toastId}" role="alert" data-bs-delay="${duration}">
+                            <div class="toast-header">
+                                <i class="bi ${iconMap[type]} me-2"></i>
+                                <strong class="me-auto">${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
+                                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                            <div class="toast-body">
+                                ${displayMessage}
+                            </div>
+                        </div>
+                    `;
+                    
+                    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+                    
+                    const toastElement = document.getElementById(toastId);
+                    const toast = new bootstrap.Toast(toastElement);
+                    toast.show();
+                    
+                    // Auto-remove from DOM after hiding
+                    toastElement.addEventListener('hidden.bs.toast', function() {
+                        this.remove();
                     });
-                    const data = await response.json();
-                    if (response.ok) {
-                        showToast('Notes updated successfully.', 'success');
-                        // Update the job in the local array
-                        if (job) {
-                            job.notes = newNotes;
-                        }
-                        // Update the icon in the cell
-                        const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
-                        if (row) {
-                            const cell = row.querySelector('.notes-cell');
-                            if (cell) {
-                                cell.innerHTML = newNotes ? '📝' : '';
-                                cell.title = newNotes;
-                            }
-                        }
-                    } else {
-                        showToast(`Error: ${data.error}`, 'error');
+                }
+        
+                // === HELPER FUNCTIONS ===
+                function escapeHtml(text) {
+                    if (!text) return '';
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+        
+                function getStatusBadge(status) {
+                    const badges = {
+                        'not_applied': '<span class="badge bg-secondary">Not Applied</span>',
+                        'applied': '<span class="badge bg-success">Applied</span>',
+                        'interview': '<span class="badge bg-info">Interview</span>',
+                        'rejected': '<span class="badge bg-danger">Rejected</span>',
+                        'offer': '<span class="badge bg-warning">Offer</span>',
+                        'archived': '<span class="badge bg-dark">Archived</span>'
+                    };
+                    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+                }
+        
+                function getRelevanceBadge(relevance) {
+                    if (relevance === 'relevant') {
+                        return '<span class="badge bg-success">Relevant</span>';
+                    } else if (relevance === 'irrelevant') {
+                        return '<span class="badge bg-danger">Irrelevant</span>';
                     }
-                } catch (error) {
-                    showToast(`Failed to update notes: ${error}`, 'error');
+                    return '<span class="badge bg-secondary">Unknown</span>';
                 }
-            }
-        }
-
-
-
-
-
-        // === LOG MANAGEMENT FUNCTIONS ===
-        function refreshLogs() {
-            fetchLogs();
-            showToast('Logs refreshed', 'info', 2000);
-        }
-
-        function clearLogs() {
-            document.getElementById('unified-logs').textContent = 'Logs cleared...\n\nClick "Refresh" to load fresh logs.';
-            showToast('Logs cleared', 'info', 2000);
-        }
-
-        function toggleAutoRefresh() {
-            autoRefreshEnabled = !autoRefreshEnabled;
-            const button = event.target.closest('button');
-            
-            if (autoRefreshEnabled) {
-                button.innerHTML = '<i class="bi bi-pause-fill me-1"></i>Stop Auto';
-                button.className = 'btn btn-sm btn-outline-light';
-                autoRefreshInterval = setInterval(fetchLogs, 10000); // Refresh every 10 seconds
-                showToast('Auto-refresh enabled', 'success', 2000);
-            } else {
-                button.innerHTML = '<i class="bi bi-play-fill me-1"></i>Auto Refresh';
-                button.className = 'btn btn-sm btn-outline-light';
-                if (autoRefreshInterval) {
-                    clearInterval(autoRefreshInterval);
+        
+                function getDomainFromUrl(url) {
+                    try {
+                        const urlObj = new URL(url);
+                        return urlObj.hostname;
+                    } catch (e) {
+                        return 'N/A';
+                    }
                 }
-                showToast('Auto-refresh disabled', 'info', 2000);
-            }
-        }
+        
+                async function toggleRelevance(jobId) {
+                    const job = allDashboardJobs.find(j => j.id === jobId);
+                    if (!job) return;
+        
+                    const newRelevance = job.job_relevance === 'relevant' ? 'irrelevant' : 'relevant';
+        
+                    try {
+                        const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ relevance: newRelevance })
+                        });
+                        const data = await response.json();
+                        if (response.ok) {
+                            showToast(`Relevance updated to ${newRelevance}.`, 'success');
+                            job.job_relevance = newRelevance;
+                            const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+                            if (row) {
+                                const cell = row.querySelector('.relevance-cell');
+                                if (cell) {
+                                    cell.innerHTML = getRelevanceBadge(newRelevance);
+                                }
+                            }
+                        } else {
+                            showToast(`Error: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        showToast(`Failed to update relevance: ${error}`, 'error');
+                    }
+                }
+        
+                async function editNotes(jobId) {
+                    const job = allDashboardJobs.find(j => j.id === jobId);
+                    const currentNotes = job ? job.notes : '';
+                    const newNotes = prompt('Enter new notes:', currentNotes);
+        
+                    if (newNotes !== null) {
+                        try {
+                            const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ notes: newNotes })
+                            });
+                            const data = await response.json();
+                            if (response.ok) {
+                                showToast('Notes updated successfully.', 'success');
+                                // Update the job in the local array
+                                if (job) {
+                                    job.notes = newNotes;
+                                }
+                                // Update the icon in the cell
+                                const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+                                if (row) {
+                                    const cell = row.querySelector('.notes-cell');
+                                    if (cell) {
+                                        cell.innerHTML = newNotes ? '📝' : '';
+                                        cell.title = newNotes;
+                                    }
+                                }
+                            } else {
+                                showToast(`Error: ${data.error}`, 'error');
+                            }
+                        } catch (error) {
+                            showToast(`Failed to update notes: ${error}`, 'error');
+                        }
+                    }
+                }
+        
+                // === SORTING FUNCTIONS ===
+                function sortJobs(column) {
+                    if (currentSortColumn === column) {
+                        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSortColumn = column;
+                        currentSortDirection = 'asc';
+                    }
+        
+                    allDashboardJobs.sort((a, b) => {
+                        let valA, valB;
+        
+                        if (column === 'index') {
+                            valA = a.index;
+                            valB = b.index;
+                        } else if (column === 'job_role') {
+                            valA = (a.job_role || '').toLowerCase();
+                            valB = (b.job_role || '').toLowerCase();
+                        } else if (column === 'application_source') {
+                            valA = getDomainFromUrl(a.application_link || '').toLowerCase();
+                            valB = getDomainFromUrl(b.application_link || '').toLowerCase();
+                        } else {
+                            return 0; // No sorting for unknown columns
+                        }
+        
+                        if (valA < valB) {
+                            return currentSortDirection === 'asc' ? -1 : 1;
+                        }
+                        if (valA > valB) {
+                            return currentSortDirection === 'asc' ? 1 : -1;
+                        }
+                        return 0;
+                    });
+        
+                    filterJobs(); // Re-apply filters and display sorted jobs
+                    updateSortIndicators();
+                }
+        
+                function updateSortIndicators() {
+                    document.querySelectorAll('#dashboard-jobs-table th.sortable').forEach(th => {
+                        th.classList.remove('asc', 'desc');
+                        if (th.dataset.sortBy === currentSortColumn) {
+                            th.classList.add(currentSortDirection);
+                        }
+                    });
+                }
+        
+                // === LOG MANAGEMENT FUNCTIONS ===
+                function refreshLogs() {
+                    fetchLogs();
+                    showToast('Logs refreshed', 'info', 2000);
+                }
+        
+                function clearLogs() {
+                    document.getElementById('unified-logs').textContent = 'Logs cleared...\n\nClick "Refresh" to load fresh logs.';
+                    showToast('Logs cleared', 'info', 2000);
+                }
+        
+                function toggleAutoRefresh() {
+                    autoRefreshEnabled = !autoRefreshEnabled;
+                    const button = event.target.closest('button');
+                    
+                    if (autoRefreshEnabled) {
+                        button.innerHTML = '<i class="bi bi-pause-fill me-1"></i>Stop Auto';
+                        button.className = 'btn btn-sm btn-outline-light';
+                        autoRefreshInterval = setInterval(fetchLogs, 10000); // Refresh every 10 seconds
+                        showToast('Auto-refresh enabled', 'success', 2000);
+                    } else {
+                        button.innerHTML = '<i class="bi bi-play-fill me-1"></i>Auto Refresh';
+                        button.className = 'btn btn-sm btn-outline-light';
+                        if (autoRefreshInterval) {
+                            clearInterval(autoRefreshInterval);
+                        }
+                        showToast('Auto-refresh disabled', 'info', 2000);
+                    }
+                }
 
         // === STATUS FUNCTIONS ===
         async function fetchStatus() {
@@ -910,20 +965,23 @@
             document.getElementById('jobs-count').textContent = `${jobs ? jobs.length : 0} jobs shown`;
 
             if (!jobs || jobs.length === 0) {
-                jobsTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No jobs found</td></tr>';
+                jobsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No jobs found</td></tr>';
                 return;
             }
 
-            jobsTableBody.innerHTML = jobs.map(job => {
+            jobsTableBody.innerHTML = jobs.map((job, index) => {
+                job.index = index + 1; // Assign serial number for sorting
                 const statusBadge = getStatusBadge(job.application_status);
                 const relevanceBadge = getRelevanceBadge(job.job_relevance);
+                const applicationSource = getDomainFromUrl(job.application_link);
                 
                 return `
                     <tr data-job-id="${job.id}">
                         <td><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}"></td>
-                        <td><strong>${escapeHtml(job.job_role || 'N/A')}</strong><br><small class="text-muted">${escapeHtml(job.company_name || 'N/A')}</small></td>
+                        <td>${job.index}</td>
+                        <td><strong>${escapeHtml(job.job_role || 'N/A')}</strong></td>
                         <td>
-                            ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary">🔗 Link</a>` : ''}
+                            ${job.application_link ? `<a href="${job.application_link}" target="_blank">${escapeHtml(applicationSource)}</a>` : 'N/A'}
                         </td>
                         <td class="status-cell" style="cursor: pointer;">
                             <div class="dropdown">
@@ -949,7 +1007,7 @@
                         </td>
                     </tr>
                     <tr class="job-description-row d-none" id="description-${job.id}">
-                        <td colspan="7">
+                        <td colspan="8">
                             <div class="p-3 bg-light border rounded" style="max-height: 300px; overflow-y: auto; margin: 0 10px;">
                                 <div class="job-description-content" id="job-desc-content-${job.id}">
                                     <p class="text-muted">Loading job description...</p>
@@ -1056,16 +1114,40 @@
             const searchTerm = document.getElementById('job-search').value.toLowerCase();
             const relevanceFilter = document.getElementById('relevance-filter').value;
 
-            const filteredJobs = allDashboardJobs.filter(job => {
-                const company = (job.company_name || '').toLowerCase();
+            let filteredJobs = allDashboardJobs.filter(job => {
                 const role = (job.job_role || '').toLowerCase();
-                const location = (job.location || '').toLowerCase();
 
-                const matchesSearch = !searchTerm || company.includes(searchTerm) || role.includes(searchTerm) || location.includes(searchTerm);
+                const matchesSearch = !searchTerm || role.includes(searchTerm);
                 const matchesStatus = !statusFilter || job.application_status === statusFilter;
                 const matchesRelevance = !relevanceFilter || job.job_relevance === relevanceFilter;
 
                 return matchesSearch && matchesStatus && matchesRelevance;
+            });
+
+            // Apply current sorting after filtering
+            filteredJobs.sort((a, b) => {
+                let valA, valB;
+
+                if (currentSortColumn === 'index') {
+                    valA = a.index;
+                    valB = b.index;
+                } else if (currentSortColumn === 'job_role') {
+                    valA = (a.job_role || '').toLowerCase();
+                    valB = (b.job_role || '').toLowerCase();
+                } else if (currentSortColumn === 'application_source') {
+                    valA = getDomainFromUrl(a.application_link || '').toLowerCase();
+                    valB = getDomainFromUrl(b.application_link || '').toLowerCase();
+                } else {
+                    return 0; // No sorting for unknown columns
+                }
+
+                if (valA < valB) {
+                    return currentSortDirection === 'asc' ? -1 : 1;
+                }
+                if (valA > valB) {
+                    return currentSortDirection === 'asc' ? 1 : -1;
+                }
+                return 0;
             });
 
             displayDashboardJobs(filteredJobs);
@@ -1520,6 +1602,11 @@
                 });
                 document.getElementById('jobs-tab').addEventListener('click', fetchDashboardJobs);
 
+                // Add click listeners for sortable table headers
+                document.querySelectorAll('#dashboard-jobs-table th.sortable').forEach(header => {
+                    header.addEventListener('click', () => sortJobs(header.dataset.sortBy));
+                });
+
                 showToast('Dashboard loaded successfully!', 'success', 3000);
             } catch (e) {
                 console.error('Error on page load:', e);
@@ -1527,5 +1614,28 @@
             }
         });
     </script>
+    <style>
+        /* Add styles for sort indicators */
+        th.sortable {
+            cursor: pointer;
+            position: relative;
+        }
+        th.sortable::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 4px solid transparent;
+        }
+        th.sortable.asc::after {
+            border-bottom-color: white;
+            margin-top: -6px;
+        }
+        th.sortable.desc::after {
+            border-top-color: white;
+            margin-top: 2px;
+        }
+    </style>
 </body>
 </html>
