@@ -162,12 +162,15 @@ def shutdown():
     threading.Thread(target=_werkzeug_shutdown).start()
     return jsonify({'message': 'Shutting down'})
 
-def read_log_file(log_file, lines=100):
+def read_log_file(log_file, lines=1000):
     """Reads the last N lines of a log file."""
     try:
         with open(log_file, "r") as f:
-            lines = f.readlines()[-lines:]
-        return "".join(lines)
+            if lines == -1: # Read all lines
+                return "".join(f.readlines())
+            else:
+                file_lines = f.readlines()[-lines:]
+                return "".join(file_lines)
     except FileNotFoundError:
         return f"Log file not found: {log_file}"
     except Exception as e:
@@ -290,10 +293,11 @@ def api_queue():
 @app.route("/api/logs")
 def api_logs():
     """API endpoint to get logs."""
-    app_logger.info("API logs endpoint was hit!")
+    lines = request.args.get('lines', 1000, type=int)
+    app_logger.info(f"API logs endpoint was hit! Fetching last {lines} lines.")
     try:
         logs = {
-            "app_logs": read_log_file("/app/logs/app.log"),
+            "app_logs": read_log_file("/app/logs/app.log", lines=lines),
         }
         return jsonify(logs)
     except Exception as e:
