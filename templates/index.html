@@ -1125,21 +1125,7 @@
                 const response = await fetch('/api/logs');
                 const data = await response.json();
                 
-                // Combine all logs into a single unified log
-                let unifiedLog = '';
-                if (data.bot_logs) {
-                    unifiedLog += '=== BOT LOGS ===\n' + data.bot_logs + '\n\n';
-                }
-                if (data.monitor_logs) {
-                    unifiedLog += '=== MONITOR LOGS ===\n' + data.monitor_logs + '\n\n';
-                }
-                if (data.webhook_logs) {
-                    unifiedLog += '=== WEBHOOK LOGS ===\n' + data.webhook_logs + '\n\n';
-                }
-                
-                if (!unifiedLog.trim()) {
-                    unifiedLog = 'No logs available.';
-                }
+                let unifiedLog = data.app_logs || 'No logs available.';
                 
                 document.getElementById('unified-logs').textContent = unifiedLog;
                 

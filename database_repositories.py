@@ -456,6 +456,7 @@ class DashboardRepository(BaseRepository):
                 job_data.get('conflict_status', 'none')
             ))
             result = cursor.fetchone()
+            conn.commit()
             return result['id'] if result else None
 
     def get_dashboard_jobs(self, status_filter: Optional[str] = None,
@@ -497,18 +498,6 @@ class DashboardRepository(BaseRepository):
                     "page_size": page_size
                 }
 
-    def update_dashboard_job_status(self, job_id: int, status: str,
-                                   application_date: Optional[str] = None) -> bool:
-        """Update job application status in dashboard"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE dashboard_jobs
-                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-            """, (status, application_date, job_id))
-            return cursor.rowcount > 0
-
     def add_job_notes(self, job_id: int, notes: str) -> bool:
         """Add or update notes for a job"""
         with self.get_connection() as conn:
@@ -518,6 +507,7 @@ class DashboardRepository(BaseRepository):
                 SET notes = %s, updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (notes, job_id))
+            conn.commit()
             return cursor.rowcount > 0
 
     def mark_as_duplicate(self, job_id: int, duplicate_of_id: int, confidence_score: float = 0.8) -> bool:
@@ -538,6 +528,7 @@ class DashboardRepository(BaseRepository):
                 VALUES (%s, %s::jsonb, %s)
             """, (duplicate_of_id, f'["{job_id}"]', confidence_score))
             
+            conn.commit()
             return cursor.rowcount > 0
 
     def bulk_update_status(self, job_ids: List[int], status: str,
@@ -546,13 +537,17 @@ class DashboardRepository(BaseRepository):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # If archiving, we set the status to 'archived' regardless of the input status
-            final_status = 'archived' if archive else status
+            # The 'status' parameter determines the application_status.
+            # The 'archive' parameter or a terminal status controls the is_hidden flag.
+            final_status = status
+            should_hide = archive or (status in ['applied', 'rejected', 'archived'])
+
             cursor.execute("""
                 UPDATE dashboard_jobs
                 SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP, is_hidden = %s
                 WHERE id = ANY(%s)
-            """, (final_status, application_date, archive, job_ids))
+            """, (final_status, application_date, should_hide, job_ids))
+            conn.commit()
             return cursor.rowcount
 
     def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
@@ -643,6 +638,7 @@ class DashboardRepository(BaseRepository):
                     except Exception as e:
                         self.logger.error(f"Error marking duplicate job {duplicate['id']}: {e}")
             
+            conn.commit()
             return detected_count
 
     def export_dashboard_jobs(self, format_type: str = 'csv') -> Dict:

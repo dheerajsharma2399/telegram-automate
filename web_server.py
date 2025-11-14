@@ -25,15 +25,15 @@ from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MOD
 # --- Logging Setup ---
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# Webhook logger
-webhook_log_handler = RotatingFileHandler('webhook.log', maxBytes=1024*1024, backupCount=5)
-webhook_log_handler.setFormatter(log_formatter)
+# Unified logger
+log_handler = RotatingFileHandler('/app/logs/app.log', maxBytes=1024*1024, backupCount=5)
+log_handler.setFormatter(log_formatter)
 
 werkzeug_logger = logging.getLogger('werkzeug') # Gunicorn/Flask's internal logger
-werkzeug_logger.addHandler(webhook_log_handler)
+werkzeug_logger.addHandler(log_handler)
 
 app_logger = logging.getLogger(__name__)
-app_logger.addHandler(webhook_log_handler)
+app_logger.addHandler(log_handler)
 
 app = Flask(__name__)
 application = app  # Gunicorn expects 'application'
@@ -290,11 +290,10 @@ def api_queue():
 @app.route("/api/logs")
 def api_logs():
     """API endpoint to get logs."""
+    app_logger.info("API logs endpoint was hit!")
     try:
         logs = {
-            "bot_logs": read_log_file("bot.log"),
-            "monitor_logs": read_log_file("monitor.log"),
-            "webhook_logs": read_log_file("webhook.log"),
+            "app_logs": read_log_file("/app/logs/app.log"),
         }
         return jsonify(logs)
     except Exception as e:
@@ -495,14 +494,13 @@ def update_job_status(job_id):
         if status not in valid_statuses:
             return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
         
-        if archive:
-            success = db.dashboard.bulk_update_status([job_id], status, application_date, archive=True) > 0
-        else:
-            success = db.dashboard.update_dashboard_job_status(job_id, status, application_date)
-        if success:
+        # Use bulk_update_status for consistency, treating a single update as a bulk update of one
+        updated_count = db.dashboard.bulk_update_status([job_id], status, application_date, archive=archive)
+
+        if updated_count > 0:
             return jsonify({"message": f"Job status updated to {status}"})
         else:
-            return jsonify({"error": "Job not found"}), 404
+            return jsonify({"error": "Job not found or failed to update"}), 404
             
     except Exception as e:
         logging.error(f"Failed to update job status: {e}")
