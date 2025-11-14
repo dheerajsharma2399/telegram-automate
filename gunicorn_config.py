@@ -31,8 +31,11 @@ group = None
 tmp_upload_dir = None
 
 # Logging
-accesslog = "-"
-errorlog = "-"
+# Direct Gunicorn logs to app.log for consolidation.
+# WARNING: Directing multiple processes to write to the same file can lead to file contention and corrupted logs.
+# A more robust solution for production would involve logging to stdout/stderr and using a log aggregator.
+accesslog = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', 'app.log')
+errorlog = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', 'app.log')
 loglevel = "info"
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
