@@ -20,17 +20,28 @@ from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
 from historical_message_fetcher import HistoricalMessageFetcher
 from message_utils import send_rate_limited_telegram_notification
+from logging.handlers import RotatingFileHandler
 from monitor import TelegramMonitor
 
-# Setup logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    handlers=[
-        logging.FileHandler("/app/logs/app.log"),
-        logging.StreamHandler()
-    ]
-)
+# --- Logging Setup ---
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+log_file_path = os.path.join(log_dir, 'app.log')
+
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Unified logger
+log_handler = RotatingFileHandler(log_file_path, maxBytes=1024*1024, backupCount=5)
+log_handler.setFormatter(log_formatter)
+
+# Configure the root logger to capture logs from all modules
+root_logger = logging.getLogger()
+root_logger.addHandler(log_handler)
+root_logger.addHandler(logging.StreamHandler()) # Also log to console
+root_logger.setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 # Bot instance locking mechanism

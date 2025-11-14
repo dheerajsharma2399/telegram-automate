@@ -23,17 +23,30 @@ from sheets_sync import GoogleSheetsSync
 from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
 
 # --- Logging Setup ---
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+log_file_path = os.path.join(log_dir, 'app.log')
+
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Unified logger
-log_handler = RotatingFileHandler('/app/logs/app.log', maxBytes=1024*1024, backupCount=5)
+log_handler = RotatingFileHandler(log_file_path, maxBytes=1024*1024, backupCount=5)
 log_handler.setFormatter(log_formatter)
 
 werkzeug_logger = logging.getLogger('werkzeug') # Gunicorn/Flask's internal logger
 werkzeug_logger.addHandler(log_handler)
+werkzeug_logger.setLevel(logging.INFO)
 
 app_logger = logging.getLogger(__name__)
 app_logger.addHandler(log_handler)
+app_logger.setLevel(logging.INFO)
+
+# Also configure the root logger to capture more logs
+root_logger = logging.getLogger()
+root_logger.addHandler(log_handler)
+root_logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 application = app  # Gunicorn expects 'application'
@@ -297,7 +310,7 @@ def api_logs():
     app_logger.info(f"API logs endpoint was hit! Fetching last {lines} lines.")
     try:
         logs = {
-            "app_logs": read_log_file("/app/logs/app.log", lines=lines),
+            "app_logs": read_log_file(log_file_path, lines=lines),
         }
         return jsonify(logs)
     except Exception as e:
