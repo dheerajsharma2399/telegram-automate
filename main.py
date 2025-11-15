@@ -150,6 +150,16 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
                 try:
                     processed_data = llm_processor.process_job_data(job_data, message["id"])
                     
+                    # Check for duplicates before adding
+                    duplicate_job = db.jobs.find_duplicate_processed_job(
+                        processed_data.get('company_name'),
+                        processed_data.get('job_role'),
+                        processed_data.get('email')
+                    )
+                    if duplicate_job:
+                        logger.info(f"Duplicate job found for '{processed_data.get('company_name')}' - '{processed_data.get('job_role')}'. Original job ID: {duplicate_job['job_id']}. Skipping.")
+                        continue
+
                     # Add to processed_jobs table (without cursor - let it manage its own connection)
                     job_id = db.jobs.add_processed_job(processed_data)
                     

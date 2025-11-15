@@ -372,6 +372,51 @@ class JobRepository(BaseRepository):
             else:
                 cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC")
             return [dict(row) for row in cursor.fetchall()]
+
+    def find_duplicate_processed_job(self, company_name: str, job_role: str, email: Optional[str]) -> Optional[Dict]:
+        """
+        Finds a duplicate job in the processed_jobs table.
+        A duplicate is found if (company_name and job_role match) OR (email matches).
+        """
+        if not company_name or not job_role:
+            # Not enough info for name/role check, can only check email if present
+            if not email:
+                return None
+        
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                # Check by company name and job role (case-insensitive)
+                if company_name and job_role:
+                    cursor.execute(
+                        """
+                        SELECT * FROM processed_jobs
+                        WHERE lower(company_name) = lower(%s) AND lower(job_role) = lower(%s)
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        (company_name, job_role)
+                    )
+                    duplicate = cursor.fetchone()
+                    if duplicate:
+                        self.logger.info(f"Duplicate found by company/role: {company_name}/{job_role}")
+                        return dict(duplicate)
+
+                # Check by email if present (case-insensitive)
+                if email:
+                    cursor.execute(
+                        """
+                        SELECT * FROM processed_jobs
+                        WHERE lower(email) = lower(%s)
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        (email,)
+                    )
+                    duplicate = cursor.fetchone()
+                    if duplicate:
+                        self.logger.info(f"Duplicate found by email: {email}")
+                        return dict(duplicate)
+        return None
             
     def get_original_job_data(self, source_job_id: str) -> Optional[Dict]:
         """Get original processed job data by source job ID"""
