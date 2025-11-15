@@ -1,22 +1,18 @@
 import asyncio
 import logging
-import random
 from telethon import TelegramClient, events
 from config import (
     TELEGRAM_API_ID,
     TELEGRAM_API_HASH,
     TELEGRAM_PHONE,
-    TELEGRAM_GROUP_USERNAME,
-    ADMIN_USER_ID,
-    TELEGRAM_BOT_TOKEN,
     AUTHORIZED_USER_IDS,
 )
 from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
-from message_utils import extract_message_text, should_process_message, get_message_info, send_rate_limited_telegram_notification
-import aiohttp
+from message_utils import extract_message_text, get_message_info, send_rate_limited_telegram_notification
 from datetime import datetime, timedelta
 import psycopg2
+import pytz
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -29,6 +25,9 @@ logging.basicConfig(
 
 from telethon.sessions import StringSession
 
+# IST timezone
+IST = pytz.timezone('Asia/Kolkata')
+
 class TelegramMonitor:
     def __init__(self, api_id: str, api_hash: str, phone: str, group_usernames, db: Database):
         self.api_id = int(api_id)
@@ -38,7 +37,8 @@ class TelegramMonitor:
             self.group_usernames = [group_usernames]
         else:
             self.group_usernames = list(group_usernames or [])
-        # Convert numeric strings to integers, leave others as strings
+        
+        # Convert numeric strings to integers
         cleaned = []
         for g in self.group_usernames:
             try:
@@ -46,36 +46,155 @@ class TelegramMonitor:
             except (ValueError, TypeError):
                 cleaned.append(g)
         self.group_usernames = cleaned
+        
         self.db = db
-        self.client = None # Initialize client as None
+        self.client = None
         self._handler_registered = False
         self._current_monitored_group_ids = set()
         self.initial_group_usernames = group_usernames
         self._update_handlers_task = None
         self.authorized_users = [int(x) for x in AUTHORIZED_USER_IDS if x] if AUTHORIZED_USER_IDS else []
+        
+        # Message queue for reliability
+        self.message_queue = asyncio.Queue(maxsize=1000)
+        self.worker_task = None
+        
+        # Statistics tracking
+        self.stats = {
+            'total_received': 0,
+            'total_saved': 0,
+            'total_skipped': 0,
+            'total_errors': 0,
+            'last_message_time': None
+        }
+
+    def _should_capture_message(self, message) -> tuple[bool, str]:
+        """
+        Determine if message should be captured (VERY PERMISSIVE)
+        Returns: (should_capture, reason)
+        """
+        # Always skip service messages
+        if getattr(message, 'service', None):
+            return False, "service_message"
+        
+        # Get text from message
+        message_text = extract_message_text(message)
+        
+        # Skip only if NO text AND NO media
+        if not message_text and not hasattr(message, 'media'):
+            return False, "empty_no_media"
+        
+        # Skip bot commands ONLY from authorized users
+        if message_text.startswith('/') and message.sender_id in self.authorized_users:
+            return False, "authorized_user_command"
+        
+        # CAPTURE EVERYTHING ELSE
+        return True, "ok"
+
+    async def _queue_message(self, message, group_id):
+        """Add message to processing queue"""
+        try:
+            await self.message_queue.put((message, group_id))
+            self.stats['total_received'] += 1
+        except asyncio.QueueFull:
+            logging.warning(f"⚠️ Message queue full! Message {message.id} from group {group_id} dropped")
+            self.stats['total_errors'] += 1
+
+    async def _message_worker(self):
+        """Background worker to process queued messages with retry logic"""
+        logging.info("✅ Message worker started")
+        
+        while True:
+            try:
+                message, group_id = await self.message_queue.get()
+                
+                # Process with retry
+                max_retries = 3
+                success = False
+                
+                for attempt in range(max_retries):
+                    try:
+                        # Check if should capture
+                        should_capture, reason = self._should_capture_message(message)
+                        
+                        if not should_capture:
+                            logging.debug(f"⏭️  Skipping message {message.id}: {reason}")
+                            self.stats['total_skipped'] += 1
+                            success = True
+                            break
+                        
+                        # Extract text
+                        message_text = extract_message_text(message)
+                        
+                        # Save to database
+                        new_id = self.db.messages.add_raw_message(
+                            message_id=message.id,
+                            message_text=message_text or '',
+                            sender_id=message.sender_id if message.sender_id else None,
+                            sent_at=message.date,
+                            group_id=group_id
+                        )
+                        
+                        if new_id:
+                            logging.info(f"✅ Saved message {message.id} from group {group_id} (ID: {new_id})")
+                            self.stats['total_saved'] += 1
+                            self.stats['last_message_time'] = datetime.now(IST)
+                        else:
+                            logging.debug(f"ℹ️  Message {message.id} already exists (duplicate)")
+                            self.stats['total_saved'] += 1  # Still count as success
+                        
+                        success = True
+                        break
+                        
+                    except Exception as e:
+                        logging.error(f"❌ Attempt {attempt + 1} failed for message {message.id}: {e}")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(1)
+                        else:
+                            logging.critical(f"🚨 LOST MESSAGE {message.id} from group {group_id} after {max_retries} attempts")
+                            self.stats['total_errors'] += 1
+                
+                self.message_queue.task_done()
+                
+                # Log stats every 100 messages
+                if self.stats['total_received'] % 100 == 0:
+                    await self._log_stats()
+                
+            except Exception as e:
+                logging.error(f"Worker error: {e}")
+                await asyncio.sleep(1)
+
+    async def _log_stats(self):
+        """Log current statistics"""
+        last_time = self.stats['last_message_time']
+        time_str = last_time.strftime('%Y-%m-%d %H:%M:%S IST') if last_time else 'Never'
+        
+        logging.info(f"📊 Monitor Stats:")
+        logging.info(f"   Received: {self.stats['total_received']}")
+        logging.info(f"   Saved: {self.stats['total_saved']}")
+        logging.info(f"   Skipped: {self.stats['total_skipped']}")
+        logging.info(f"   Errors: {self.stats['total_errors']}")
+        logging.info(f"   Last message: {time_str}")
+        logging.info(f"   Queue size: {self.message_queue.qsize()}")
 
     async def _command_handler(self, event):
-        """Handle incoming commands from authorized users."""
-        # For events.NewMessage, event.sender_id is directly available
+        """Handle incoming commands from authorized users"""
         if not event.sender_id:
-            logging.warning(f"Could not determine sender_id for command event: {type(event).__name__}")
+            logging.warning(f"Could not determine sender_id for command event")
             return
 
         if event.sender_id not in self.authorized_users:
             return
-        sender_id = event.sender_id # Assign for clarity
-
-        command_parts = event.message.text.strip().split()
-        command = command_parts[0].lower()
-        command_text = event.message.text.strip()
-        logging.info(f"Received command: '{command_text}' from user {event.sender_id}, queuing for execution.")
         
-        # The monitor's only job is to queue the command. The main bot worker will execute it.
+        command_text = event.message.text.strip()
+        logging.info(f"Received command: '{command_text}' from user {event.sender_id}")
+        
+        # Queue command for execution
         self.db.commands.enqueue_command(command_text)
-        await event.respond(f"Command `{command_text}` has been queued for execution by the bot.", parse_mode='markdown')
+        await event.respond(f"Command `{command_text}` queued for execution.", parse_mode='markdown')
 
     async def start(self):
-        logging.info("Starting Telegram monitor loop...")
+        logging.info("🚀 Starting Telegram monitor loop...")
         
         while True:
             try:
@@ -83,15 +202,26 @@ class TelegramMonitor:
                 
                 if session_string and session_string.strip():
                     logging.info("Restoring Telegram session from database...")
+                    
                     if not self.client or not self.client.is_connected():
                         try:
-                            # The client.is_user_authorized() check below is sufficient to validate the session.
-                            # No need for a heuristic check here.
-                                
-                            self.client = TelegramClient(StringSession(session_string), self.api_id, self.api_hash)
+                            # Create client
+                            self.client = TelegramClient(
+                                StringSession(session_string), 
+                                self.api_id, 
+                                self.api_hash
+                            )
+                            
+                            # Start message worker BEFORE connecting
+                            if not self.worker_task or self.worker_task.done():
+                                self.worker_task = asyncio.create_task(self._message_worker())
+                                logging.info("✅ Message worker started")
+                            
+                            # Connect client
                             await self.client.connect()
+                            
                             if not await self.client.is_user_authorized():
-                                logging.warning("Stored session is invalid or expired. Clearing from database.")
+                                logging.warning("Stored session is invalid or expired")
                                 self.db.auth.set_telegram_session('')
                                 self.db.auth.set_telegram_login_status('session_expired')
                                 await self.client.disconnect()
@@ -99,128 +229,92 @@ class TelegramMonitor:
                                 await asyncio.sleep(30)
                                 continue
                             
-                            # Update login status to connected
+                            # Update status
                             self.db.auth.set_telegram_login_status('connected')
-                            logging.info("Successfully restored Telegram session and connected.")
-                            await send_rate_limited_telegram_notification("[OK] Bot connected to Telegram.")
+                            logging.info("✅ Successfully connected to Telegram")
+                            await send_rate_limited_telegram_notification("✅ Monitor connected")
                             
+                            # Prime dialog cache
                             await self._prime_dialog_cache()
                             
-                            # Start the background task to update handlers
+                            # Register handlers AFTER connection
+                            await self._ensure_handler_registered()
+                            
+                            # Start periodic handler updates
                             if self._update_handlers_task is None or self._update_handlers_task.done():
-                                self._update_handlers_task = asyncio.create_task(self._periodically_update_handlers())
-
+                                self._update_handlers_task = asyncio.create_task(
+                                    self._periodically_update_handlers()
+                                )
+                            
+                            # Run until disconnected
+                            await self.client.run_until_disconnected()
+                            
                         except Exception as e:
                             error_msg = str(e).lower()
                             if "not a valid string" in error_msg or "invalid" in error_msg:
-                                logging.warning(f"Stored session string is invalid: {e}. Clearing from database.")
+                                logging.warning(f"Invalid session string: {e}")
                                 self.db.auth.set_telegram_session('')
-                                self.db.auth.set_telegram_login_status('session_expired') # This will trigger re-auth flow on UI
+                                self.db.auth.set_telegram_login_status('session_expired')
                             else:
-                                logging.error(f"Failed to connect with stored session: {e}")
-                                if self.db.auth.get_telegram_login_status() != 'session_expired':
-                                    self.db.auth.set_telegram_login_status('connection_failed')
+                                logging.error(f"Connection error: {e}")
+                                self.db.auth.set_telegram_login_status('connection_failed')
+                            
                             self.client = None
                             await asyncio.sleep(30)
                             continue
-
-                    logging.info("Client connected and authorized. Setting up message handlers.")
-                    try:
-                        await self._ensure_handler_registered()
-                        # This is the correct blocking call to listen for events
-                        await self.client.run_until_disconnected()
-                        # This is the correct blocking call to listen for events
-                    except Exception as e:
-                        logging.error(f"Error during monitor execution: {e}")
-                    finally:
-                        await self.stop()
-                else:
-                    logging.info("No active Telegram session found in database. Waiting for setup via web UI.")
-                    self.db.auth.set_telegram_login_status('not_authenticated')
-                    await asyncio.sleep(30) # Wait before checking for a session again
                     
-            except (psycopg2.Error, aiohttp.ClientError, OSError) as e:
-                logging.error(f"Error in monitor start loop: {e}")
+                else:
+                    logging.info("No Telegram session found. Waiting for setup...")
+                    self.db.auth.set_telegram_login_status('not_authenticated')
+                    await asyncio.sleep(30)
+                    
+            except (psycopg2.Error, OSError) as e:
+                logging.error(f"Monitor error: {e}")
                 await asyncio.sleep(30)
+            finally:
+                await self.stop()
 
     async def _periodically_update_handlers(self):
-        """A background task that periodically checks for group changes and updates handlers."""
-        # Initial delay to prevent race condition with startup handler registration
-        await asyncio.sleep(10)
+        """Periodically check for group changes"""
+        await asyncio.sleep(10)  # Initial delay
         
         while self.client and self.client.is_connected():
             try:
                 await self._ensure_handler_registered(force_check=True)
             except Exception as e:
-                logging.error(f"Error in periodic handler update: {e}")
-            await asyncio.sleep(60) # Check for group changes every 60 seconds
+                logging.error(f"Handler update error: {e}")
+            await asyncio.sleep(60)
 
     async def stop(self):
-        """Stops the Telegram client."""
+        """Stop the monitor"""
         if self.client and self.client.is_connected():
             logging.info("Stopping Telegram monitor...")
             await self.client.disconnect()
 
-    async def _process_and_store_message(self, message, group_id):
-        """Process and store a single message, which can be a Telethon Message object or a string."""
-        try:
-            # This function expects a Telethon Message object.
-            if not message or not hasattr(message, 'id'):
-                return
-
-            if not should_process_message(message):
-                return
-
-            msg_info = get_message_info(message)
-
-            # Ignore commands from authorized users in job groups
-            if message.sender_id in self.authorized_users and msg_info.get('is_bot_command'):
-                logging.info(f"Ignoring command '{msg_info['text']}' in job group.")
-                return
-            # Add to database
-            new_id = self.db.messages.add_raw_message(
-                message_id=message.id,
-                message_text=msg_info['text'],
-                sender_id=message.sender_id,
-                sent_at=message.date,
-                group_id=group_id
-            )
-
-            if new_id:
-                logging.info(f"Stored new message {message.id} from group {group_id}")
-            else:
-                logging.debug(f"Message {message.id} from group {group_id} already exists.")
-
-        except Exception as e:
-            logging.error(f"Failed to process/store message: {e}")
-
     async def _prime_dialog_cache(self):
-        """
-        Fetches all dialogs to prime the client's entity cache.
-        This helps prevent 'Cannot find any entity' errors for groups the client is in.
-        """
+        """Prime entity cache"""
         if not self.client or not self.client.is_connected():
             return
         try:
-            logging.info("Priming entity cache by fetching dialogs...")
-            await self.client.get_dialogs(limit=10) # Fetch a few dialogs to get started
-            logging.info("Entity cache primed.")
+            logging.info("Priming entity cache...")
+            await self.client.get_dialogs(limit=10)
+            logging.info("✅ Entity cache primed")
         except Exception as e:
-            logging.warning(f"Could not prime entity cache: {e}")
-
+            logging.warning(f"Could not prime cache: {e}")
 
     async def _ensure_handler_registered(self, force_check: bool = False):
-        """Ensure the NewMessage handler is registered for the current monitored groups configured in DB."""
+        """Register message handlers for monitored groups"""
         if not self.client:
             return
-        # If not forcing a check, and handlers are already registered, do nothing.
+        
         if not force_check and self._handler_registered:
             return
 
+        # Get groups from config
         groups_val = self.db.config.get_config('monitored_groups') or ''
         groups_config_list_str = [s.strip() for s in groups_val.split(',') if s.strip()]
 
-        # Convert numeric strings to integers to handle group IDs correctly
+        # Convert to proper types
         groups_config_list = []
         for g in groups_config_list_str:
             try:
@@ -228,87 +322,80 @@ class TelegramMonitor:
             except (ValueError, TypeError):
                 groups_config_list.append(g)
 
-        # Ensure unique groups before resolving entities
+        # Resolve entities
         unique_groups = sorted(list(set(groups_config_list)))
         group_entities = []
+        
         for g_str in unique_groups:
             try:
                 from telethon.utils import get_peer_id
                 entity = await self.client.get_entity(g_str)
                 group_entities.append(entity)
-                logging.info(f"Resolved entity for monitoring: {g_str} (ID: {get_peer_id(entity)})")
+                logging.info(f"✅ Resolved entity: {g_str} (ID: {get_peer_id(entity)})")
             except Exception as e:
-                logging.error(f"Failed to get entity for {g_str}. Please ensure the bot has access to this group/channel and the ID/username is correct: {e}")
+                logging.error(f"❌ Failed to resolve entity {g_str}: {e}")
                 continue
         
         new_group_ids = {get_peer_id(entity) for entity in group_entities}
 
         if new_group_ids == self._current_monitored_group_ids and self._handler_registered:
-            logging.debug("Monitored groups unchanged.")
+            logging.debug("Monitored groups unchanged")
             return
 
-        # Remove existing handlers to prevent duplicates if called multiple times
+        # Remove existing handlers
         if self._handler_registered:
             if hasattr(self, 'job_message_handler'):
                 self.client.remove_event_handler(self.job_message_handler)
             if hasattr(self, 'command_dispatch_handler'):
                 self.client.remove_event_handler(self.command_dispatch_handler)
             self._handler_registered = False
+
+        # Register job message handler (captures EVERYTHING)
         if group_entities:
             @self.client.on(events.NewMessage(chats=group_entities))
             async def job_message_handler(event):
-                # Ensure we are only processing actual message events
                 if not isinstance(event, events.NewMessage.Event):
-                    logging.debug(f"Skipping non-message event in job handler: {type(event).__name__}")
                     return
-
-                # For events.NewMessage, 'event' is already the Message object.
-                # event.chat_id directly gives the chat ID (integer).
-                # event.sender_id directly gives the sender ID (integer).
-                if not event.chat_id:
-                    logging.warning(f"Could not determine group_id for event type {type(event).__name__}. Skipping.")
+                
+                if not event.chat_id or not event.message:
                     return
-                if not event.message: # Ensure there's actual message content
-                    return
-
-                group_id = event.chat_id
-                if group_id:
-                    await self._process_and_store_message(event.message, group_id)
-                else:
-                    logging.warning(f"Could not determine group_id for event type {type(event).__name__}")
+                
+                # Just queue it - worker will process
+                await self._queue_message(event.message, event.chat_id)
+            
             self.client.add_event_handler(job_message_handler)
-            self.job_message_handler = job_message_handler # Store handler for removal
-            logging.info(f"NewMessage handler registered for {len(group_entities)} groups.")
+            self.job_message_handler = job_message_handler
+            logging.info(f"✅ Job handler registered for {len(group_entities)} groups")
         else:
-            logging.warning("No group entities resolved to monitor for jobs. NewMessage handler not registered.")
+            logging.warning("⚠️ No group entities resolved")
 
+        # Register command handler (authorized users only)
         if self.authorized_users:
             @self.client.on(events.NewMessage(from_users=self.authorized_users, pattern=r'^/\w+'))
             async def command_dispatch_handler(event):
-                # Ensure it's a message event and has a sender_id and message text
-                if not hasattr(event, 'message') or not hasattr(event.message, 'text') or not hasattr(event, 'sender_id'):
-                    logging.debug(f"Skipping non-message event in command handler: {type(event).__name__}")
+                if not hasattr(event, 'message') or not hasattr(event, 'sender_id'):
                     return
                 
-                logging.info(f"DEBUG: Command handler received message from sender_id={event.sender_id}, text='{event.message.text}'") # Keep debug log for now
+                logging.info(f"Command from {event.sender_id}: {event.message.text}")
                 await self._command_handler(event)
+            
             self.client.add_event_handler(command_dispatch_handler)
-            self.command_dispatch_handler = command_dispatch_handler # Store handler for removal
-            logging.info(f"Command handler registered for {len(self.authorized_users)} authorized users.")
+            self.command_dispatch_handler = command_dispatch_handler
+            logging.info(f"✅ Command handler registered for {len(self.authorized_users)} users")
         else:
-            logging.warning("No authorized users configured for commands. Command handler not registered.")
+            logging.warning("⚠️ No authorized users configured")
 
         self._handler_registered = True
         self._current_monitored_group_ids = new_group_ids
-        logging.info("Event handlers registered.")
+        logging.info("✅ Event handlers registered")
     
     async def save_session_to_db(self):
-        """Save current session string to database"""
+        """Save session to database"""
         if self.client and self.client.is_connected():
             session_string = self.client.session.save()
             self.db.auth.set_telegram_session(session_string)
             self.db.auth.set_telegram_login_status('connected')
-            logging.info("Telegram session saved to database")
+            logging.info("Telegram session saved")
             return True
         return False
     
@@ -317,10 +404,10 @@ class TelegramMonitor:
         try:
             self.db.auth.set_telegram_session('')
             self.db.auth.set_telegram_login_status('not_authenticated')
-            logging.info("Telegram session cleared from database")
+            logging.info("Telegram session cleared")
             return True
         except Exception as e:
-            logging.error(f"Failed to clear Telegram session from database: {e}")
+            logging.error(f"Failed to clear session: {e}")
             return False
 
 if __name__ == "__main__":

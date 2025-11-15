@@ -23,6 +23,18 @@ from message_utils import send_rate_limited_telegram_notification
 from logging.handlers import RotatingFileHandler
 from monitor import TelegramMonitor
 
+
+async def safety_net_fetch(monitor, context):
+    """Hourly check for missed messages"""
+    from historical_message_fetcher import HistoricalMessageFetcher
+    
+    # Your monitor's client
+    fetcher = HistoricalMessageFetcher(db, monitor.client)
+    result = await fetcher.fetch_historical_messages(hours_back=2)
+    
+    if result > 0:
+        logger.warning(f"⚠️ Safety net caught {result} missed messages!")
+
 # --- Logging Setup ---
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
 if not os.path.exists(log_dir):
@@ -949,6 +961,12 @@ async def setup_bot():
             TELEGRAM_GROUP_USERNAMES,
             db
         )
+        scheduler.add_job(
+            safety_net_fetch,
+            IntervalTrigger(hours=1),
+            args=[monitor,application],
+            id='safety_net'
+            )
         
         # Start the Telegram monitor in a separate thread
         import threading
