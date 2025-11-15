@@ -10,7 +10,7 @@ services:
     environment:
       # Container Configuration
       - CONTAINER_TYPE=all
-      - BOT_RUN_MODE=webhook
+      - BOT_RUN_MODE=polling
       
       # Web Server Configuration
       - PORT=9501
