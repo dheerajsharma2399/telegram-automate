@@ -64,6 +64,10 @@ sheets_sync = None
 # Global Application instance for this web worker to handle webhooks
 _webhook_app_instance = None
 
+async def dummy_handler(update, context):
+    """Dummy handler that does nothing and is awaitable."""
+    pass
+
 async def _get_or_create_webhook_application():
     """
     Lazily initializes and returns the telegram.ext.Application instance for this worker.
@@ -78,16 +82,16 @@ async def _get_or_create_webhook_application():
         _webhook_app_instance = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         # Add handlers that mirror those in main.py's setup_webhook_bot to ensure updates are processed correctly.
         # These handlers will typically be dummy handlers as the actual bot logic runs in main.py.
-        _webhook_app_instance.add_handler(MessageHandler(filters.ALL, lambda update, context: None), group=-1)
-        _webhook_app_instance.add_handler(CommandHandler("start", lambda update, context: None))
-        _webhook_app_instance.add_handler(CommandHandler("stop", lambda update, context: None))
-        _webhook_app_instance.add_handler(CommandHandler("status", lambda update, context: None))
-        _webhook_app_instance.add_handler(CommandHandler("process", lambda update, context: None))
-        _webhook_app_instance.add_handler(CommandHandler("stats", lambda update, context: None))
-        _webhook_app_instance.add_handler(CommandHandler("export", lambda update, context: None))
-        _webhook_app_instance.add_handler(CommandHandler("sync_sheets", lambda update, context: None))
-        _webhook_app_instance.add_handler(CallbackQueryHandler(lambda update, context: None))
-        _webhook_app_instance.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: None))
+        _webhook_app_instance.add_handler(MessageHandler(filters.ALL, dummy_handler), group=-1)
+        _webhook_app_instance.add_handler(CommandHandler("start", dummy_handler))
+        _webhook_app_instance.add_handler(CommandHandler("stop", dummy_handler))
+        _webhook_app_instance.add_handler(CommandHandler("status", dummy_handler))
+        _webhook_app_instance.add_handler(CommandHandler("process", dummy_handler))
+        _webhook_app_instance.add_handler(CommandHandler("stats", dummy_handler))
+        _webhook_app_instance.add_handler(CommandHandler("export", dummy_handler))
+        _webhook_app_instance.add_handler(CommandHandler("sync_sheets", dummy_handler))
+        _webhook_app_instance.add_handler(CallbackQueryHandler(dummy_handler))
+        _webhook_app_instance.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dummy_handler))
 
         await _webhook_app_instance.initialize()
         logging.info("Webhook Application initialized for this web worker.")
