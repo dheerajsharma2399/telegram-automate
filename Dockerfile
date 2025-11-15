@@ -24,6 +24,9 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/data /app/logs
 
+# Initialize database schema
+RUN python initialize_db.py
+
 # Set environment variables for Dokploy
 ENV PORT=9501
 ENV FLASK_ENV=production

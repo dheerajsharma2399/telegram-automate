@@ -238,7 +238,7 @@ def init_database(pool):
 class Database:
     def __init__(self, db_url: str):
         self.pool = init_connection_pool(db_url)
-        init_database(self.pool)
+        # init_database(self.pool) # Removed to prevent deadlocks on concurrent startup
         
         # Instantiate repositories
         self.auth = TelegramAuthRepository(self.pool)
