@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Database Repository Classes for the Telegram Job Scraper
+FIXED: Added cursor parameter support for transaction handling
 """
 import logging
 from contextlib import contextmanager
@@ -137,40 +138,83 @@ class MessageRepository(BaseRepository):
             return dict(result) if result else None
 
 class JobRepository(BaseRepository):
-    def add_processed_job(self, job_data: Dict) -> Optional[int]:
-        """Add a processed job"""
-        with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO processed_jobs (
-                        raw_message_id, job_id, first_name, last_name, email,
-                        company_name, job_role, location, eligibility, application_link,
-                        application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                """, (
-                    job_data.get('raw_message_id'),
-                    job_data.get('job_id'),
-                    job_data.get('first_name'),
-                    job_data.get('last_name'),
-                    job_data.get('email'),
-                    job_data.get('company_name'),
-                    job_data.get('job_role'),
-                    job_data.get('location'),
-                    job_data.get('eligibility'),
-                    job_data.get('application_link'),
-                    job_data.get('application_method'),
-                    job_data.get('jd_text'),
-                    job_data.get('email_subject'),
-                    job_data.get('email_body'),
-                    job_data.get('status'),
-                    job_data.get('updated_at'),
-                    job_data.get('is_hidden', False),
-                    job_data.get('sheet_name')
-                ))
-                result = cursor.fetchone()
-            conn.commit()
+    def add_processed_job(self, job_data: Dict, cursor=None) -> Optional[int]:
+        """
+        Add a processed job
+        
+        Args:
+            job_data: Dictionary containing job information
+            cursor: Optional cursor for transaction handling. If provided, 
+                   the caller is responsible for committing.
+        
+        Returns:
+            Job ID if successful, None otherwise
+        """
+        # If cursor is provided, use it (transaction mode)
+        if cursor:
+            cursor.execute("""
+                INSERT INTO processed_jobs (
+                    raw_message_id, job_id, first_name, last_name, email,
+                    company_name, job_role, location, eligibility, application_link,
+                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                job_data.get('raw_message_id'),
+                job_data.get('job_id'),
+                job_data.get('first_name'),
+                job_data.get('last_name'),
+                job_data.get('email'),
+                job_data.get('company_name'),
+                job_data.get('job_role'),
+                job_data.get('location'),
+                job_data.get('eligibility'),
+                job_data.get('application_link'),
+                job_data.get('application_method'),
+                job_data.get('jd_text'),
+                job_data.get('email_subject'),
+                job_data.get('email_body'),
+                job_data.get('status'),
+                job_data.get('updated_at'),
+                job_data.get('is_hidden', False),
+                job_data.get('sheet_name')
+            ))
+            result = cursor.fetchone()
             return result['id'] if result else None
+        else:
+            # Standalone mode - manage connection ourselves
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO processed_jobs (
+                            raw_message_id, job_id, first_name, last_name, email,
+                            company_name, job_role, location, eligibility, application_link,
+                            application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (
+                        job_data.get('raw_message_id'),
+                        job_data.get('job_id'),
+                        job_data.get('first_name'),
+                        job_data.get('last_name'),
+                        job_data.get('email'),
+                        job_data.get('company_name'),
+                        job_data.get('job_role'),
+                        job_data.get('location'),
+                        job_data.get('eligibility'),
+                        job_data.get('application_link'),
+                        job_data.get('application_method'),
+                        job_data.get('jd_text'),
+                        job_data.get('email_subject'),
+                        job_data.get('email_body'),
+                        job_data.get('status'),
+                        job_data.get('updated_at'),
+                        job_data.get('is_hidden', False),
+                        job_data.get('sheet_name')
+                    ))
+                    result = cursor.fetchone()
+                conn.commit()
+                return result['id'] if result else None
 
     def mark_job_synced(self, job_id: str):
         """Mark job as synced to Google Sheets"""
@@ -431,38 +475,52 @@ class CommandRepository(BaseRepository):
             return cursor.rowcount > 0
 
 class DashboardRepository(BaseRepository):
-    def add_dashboard_job(self, job_data: Dict) -> Optional[int]:
-        """Add a job to the dashboard_jobs table"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO dashboard_jobs (
-                    source_job_id, original_sheet, company_name, job_role, location,
-                    application_link, phone, recruiter_name, job_relevance, original_created_at,
-                    application_status, application_date, notes, is_duplicate, duplicate_of_id, conflict_status
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
-                job_data.get('source_job_id'),
-                job_data.get('original_sheet'),
-                job_data.get('company_name'),
-                job_data.get('job_role'),
-                job_data.get('location'),
-                job_data.get('application_link'),
-                job_data.get('phone'),
-                job_data.get('recruiter_name'),
-                job_data.get('job_relevance'),
-                job_data.get('original_created_at'),
-                job_data.get('application_status', 'not_applied'),
-                job_data.get('application_date'),
-                job_data.get('notes'),
-                job_data.get('is_duplicate', False),
-                job_data.get('duplicate_of_id'),
-                job_data.get('conflict_status', 'none')
-            ))
+    def add_dashboard_job(self, job_data: Dict, cursor=None) -> Optional[int]:
+        """
+        Add a job to the dashboard_jobs table
+        
+        Args:
+            job_data: Dictionary containing job information
+            cursor: Optional cursor for transaction handling
+        """
+        sql = """
+            INSERT INTO dashboard_jobs (
+                source_job_id, original_sheet, company_name, job_role, location,
+                application_link, phone, recruiter_name, job_relevance, original_created_at,
+                application_status, application_date, notes, is_duplicate, duplicate_of_id, conflict_status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        values = (
+            job_data.get('source_job_id'),
+            job_data.get('original_sheet'),
+            job_data.get('company_name'),
+            job_data.get('job_role'),
+            job_data.get('location'),
+            job_data.get('application_link'),
+            job_data.get('phone'),
+            job_data.get('recruiter_name'),
+            job_data.get('job_relevance'),
+            job_data.get('original_created_at'),
+            job_data.get('application_status', 'not_applied'),
+            job_data.get('application_date'),
+            job_data.get('notes'),
+            job_data.get('is_duplicate', False),
+            job_data.get('duplicate_of_id'),
+            job_data.get('conflict_status', 'none')
+        )
+        
+        if cursor:
+            cursor.execute(sql, values)
             result = cursor.fetchone()
-            conn.commit()
             return result['id'] if result else None
+        else:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql, values)
+                    result = cur.fetchone()
+                conn.commit()
+                return result['id'] if result else None
 
     def get_dashboard_jobs(self, status_filter: Optional[str] = None,
                           relevance_filter: Optional[str] = None,
@@ -542,8 +600,6 @@ class DashboardRepository(BaseRepository):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # The 'status' parameter determines the application_status.
-            # The 'archive' parameter or a terminal status controls the is_hidden flag.
             final_status = status
             should_hide = archive or (status in ['applied', 'rejected', 'archived'])
 
@@ -560,7 +616,6 @@ class DashboardRepository(BaseRepository):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Get processed jobs that are not already in dashboard
             query = """
                 SELECT pj.* FROM processed_jobs pj
                 LEFT JOIN dashboard_jobs dj ON pj.job_id = dj.source_job_id
@@ -575,7 +630,6 @@ class DashboardRepository(BaseRepository):
             cursor.execute(query, params)
             jobs = [dict(row) for row in cursor.fetchall()]
             
-            # Insert into dashboard_jobs
             imported_count = 0
             for job in jobs:
                 dashboard_job = {
@@ -592,10 +646,11 @@ class DashboardRepository(BaseRepository):
                     'application_status': 'not_applied'
                 }
                 
-                job_id = self.add_dashboard_job(dashboard_job)
+                job_id = self.add_dashboard_job(dashboard_job, cursor=cursor)
                 if job_id:
                     imported_count += 1
             
+            conn.commit()
             return imported_count
 
     def detect_duplicate_jobs(self) -> int:
@@ -603,7 +658,6 @@ class DashboardRepository(BaseRepository):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Find potential duplicates by company name and role
             query = """
                 WITH potential_duplicates AS (
                     SELECT
@@ -632,7 +686,6 @@ class DashboardRepository(BaseRepository):
                             VALUES (%s, %s::jsonb, %s)
                         """, (None, f'["{duplicate["id"]}"]', 0.9))
                         
-                        # Update job status
                         cursor.execute("""
                             UPDATE dashboard_jobs
                             SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
