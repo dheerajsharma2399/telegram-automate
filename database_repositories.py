@@ -363,13 +363,17 @@ class CommandRepository(BaseRepository):
         """Retrieve pending commands"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            query = """
                 SELECT * FROM commands_queue
                 WHERE status = 'pending'
                 ORDER BY created_at ASC
                 LIMIT %s
-            """, (limit,))
-            return [dict(row) for row in cursor.fetchall()]
+            """
+            self.logger.debug(f"Executing query: {query.strip()} with limit={limit}")
+            cursor.execute(query, (limit,))
+            results = [dict(row) for row in cursor.fetchall()]
+            self.logger.debug(f"Query results: {results}")
+            return results
 
     def list_all_pending_commands(self) -> List[Dict]:
         """Return all pending commands (no limit)."""
@@ -391,6 +395,7 @@ class CommandRepository(BaseRepository):
                 RETURNING id
             """, (command,))
             result = cursor.fetchone()
+            conn.commit()
             return result['id'] if result else None
 
     def mark_command_executed(self, command_id: int):
