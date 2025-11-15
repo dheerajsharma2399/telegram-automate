@@ -283,17 +283,13 @@ class TelegramMonitor:
             logging.warning("No group entities resolved to monitor for jobs. NewMessage handler not registered.")
 
         if self.authorized_users:
-            @self.client.on(events.NewMessage(from_users=self.authorized_users, pattern=r'^/\w+'))
+            @self.client.on(events.NewMessage(pattern=r'^/\w+')) # Temporarily removed from_users filter for debugging
             async def command_dispatch_handler(event):
-                # Ensure we are only processing actual message events
-                if not isinstance(event, events.NewMessage.Event):
-                    logging.debug(f"Skipping non-message event in command handler: {type(event).__name__}")
-                    return
-
+                logging.info(f"DEBUG: Command handler received message from sender_id={event.sender_id}, text='{event.message.text}'") # Added debug log
                 await self._command_handler(event)
             self.client.add_event_handler(command_dispatch_handler)
             self.command_dispatch_handler = command_dispatch_handler # Store handler for removal
-            logging.info(f"Command handler registered for {len(self.authorized_users)} authorized users.")
+            logging.info(f"Command handler registered for {len(self.authorized_users)} authorized users (DEBUG: from_users filter removed).")
         else:
             logging.warning("No authorized users configured for commands. Command handler not registered.")
 
