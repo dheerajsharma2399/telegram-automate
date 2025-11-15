@@ -12,3 +12,4 @@ gunicorn
 requests
 honcho
 psycopg2-binary>=2.9.0
+pytz
