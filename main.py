@@ -113,7 +113,7 @@ def is_authorized(user_id: int) -> bool:
     return user_id in AUTHORIZED_USER_IDS
 
 async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
-    """The core job processing function."""
+    """The core job processing function with proper transaction handling."""
     logger.info("Starting job processing...")
     unprocessed_messages = db.messages.get_unprocessed_messages(limit=BATCH_SIZE)
     if not unprocessed_messages:
@@ -121,26 +121,29 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
         return
 
     for message in unprocessed_messages:
-        # Use a transaction for each message to ensure atomicity
-        with db.get_connection() as conn:
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("UPDATE raw_messages SET status = 'processing' WHERE id = %s", (message["id"],))
+        # Process each message independently with its own transaction
+        try:
+            # Step 1: Mark as processing
+            db.messages.update_message_status(message["id"], "processing")
+            
+            # Step 2: Parse jobs with LLM
+            parsed_jobs = await llm_processor.parse_jobs(message["message_text"])
+            
+            if not parsed_jobs:
+                db.messages.update_message_status(message["id"], "processed", "No jobs found")
+                continue
 
-                parsed_jobs = await llm_processor.parse_jobs(message["message_text"])
-                
-                if not parsed_jobs:
-                    with conn.cursor() as cursor:
-                        cursor.execute("UPDATE raw_messages SET status = 'processed', error_message = 'No jobs found' WHERE id = %s", (message["id"],))
-                    conn.commit()
-                    continue
-
-                for job_data in parsed_jobs:
+            # Step 3: Process and store each job
+            for job_data in parsed_jobs:
+                try:
                     processed_data = llm_processor.process_job_data(job_data, message["id"])
                     
-                    # This call is now adapted to use the existing cursor/connection
-                    # by passing the cursor object.
-                    db.jobs.add_processed_job(processed_data, cursor=cursor) # This uses the cursor for the INSERT
+                    # Add to processed_jobs table (without cursor - let it manage its own connection)
+                    job_id = db.jobs.add_processed_job(processed_data)
+                    
+                    if not job_id:
+                        logger.error(f"Failed to add job to processed_jobs table")
+                        continue
                     
                     # AUTOMATIC DASHBOARD POPULATION: Add non-email jobs to dashboard
                     if processed_data.get('application_method') != 'email':
@@ -153,33 +156,43 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
                                 'job_role': processed_data.get('job_role'),
                                 'location': processed_data.get('location'),
                                 'application_link': processed_data.get('application_link'),
-                                'job_relevance': 'relevant',
+                                'phone': processed_data.get('phone'),
+                                'recruiter_name': processed_data.get('recruiter_name'),
+                                'job_relevance': processed_data.get('job_relevance', 'relevant'),
                                 'original_created_at': processed_data.get('updated_at'),
                                 'application_status': 'not_applied'
                             }
                             
-                            # Add to dashboard if not already present (within the same transaction)
-                            cursor.execute("SELECT id FROM dashboard_jobs WHERE source_job_id = %s", (processed_data.get('job_id'),))
-                            if not cursor.fetchone():
-                                db.dashboard.add_dashboard_job(dashboard_job_data, cursor=cursor)
-                                logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
+                            # Check if already exists in dashboard
+                            with db.get_connection() as conn:
+                                with conn.cursor() as cursor:
+                                    cursor.execute(
+                                        "SELECT id FROM dashboard_jobs WHERE source_job_id = %s", 
+                                        (processed_data.get('job_id'),)
+                                    )
+                                    if not cursor.fetchone():
+                                        # Add to dashboard (without cursor - let it manage its own connection)
+                                        dashboard_id = db.dashboard.add_dashboard_job(dashboard_job_data)
+                                        if dashboard_id:
+                                            logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
                         except Exception as e:
                             logger.error(f"Failed to auto-import job to dashboard: {e}")
-                
-                with conn.cursor() as cursor:
-                    cursor.execute("UPDATE raw_messages SET status = 'processed' WHERE id = %s", (message["id"],))
-                conn.commit()
-                logger.info(f"Processed message {message['id']} and found {len(parsed_jobs)} jobs.")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to process individual job: {e}")
+                    continue
+            
+            # Step 4: Mark message as processed
+            db.messages.update_message_status(message["id"], "processed")
+            logger.info(f"Processed message {message['id']} and found {len(parsed_jobs)} jobs.")
 
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Failed to process message {message['id']}: {e}")
-                db.messages.update_message_status(message["id"], "failed", str(e))
+        except Exception as e:
+            logger.error(f"Failed to process message {message['id']}: {e}")
+            db.messages.update_message_status(message["id"], "failed", str(e))
     
     # After processing the batch, automatically sync to sheets
     logger.info("Job processing batch finished. Starting automatic Google Sheets sync.")
     await sync_sheets_automatically()
-
 async def sync_sheets_automatically():
     """
     Automatically finds all unsynced jobs and syncs them to Google Sheets.
