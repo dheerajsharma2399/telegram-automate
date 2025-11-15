@@ -297,8 +297,6 @@ class TelegramMonitor:
             logging.info(f"Command handler registered for {len(self.authorized_users)} authorized users.")
         else:
             logging.warning("No authorized users configured for commands. Command handler not registered.")
-        else:
-            logging.warning("No authorized users configured for commands. Command handler not registered.")
 
         self._handler_registered = True
         self._current_monitored_group_ids = new_group_ids
