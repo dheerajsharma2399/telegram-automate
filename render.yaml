@@ -55,5 +55,5 @@ services:
       - key: CONTAINER_TYPE
         value: bot
       - key: BOT_RUN_MODE
-        value: webhook
+        value: polling
     autoDeploy: true
