@@ -147,14 +147,8 @@ class GoogleSheetsSync:
             logger.info(f"Prepared row data: {len(row)} columns")
             logger.debug(f"Row content: {row[:5]}...")  # Log first 5 columns for debugging
             
-            # Find the next empty row
-            all_values = worksheet.get_all_values()
-            next_row = len(all_values) + 1
-            
-            logger.info(f"Writing to row {next_row} in worksheet")
-            
-            # Update the worksheet
-            worksheet.update(f'A{next_row}', [row])
+            # Append row (automatically handles resizing)
+            worksheet.append_row(row)
             
             logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
             return True
