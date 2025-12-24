@@ -19,9 +19,18 @@ AUTHORIZED_USER_IDS = [int(x) for x in os.getenv('AUTHORIZED_USER_IDS', '').spli
 ADMIN_USER_ID = os.getenv('ADMIN_USER_ID')
 
 # OpenRouter Configuration
-OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
-OPENROUTER_MODEL = os.getenv('OPENROUTER_MODEL', 'anthropic/claude-3.5-sonnet')
-OPENROUTER_FALLBACK_MODEL = os.getenv('OPENROUTER_FALLBACK_MODEL', 'openai/gpt-4o-mini')
+_api_keys_str = os.getenv('OPENROUTER_API_KEY', '')
+OPENROUTER_API_KEYS = [k.strip() for k in _api_keys_str.split(',') if k.strip()]
+# Fallback for single key usage if needed elsewhere, though we should transition to list
+OPENROUTER_API_KEY = OPENROUTER_API_KEYS[0] if OPENROUTER_API_KEYS else None
+
+_models_str = os.getenv('OPENROUTER_MODEL', 'anthropic/claude-3.5-sonnet')
+OPENROUTER_MODELS = [m.strip() for m in _models_str.split(',') if m.strip()]
+OPENROUTER_MODEL = OPENROUTER_MODELS[0] if OPENROUTER_MODELS else 'anthropic/claude-3.5-sonnet'
+
+_fallback_models_str = os.getenv('OPENROUTER_FALLBACK_MODEL', 'openai/gpt-4o-mini')
+OPENROUTER_FALLBACK_MODELS = [m.strip() for m in _fallback_models_str.split(',') if m.strip()]
+OPENROUTER_FALLBACK_MODEL = OPENROUTER_FALLBACK_MODELS[0] if OPENROUTER_FALLBACK_MODELS else 'openai/gpt-4o-mini'
 
 # Google Sheets Configuration
 GOOGLE_CREDENTIALS_JSON = os.getenv('GOOGLE_CREDENTIALS_JSON')

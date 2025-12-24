@@ -104,7 +104,7 @@ def cleanup_bot_instance():
 
 # Initialize components
 db = Database(DATABASE_URL)
-llm_processor = LLMProcessor(OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL)
+llm_processor = LLMProcessor(OPENROUTER_API_KEYS, OPENROUTER_MODELS, OPENROUTER_FALLBACK_MODELS)
 sheets_sync = None
 
 def get_sheets_sync():
