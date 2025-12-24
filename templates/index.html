@@ -357,17 +357,34 @@
                     </div>
 
                     <div class="row mb-3">
-                        <div class="col-12">
-                            <h6><i class="bi bi-collection me-1"></i>Bulk Actions (for selected jobs)</h6>
-                            <div class="btn-group flex-wrap" role="group">
-                                <button class="btn btn-sm btn-outline-success" onclick="bulkUpdateStatus('applied')">
-                                    <i class="bi bi-check-all me-1"></i>Mark Applied & Archive
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="bulkUpdateStatus('rejected')">
-                                    <i class="bi bi-x-octagon me-1"></i>Mark Rejected & Archive
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="bulkUpdateStatus('archived')">
-                                    <i class="bi bi-archive me-1"></i>Archive Selected
+                        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h6><i class="bi bi-collection me-1"></i>Bulk Actions</h6>
+                                <div class="btn-group flex-wrap" role="group">
+                                    <button class="btn btn-sm btn-outline-success" onclick="bulkUpdateStatus('applied')">
+                                        <i class="bi bi-check-all me-1"></i>Mark Applied & Archive
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="bulkUpdateStatus('rejected')">
+                                        <i class="bi bi-x-octagon me-1"></i>Mark Rejected & Archive
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="bulkUpdateStatus('archived')">
+                                        <i class="bi bi-archive me-1"></i>Archive Selected
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Archive older than:</span>
+                                <select class="form-select form-select-sm" id="archive-days-select" style="width: auto;">
+                                    <option value="1">1 Day</option>
+                                    <option value="2">2 Days</option>
+                                    <option value="3">3 Days</option>
+                                    <option value="5">5 Days</option>
+                                    <option value="7">7 Days</option>
+                                    <option value="30">30 Days</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-dark" onclick="archiveOlderThan()">
+                                    <i class="bi bi-trash me-1"></i>Archive
                                 </button>
                             </div>
                         </div>
@@ -380,9 +397,12 @@
                             <thead class="table-dark">
                                 <tr>
                                     <th><input type="checkbox" id="select-all-dashboard-jobs" onchange="toggleAllJobs()"></th>
-                                    <th data-sort-by="index" class="sortable">#</th>
-                                    <th data-sort-by="job_role" class="sortable">Job Role</th>
-                                    <th data-sort-by="application_source" class="sortable">Source</th>
+                                    <th>#</th>
+                                    <th>Date Added</th>
+                                    <th>Job Role</th>
+                                    <th>Company</th>
+                                    <th>Source</th>
+                                    <th>Link</th>
                                     <th>Status</th>
                                     <th>Relevance</th>
                                     <th>Notes</th>
@@ -390,9 +410,21 @@
                                 </tr>
                             </thead>
                             <tbody id="dashboard-jobs-body">
-                                <tr><td colspan="7" class="text-center text-muted">Click "Refresh" to load jobs</td></tr>
+                                <tr><td colspan="11" class="text-center text-muted">Click "Refresh" to load jobs</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Pagination Controls -->
+                    <div class="d-flex justify-content-between align-items-center mt-3" id="pagination-controls" style="display: none !important;">
+                        <div>
+                            <span class="text-muted small" id="pagination-info">Showing 0-0 of 0 jobs</span>
+                        </div>
+                        <nav aria-label="Job navigation">
+                            <ul class="pagination pagination-sm mb-0" id="pagination-pages">
+                                <!-- Pagination items will be injected here -->
+                            </ul>
+                        </nav>
                     </div>
                 </div>
             </div>
@@ -591,11 +623,13 @@
     <script>
                 // === GLOBAL VARIABLES ===
                 let allDashboardJobs = [];
+                let currentPage = 1;
+                let pageSize = 50;
+                let totalJobs = 0;
                 let lastTelegramStatus = null;
                 let autoRefreshEnabled = false;
                 let autoRefreshInterval = null;
-                let currentSortColumn = 'index'; // Default sort column
-                let currentSortDirection = 'asc'; // Default sort direction
+                let searchDebounceTimer = null;
         
                 // === TOAST NOTIFICATION SYSTEM ===
                 function showToast(message, type = 'info', duration = 5000) {
@@ -682,17 +716,33 @@
                 function getDomainFromUrl(url) {
                     try {
                         const urlObj = new URL(url);
-                        return urlObj.hostname;
+                        return urlObj.hostname.replace('www.', '');
                     } catch (e) {
-                        return 'N/A';
+                        return 'Link';
                     }
+                }
+
+                function formatDate(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString();
                 }
         
                 async function toggleRelevance(jobId) {
+                    // Optimistic update
                     const job = allDashboardJobs.find(j => j.id === jobId);
                     if (!job) return;
         
-                    const newRelevance = job.job_relevance === 'relevant' ? 'irrelevant' : 'relevant';
+                    const oldRelevance = job.job_relevance;
+                    const newRelevance = oldRelevance === 'relevant' ? 'irrelevant' : 'relevant';
+                    
+                    // UI Update
+                    job.job_relevance = newRelevance;
+                    const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+                    if (row) {
+                        const cell = row.querySelector('.relevance-cell');
+                        if (cell) cell.innerHTML = getRelevanceBadge(newRelevance);
+                    }
         
                     try {
                         const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
@@ -700,21 +750,22 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ relevance: newRelevance })
                         });
-                        const data = await response.json();
-                        if (response.ok) {
-                            showToast(`Relevance updated to ${newRelevance}.`, 'success');
-                            job.job_relevance = newRelevance;
-                            const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+                        
+                        if (!response.ok) {
+                            // Revert on error
+                            job.job_relevance = oldRelevance;
                             if (row) {
                                 const cell = row.querySelector('.relevance-cell');
-                                if (cell) {
-                                    cell.innerHTML = getRelevanceBadge(newRelevance);
-                                }
+                                if (cell) cell.innerHTML = getRelevanceBadge(oldRelevance);
                             }
-                        } else {
+                            const data = await response.json();
                             showToast(`Error: ${data.error}`, 'error');
+                        } else {
+                            showToast(`Relevance updated to ${newRelevance}.`, 'success');
                         }
                     } catch (error) {
+                        // Revert on error
+                        job.job_relevance = oldRelevance;
                         showToast(`Failed to update relevance: ${error}`, 'error');
                     }
                 }
@@ -726,19 +777,15 @@
         
                     if (newNotes !== null) {
                         try {
-                            const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
-                                method: 'PATCH',
+                            const response = await fetch(`/api/dashboard/jobs/${jobId}/notes`, {
+                                method: 'POST', // Changed to POST /notes endpoint
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ notes: newNotes })
                             });
-                            const data = await response.json();
+                            
                             if (response.ok) {
                                 showToast('Notes updated successfully.', 'success');
-                                // Update the job in the local array
-                                if (job) {
-                                    job.notes = newNotes;
-                                }
-                                // Update the icon in the cell
+                                if (job) job.notes = newNotes;
                                 const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
                                 if (row) {
                                     const cell = row.querySelector('.notes-cell');
@@ -748,59 +795,13 @@
                                     }
                                 }
                             } else {
+                                const data = await response.json();
                                 showToast(`Error: ${data.error}`, 'error');
                             }
                         } catch (error) {
                             showToast(`Failed to update notes: ${error}`, 'error');
                         }
                     }
-                }
-        
-                // === SORTING FUNCTIONS ===
-                function sortJobs(column) {
-                    if (currentSortColumn === column) {
-                        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        currentSortColumn = column;
-                        currentSortDirection = 'asc';
-                    }
-        
-                    allDashboardJobs.sort((a, b) => {
-                        let valA, valB;
-        
-                        if (column === 'index') {
-                            valA = a.index;
-                            valB = b.index;
-                        } else if (column === 'job_role') {
-                            valA = (a.job_role || '').toLowerCase();
-                            valB = (b.job_role || '').toLowerCase();
-                        } else if (column === 'application_source') {
-                            valA = getDomainFromUrl(a.application_link || '').toLowerCase();
-                            valB = getDomainFromUrl(b.application_link || '').toLowerCase();
-                        } else {
-                            return 0; // No sorting for unknown columns
-                        }
-        
-                        if (valA < valB) {
-                            return currentSortDirection === 'asc' ? -1 : 1;
-                        }
-                        if (valA > valB) {
-                            return currentSortDirection === 'asc' ? 1 : -1;
-                        }
-                        return 0;
-                    });
-        
-                    filterJobs(); // Re-apply filters and display sorted jobs
-                    updateSortIndicators();
-                }
-        
-                function updateSortIndicators() {
-                    document.querySelectorAll('#dashboard-jobs-table th.sortable').forEach(th => {
-                        th.classList.remove('asc', 'desc');
-                        if (th.dataset.sortBy === currentSortColumn) {
-                            th.classList.add(currentSortDirection);
-                        }
-                    });
                 }
         
                 // === LOG MANAGEMENT FUNCTIONS ===
@@ -923,18 +924,52 @@
         }
 
         // === JOBS FUNCTIONS ===
-        async function fetchDashboardJobs() {
+        
+        function filterJobs() {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                currentPage = 1; // Reset to first page on filter change
+                fetchDashboardJobs(1);
+            }, 500); // Debounce for 500ms
+        }
+
+        async function fetchDashboardJobs(page = 1) {
             try {
-                showToast('Loading jobs...', 'info', 2000);
-                // Fetch all jobs by setting a large page size, effectively disabling pagination
+                currentPage = page;
+                const statusFilter = document.getElementById('status-filter').value;
+                const relevanceFilter = document.getElementById('relevance-filter').value;
+                const searchTerm = document.getElementById('job-search').value.trim();
+                
+                showToast('Loading jobs...', 'info', 1000);
+                
                 const url = new URL('/api/dashboard/jobs', window.location.origin);
-                url.searchParams.append('page_size', '1000'); 
+                url.searchParams.append('page', page);
+                url.searchParams.append('page_size', pageSize);
+                
+                if (statusFilter && statusFilter !== 'all') url.searchParams.append('status', statusFilter);
+                if (relevanceFilter) url.searchParams.append('relevance', relevanceFilter);
+                if (searchTerm) url.searchParams.append('job_role', searchTerm);
+                
+                // Handle "archived" logic from filter dropdown (backward compatibility)
+                if (statusFilter === 'archived') {
+                     url.searchParams.append('include_archived', 'true');
+                }
 
                 const response = await fetch(url);
                 const data = await response.json();
+                
                 allDashboardJobs = data.jobs || [];
-                showToast(`Loaded ${allDashboardJobs.length} jobs`, 'success', 2000);
-                filterJobs(); // Apply current filters
+                totalJobs = data.total_count || 0;
+                
+                displayDashboardJobs(allDashboardJobs);
+                renderPagination();
+                
+                document.getElementById('jobs-count').textContent = `${totalJobs} jobs found`;
+                
+                // Reset select all checkbox
+                const selectAll = document.getElementById('select-all-dashboard-jobs');
+                if(selectAll) selectAll.checked = false;
+                
             } catch (error) {
                 console.error("Failed to fetch dashboard jobs:", error);
                 showToast(`Failed to fetch jobs: ${error}`, 'error');
@@ -942,50 +977,44 @@
         }
 
         async function fetchArchivedJobs() {
-            try {
-                showToast('Loading archived jobs...', 'info', 2000);
-                const url = new URL('/api/dashboard/jobs', window.location.origin);
-                url.searchParams.append('status', 'archived');
-                url.searchParams.append('include_archived', 'true');
-                url.searchParams.append('page_size', '1000');
-
-                const response = await fetch(url);
-                const data = await response.json();
-                const jobs = data.jobs || [];
-                displayDashboardJobs(jobs);
-                showToast(`Loaded ${jobs.length} archived jobs`, 'success', 2000);
-            } catch (error) {
-                console.error("Failed to fetch archived jobs:", error);
-                showToast(`Failed to fetch archived jobs: ${error}`, 'error');
-            }
+            // Legacy wrapper - redirect to normal fetch with archive filter
+            const select = document.getElementById('status-filter');
+            select.value = 'archived';
+            filterJobs();
         }
 
         function displayDashboardJobs(jobs) {
             const jobsTableBody = document.getElementById('dashboard-jobs-body');
-            document.getElementById('jobs-count').textContent = `${jobs ? jobs.length : 0} jobs shown`;
 
             if (!jobs || jobs.length === 0) {
-                jobsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No jobs found</td></tr>';
+                jobsTableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No jobs found</td></tr>';
+                document.getElementById('pagination-controls').style.setProperty('display', 'none', 'important');
                 return;
             }
 
+            document.getElementById('pagination-controls').style.display = 'flex';
+
             jobsTableBody.innerHTML = jobs.map((job, index) => {
-                job.index = index + 1; // Assign serial number for sorting
+                const serialNumber = (currentPage - 1) * pageSize + (index + 1);
                 const statusBadge = getStatusBadge(job.application_status);
                 const relevanceBadge = getRelevanceBadge(job.job_relevance);
-                const applicationSource = getDomainFromUrl(job.application_link);
+                const domain = getDomainFromUrl(job.application_link);
+                const dateAdded = formatDate(job.original_created_at || job.created_at);
                 
                 return `
                     <tr data-job-id="${job.id}">
                         <td><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}"></td>
-                        <td>${job.index}</td>
+                        <td>${serialNumber}</td>
+                        <td><small>${dateAdded}</small></td>
                         <td><strong>${escapeHtml(job.job_role || 'N/A')}</strong></td>
+                        <td>${escapeHtml(job.company_name || 'N/A')}</td>
+                        <td><span class="badge bg-light text-dark border">${domain}</span></td>
                         <td>
-                            ${job.application_link ? `<a href="${job.application_link}" target="_blank">${escapeHtml(applicationSource)}</a>` : 'N/A'}
+                            ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary" title="${escapeHtml(job.application_link)}"><i class="bi bi-box-arrow-up-right"></i> Link</a>` : '<span class="text-muted">-</span>'}
                         </td>
-                        <td class="status-cell" style="cursor: pointer;">
+                        <td class="status-cell">
                             <div class="dropdown">
-                                <span class="dropdown-toggle" data-bs-toggle="dropdown">${statusBadge}</span>
+                                <span class="dropdown-toggle" data-bs-toggle="dropdown" style="cursor:pointer;">${statusBadge}</span>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'not_applied')">Not Applied</a></li>
                                     <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'applied')">Applied</a></li>
@@ -1000,15 +1029,19 @@
                         <td class="notes-cell" onclick="editNotes(${job.id})" title="Edit Notes" style="cursor: pointer;">${job.notes ? '📝' : ''}</td>
                         <td>
                             <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-info" onclick="toggleJobDescription(${job.id})" title="Show/Hide Description">📄</button>
-                                <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied', true)" title="Mark as Applied">✅</button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected', true)" title="Mark as Rejected">❌</button>
+                                <button class="btn btn-sm btn-outline-info" onclick="toggleJobDescription(${job.id})" title="Details">📄</button>
+                                <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied')" title="Mark Applied">✅</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected')" title="Mark Rejected">❌</button>
                             </div>
                         </td>
                     </tr>
                     <tr class="job-description-row d-none" id="description-${job.id}">
-                        <td colspan="8">
+                        <td colspan="11">
                             <div class="p-3 bg-light border rounded" style="max-height: 300px; overflow-y: auto; margin: 0 10px;">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>Full Details:</strong>
+                                    <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleJobDescription(${job.id})">Close</button>
+                                </div>
                                 <div class="job-description-content" id="job-desc-content-${job.id}">
                                     <p class="text-muted">Loading job description...</p>
                                 </div>
@@ -1019,251 +1052,74 @@
             }).join('');
         }
 
-        async function updateJobStatus(jobId, status, archive = false) { // archive is false by default now
-            try {
-                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: status, archive: archive })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(`Job status updated to ${status}.`, 'success');
-                    const job = allDashboardJobs.find(j => j.id === jobId);
-                    if (job) {
-                        job.application_status = status;
-                    }
-                    const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
-                    if (row) {
-                        const cell = row.querySelector('.status-cell .dropdown-toggle');
-                        if (cell) {
-                            cell.innerHTML = getStatusBadge(status);
-                        }
-                    }
-                    if (archive) {
-                        // If archived, remove the row after a small delay
-                        setTimeout(() => {
-                            if (row) row.remove();
-                            const descRow = document.getElementById(`description-${jobId}`);
-                            if (descRow) descRow.remove();
-                        }, 500);
-                    }
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to update job status: ${error}`, 'error');
-            }
-        }
-
-        async function bulkUpdateStatus(status) {
-            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => cb.value);
-            if (selectedIds.length === 0) {
-                showToast('No jobs selected.', 'warning');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/dashboard/jobs/bulk_update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ job_ids: selectedIds, status: status, archive: true })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(`${data.updated_count} jobs have been updated and archived.`, 'success');
-                    // Remove the selected job rows from the table
-                    selectedIds.forEach(jobId => {
-                        const jobRow = document.querySelector(`tr[data-job-id="${jobId}"]`);
-                        if (jobRow) {
-                            jobRow.remove();
-                        }
-                        const descRow = document.getElementById(`description-${jobId}`);
-                        if (descRow) {
-                            descRow.remove();
-                        }
-                    });
-                    // Uncheck the "select all" checkbox
-                    document.getElementById('select-all-dashboard-jobs').checked = false;
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to perform bulk update: ${error}`, 'error');
-            }
-        }
-
-        function toggleAllJobs() {
-            const selectAllCheckbox = document.getElementById('select-all-dashboard-jobs');
-            const checkboxes = document.querySelectorAll('.dashboard-job-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAllCheckbox.checked;
-            });
-        }
-
-
-
-        function filterJobs() {
-            const statusFilter = document.getElementById('status-filter').value;
-
-            if (statusFilter === 'archived') {
-                fetchArchivedJobs();
-                return;
-            }
-
-            const searchTerm = document.getElementById('job-search').value.toLowerCase();
-            const relevanceFilter = document.getElementById('relevance-filter').value;
-
-            let filteredJobs = allDashboardJobs.filter(job => {
-                const role = (job.job_role || '').toLowerCase();
-
-                const matchesSearch = !searchTerm || role.includes(searchTerm);
-                const matchesStatus = !statusFilter || job.application_status === statusFilter;
-                const matchesRelevance = !relevanceFilter || job.job_relevance === relevanceFilter;
-
-                return matchesSearch && matchesStatus && matchesRelevance;
-            });
-
-            // Apply current sorting after filtering
-            filteredJobs.sort((a, b) => {
-                let valA, valB;
-
-                if (currentSortColumn === 'index') {
-                    valA = a.index;
-                    valB = b.index;
-                } else if (currentSortColumn === 'job_role') {
-                    valA = (a.job_role || '').toLowerCase();
-                    valB = (b.job_role || '').toLowerCase();
-                } else if (currentSortColumn === 'application_source') {
-                    valA = getDomainFromUrl(a.application_link || '').toLowerCase();
-                    valB = getDomainFromUrl(b.application_link || '').toLowerCase();
-                } else {
-                    return 0; // No sorting for unknown columns
-                }
-
-                if (valA < valB) {
-                    return currentSortDirection === 'asc' ? -1 : 1;
-                }
-                if (valA > valB) {
-                    return currentSortDirection === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
-
-            displayDashboardJobs(filteredJobs);
-        }
-
-        async function importJobsFromSheets() {
-            try {
-                showToast('Importing jobs from non-email sheet...', 'info');
-                const response = await fetch('/api/dashboard/import', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sheet_name: 'non-email', max_jobs: 50 })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    fetchDashboardJobs();
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to import jobs: ${error}`, 'error');
-            }
-        }
-
-        async function detectDuplicates() {
-            try {
-                showToast('Detecting duplicate jobs...', 'info');
-                const response = await fetch('/api/dashboard/detect_duplicates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(data.message, 'success');
-                    fetchDashboardJobs();
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to detect duplicates: ${error}`, 'error');
-            }
-        }
-
-        async function exportJobs() {
-            try {
-                const response = await fetch('/api/dashboard/jobs/export');
-                const data = await response.json();
-                if (response.ok) {
-                    showToast(`Exported ${data.count} jobs to CSV`, 'success');
-                } else {
-                    showToast(`Error: ${data.error}`, 'error');
-                }
-            } catch (error) {
-                showToast(`Failed to export jobs: ${error}`, 'error');
-            }
-        }
-
-        // Toggle the visibility of job description
-        function toggleJobDescription(jobId) {
-            const descRow = document.getElementById(`description-${jobId}`);
-            const contentDiv = document.getElementById(`job-desc-content-${jobId}`);
+        function renderPagination() {
+            const paginationPages = document.getElementById('pagination-pages');
+            const totalPages = Math.ceil(totalJobs / pageSize);
+            const startItem = (currentPage - 1) * pageSize + 1;
+            const endItem = Math.min(currentPage * pageSize, totalJobs);
             
-            if (descRow.classList.contains('d-none')) {
-                // Show the description row
-                descRow.classList.remove('d-none');
-                
-                // Fetch job description if not already loaded
-                if (!contentDiv.getAttribute('data-loaded')) {
-                    fetchJobDescription(jobId);
+            document.getElementById('pagination-info').textContent = `Showing ${startItem}-${endItem} of ${totalJobs} jobs`;
+            
+            let html = '';
+            
+            // Previous
+            html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>
+                    </li>`;
+            
+            // Simple logic: Show first, last, and window around current
+            // If many pages, show dots
+            
+            const windowSize = 2; // items on each side
+            
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - windowSize && i <= currentPage + windowSize)) {
+                    html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                            </li>`;
+                } else if (i === currentPage - windowSize - 1 || i === currentPage + windowSize + 1) {
+                    html += `<li class="page-item disabled"><a class="page-link" href="#">...</a></li>`;
                 }
-            } else {
-                // Hide the description row
-                descRow.classList.add('d-none');
             }
+            
+            // Next
+            html += `<li class="page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>
+                    </li>`;
+            
+            paginationPages.innerHTML = html;
         }
-        
-        // Fetch and display job description
-        async function fetchJobDescription(jobId) {
+
+        function changePage(newPage) {
+            const totalPages = Math.ceil(totalJobs / pageSize);
+            if (newPage < 1 || (totalPages > 0 && newPage > totalPages)) return;
+            fetchDashboardJobs(newPage);
+        }
+
+        async function archiveOlderThan() {
+            const days = document.getElementById('archive-days-select').value;
+            if (!confirm(`Are you sure you want to archive all non-hidden jobs older than ${days} days?`)) {
+                return;
+            }
+            
             try {
-                const contentDiv = document.getElementById(`job-desc-content-${jobId}`);
-                
-                // Show loading indicator
-                contentDiv.innerHTML = '<p class="text-muted">Loading job description...</p>';
-                
-                // Fetch job data
-                const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
+                showToast(`Archiving jobs older than ${days} days...`, 'info');
+                const response = await fetch('/api/dashboard/jobs/archive_older_than', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: parseInt(days) })
+                });
                 const data = await response.json();
                 
-                if (!response.ok) {
-                    contentDiv.innerHTML = `<p class="text-danger">Error loading job description: ${data.error || 'Unknown error'}</p>`;
-                    return;
-                }
-                
-                // Build description content
-                let descriptionHtml = '';
-                
-                if (data.original_job?.jd_text) {
-                    descriptionHtml = `<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 13px;">${escapeHtml(data.original_job.jd_text)}</pre>`;
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    fetchDashboardJobs(1); // Refresh list
                 } else {
-                    descriptionHtml = '<p class="text-muted">No job description available for this job.</p>';
+                    showToast(`Error: ${data.error}`, 'error');
                 }
-                
-                // Update content and mark as loaded
-                contentDiv.innerHTML = descriptionHtml;
-                contentDiv.setAttribute('data-loaded', 'true');
-                
             } catch (error) {
-                console.error("Failed to fetch job description:", error);
-                contentDiv.innerHTML = `<p class="text-danger">Error loading job description: ${error}</p>`;
+                showToast(`Failed to archive jobs: ${error}`, 'error');
             }
-        }
-        
-        // Legacy function kept for backward compatibility - now redirects to new toggle
-        async function viewJobMessage(jobId) {
-            toggleJobDescription(jobId);
         }
 
 
