@@ -298,33 +298,59 @@ class LLMProcessor:
         """Fallback regex-based parsing"""
         jobs = []
         
-        # Simple heuristic: split on double newlines or "---"
-        raw_sections = re.split(r'\n\s*\n|---+', message_text)
+        # Strategy 1: Split by "Company - " if present (User Request)
+        # We look for "Company -" at the start of a line.
+        # (?m) enables multiline mode for ^
+        # Updated to support optional numbering like "1) Company -" or "7. Company -"
+        company_split_pattern = r'(?:\n|^)\s*(?:[\d]+[\).]\s*)?(?:Company|Organisation|Organization)\s*[-:–—]\s*'
         
-        # Merge sections that look like continuations (e.g. "How to Apply")
-        sections = []
-        if raw_sections:
-            sections.append(raw_sections[0])
-            for i in range(1, len(raw_sections)):
-                prev = sections[-1]
-                curr = raw_sections[i]
+        if re.search(company_split_pattern, message_text, re.IGNORECASE):
+            # Find all start indices of the pattern
+            matches = list(re.finditer(company_split_pattern, message_text, re.IGNORECASE))
+            sections = []
+            
+            for i in range(len(matches)):
+                start_pos = matches[i].start()
+                # If it matched the newline before, we want to include the "Company..." text
+                # check if the match started with newline
+                if message_text[start_pos] == '\n':
+                    start_pos += 1
                 
-                # Check if current section is just contact info
-                is_continuation = False
-                lower_curr = curr.lower().strip()
-                if (lower_curr.startswith("how to apply") or 
-                    lower_curr.startswith("share your cv") or 
-                    lower_curr.startswith("send your resume") or
-                    (len(curr) < 200 and ("@" in curr or "http" in curr) and "company" not in lower_curr)):
-                    is_continuation = True
-                
-                if is_continuation:
-                    sections[-1] = prev + "\n\n" + curr
+                if i < len(matches) - 1:
+                    end_pos = matches[i+1].start()
                 else:
-                    sections.append(curr)
+                    end_pos = len(message_text)
+                
+                sections.append(message_text[start_pos:end_pos].strip())
+                
+        else:
+            # Strategy 2: Original fallback (newlines / dashes)
+            raw_sections = re.split(r'\n\s*\n|---+', message_text)
+            
+            # Merge sections that look like continuations (e.g. "How to Apply")
+            sections = []
+            if raw_sections:
+                sections.append(raw_sections[0])
+                for i in range(1, len(raw_sections)):
+                    prev = sections[-1]
+                    curr = raw_sections[i]
+                    
+                    # Check if current section is just contact info
+                    is_continuation = False
+                    lower_curr = curr.lower().strip()
+                    if (lower_curr.startswith("how to apply") or 
+                        lower_curr.startswith("share your cv") or 
+                        lower_curr.startswith("send your resume") or
+                        (len(curr) < 200 and ("@" in curr or "http" in curr) and "company" not in lower_curr)):
+                        is_continuation = True
+                    
+                    if is_continuation:
+                        sections[-1] = prev + "\n\n" + curr
+                    else:
+                        sections.append(curr)
         
         for section in sections:
-            if len(section.strip()) < 50:  # Too short to be a job
+            if len(section.strip()) < 20:  # Too short to be a job (lowered threshold slightly)
                 continue
             
             job = {
@@ -340,15 +366,19 @@ class LLMProcessor:
                 'jd_text': section.strip()
             }
             
-            # Only add if we found at least company or role
-            if job['company_name'] != 'Unknown' or job['job_role'] != 'Position':
+            # Only add if we found at least company or role, OR if it has a valid email/link
+            # (Sometimes regex misses company name but we still want the lead)
+            if (job['company_name'] != 'Unknown' or job['job_role'] != 'Position') or (job['email'] or job['application_link']):
                 jobs.append(job)
         
         return jobs
     
     def _extract_company(self, text: str) -> str:
         patterns = [
-            r'(?:Company|Organisation|Organization)[\s:]+([A-Za-z0-9\s&.,-]+?)(?:\n|$)',
+            # Handle "Company - Name" or "Company: Name" - Add parens and other dash types
+            r'(?:Company|Organisation|Organization)[\s]*[-:–—][\s]*([A-Za-z0-9\s&.,()–—]+?)(?:\n|$)',
+            # Fallback for just space separator if colon/dash missing
+            r'(?:Company|Organisation|Organization)[\s]+([A-Za-z0-9\s&.,()–—]+?)(?:\n|$)',
             r'@([A-Za-z0-9]+)',
         ]
         for pattern in patterns:
@@ -359,8 +389,10 @@ class LLMProcessor:
     
     def _extract_role(self, text: str) -> str:
         patterns = [
-            r'(?:Role|Position|Job Title)[\s:]+([A-Za-z0-9\s/,-]+?)(?:\n|$)',
-            r'(?:hiring|looking for)[\s:]+([A-Za-z0-9\s/,-]+?)(?:\n|$)',
+            # Handle "Role - Name" or "Role: Name" - Add parens and other dash types
+            r'(?:Role|Position|Job Title)[\s]*[-:–—][\s]*([A-Za-z0-9\s/,-–—()]+?)(?:\n|$)',
+            r'(?:Role|Position|Job Title)[\s]+([A-Za-z0-9\s/,-–—()]+?)(?:\n|$)',
+            r'(?:hiring|looking for)[\s:]+([A-Za-z0-9\s/,-–—()]+?)(?:\n|$)',
         ]
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE)
