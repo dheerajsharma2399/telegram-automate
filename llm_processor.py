@@ -80,20 +80,14 @@ class LLMProcessor:
                     
                     # Only apply slicing if we found positions for at least some jobs
                     if job_indices:
+                        # Pre-calculate REAL start positions (start of the line) for all jobs
+                        real_starts = []
                         for k in range(len(job_indices)):
-                            job_idx, start_pos = job_indices[k]
+                            job_idx, name_start_pos = job_indices[k]
                             
-                            # Determine end position (start of next job or end of text)
-                            if k < len(job_indices) - 1:
-                                _, next_start = job_indices[k+1]
-                                end_pos = next_start
-                            else:
-                                end_pos = len(message_text)
-                            
-                            # Refine Start Position: Look back to capture "1) " or "Company -" prefix
                             # Look back up to 50 chars for the preceding newline
-                            lookback_limit = max(0, start_pos - 50)
-                            prefix_text = message_text[lookback_limit:start_pos]
+                            lookback_limit = max(0, name_start_pos - 50)
+                            prefix_text = message_text[lookback_limit:name_start_pos]
                             last_newline_idx = prefix_text.rfind('\n')
                             
                             if last_newline_idx != -1:
@@ -102,9 +96,22 @@ class LLMProcessor:
                             else:
                                 # No newline found, start from lookback limit (start of message)
                                 real_start = lookback_limit
+                            
+                            real_starts.append((job_idx, real_start))
+                            
+                        # Now slice using the real start boundaries
+                        for k in range(len(real_starts)):
+                            job_idx, start_pos = real_starts[k]
+                            
+                            # Determine end position
+                            if k < len(real_starts) - 1:
+                                _, next_real_start = real_starts[k+1]
+                                end_pos = next_real_start
+                            else:
+                                end_pos = len(message_text)
                                 
                             # Extract the raw slice
-                            raw_slice = message_text[real_start:end_pos].strip()
+                            raw_slice = message_text[start_pos:end_pos].strip()
                             
                             # Update the job's jd_text with the exact raw text
                             if len(raw_slice) > 10: # Sanity check
