@@ -569,6 +569,7 @@ class DashboardRepository(BaseRepository):
 
     def get_dashboard_jobs(self, status_filter: Optional[str] = None,
                           relevance_filter: Optional[str] = None,
+                          job_role_filter: Optional[str] = None,
                           include_archived: bool = False,
                           page: int = 1, page_size: int = 50) -> Dict:
         """Get dashboard jobs with optional filtering"""
@@ -584,6 +585,10 @@ class DashboardRepository(BaseRepository):
                 if relevance_filter:
                     base_query += " AND job_relevance = %s"
                     params.append(relevance_filter)
+                
+                if job_role_filter:
+                    base_query += " AND job_role ILIKE %s"
+                    params.append(f"%{job_role_filter}%")
                 
                 if not include_archived:
                     base_query += " AND is_hidden = FALSE"
@@ -605,6 +610,19 @@ class DashboardRepository(BaseRepository):
                     "page": page,
                     "page_size": page_size
                 }
+
+    def archive_jobs_older_than(self, days: int) -> int:
+        """Archive jobs older than N days that are not already archived/hidden"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE dashboard_jobs
+                SET is_hidden = TRUE, application_status = 'archived', updated_at = CURRENT_TIMESTAMP
+                WHERE created_at < CURRENT_DATE - INTERVAL '%s days'
+                AND is_hidden = FALSE
+            """, (days,))
+            conn.commit()
+            return cursor.rowcount
 
     def add_job_notes(self, job_id: int, notes: str) -> bool:
         """Add or update notes for a job"""

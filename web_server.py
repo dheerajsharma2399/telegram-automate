@@ -450,6 +450,7 @@ def get_dashboard_jobs():
     try:
         status_filter = request.args.get('status')
         relevance_filter = request.args.get('relevance')
+        job_role_filter = request.args.get('job_role')
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 50, type=int)
         include_archived = request.args.get('include_archived', 'false').lower() == 'true'
@@ -458,6 +459,7 @@ def get_dashboard_jobs():
         result = db.dashboard.get_dashboard_jobs(
             status_filter=status_filter,
             relevance_filter=relevance_filter,
+            job_role_filter=job_role_filter,
             include_archived=include_archived,
             page=page,
             page_size=page_size
@@ -466,6 +468,34 @@ def get_dashboard_jobs():
         return jsonify(result)
     except Exception as e:
         logging.error(f"Failed to fetch dashboard jobs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/dashboard/jobs/archive_older_than", methods=["POST"])
+def archive_jobs_older_than():
+    """Archive jobs older than N days"""
+    try:
+        data = request.get_json(force=True) or {}
+        days = data.get('days')
+        
+        if days is None:
+            return jsonify({"error": "days parameter is required"}), 400
+            
+        try:
+            days = int(days)
+            if days < 0:
+                raise ValueError
+        except ValueError:
+            return jsonify({"error": "days must be a non-negative integer"}), 400
+            
+        archived_count = db.dashboard.archive_jobs_older_than(days)
+        
+        return jsonify({
+            "message": f"Archived {archived_count} jobs older than {days} days",
+            "archived_count": archived_count
+        })
+        
+    except Exception as e:
+        logging.error(f"Failed to archive old jobs: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/dashboard/jobs", methods=["POST"])
