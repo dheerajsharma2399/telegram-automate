@@ -454,6 +454,8 @@ def get_dashboard_jobs():
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 50, type=int)
         include_archived = request.args.get('include_archived', 'false').lower() == 'true'
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'DESC')
         
         # Correctly call the repository method
         result = db.dashboard.get_dashboard_jobs(
@@ -462,7 +464,9 @@ def get_dashboard_jobs():
             job_role_filter=job_role_filter,
             include_archived=include_archived,
             page=page,
-            page_size=page_size
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order
         )
         
         return jsonify(result)

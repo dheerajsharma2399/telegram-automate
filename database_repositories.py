@@ -571,8 +571,9 @@ class DashboardRepository(BaseRepository):
                           relevance_filter: Optional[str] = None,
                           job_role_filter: Optional[str] = None,
                           include_archived: bool = False,
-                          page: int = 1, page_size: int = 50) -> Dict:
-        """Get dashboard jobs with optional filtering"""
+                          page: int = 1, page_size: int = 50,
+                          sort_by: str = 'created_at', sort_order: str = 'DESC') -> Dict:
+        """Get dashboard jobs with optional filtering and sorting"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 base_query = "FROM dashboard_jobs WHERE 1=1"
@@ -598,8 +599,15 @@ class DashboardRepository(BaseRepository):
                 cursor.execute(count_query, tuple(params))
                 total_count = cursor.fetchone()['count']
                 
+                # Validate sort columns to prevent SQL injection
+                allowed_sort_cols = ['created_at', 'job_role', 'company_name', 'application_status', 'job_relevance', 'application_link', 'original_created_at']
+                if sort_by not in allowed_sort_cols:
+                    sort_by = 'created_at'
+                if sort_order.upper() not in ['ASC', 'DESC']:
+                    sort_order = 'DESC'
+
                 # Get paginated results
-                data_query = f"SELECT * {base_query} ORDER BY created_at DESC LIMIT %s OFFSET %s"
+                data_query = f"SELECT * {base_query} ORDER BY {sort_by} {sort_order} LIMIT %s OFFSET %s"
                 offset = (page - 1) * page_size
                 params.extend([page_size, offset])
                 cursor.execute(data_query, tuple(params))
