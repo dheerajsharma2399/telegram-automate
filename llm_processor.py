@@ -51,6 +51,84 @@ class LLMProcessor:
             # Regex to capture http/https URLs, stopping at whitespace or end of string
             match = re.search(r'https?://[^\s]+', text)
             return match.group(0) if match else None
+            
+        # Helper to merge fragmented jobs (e.g. Email fragment + JD fragment)
+        def _merge_fragmented_jobs(job_list):
+            if not job_list or len(job_list) < 2:
+                return job_list
+            
+            merged = []
+            skip_next = False
+            
+            for i in range(len(job_list)):
+                if skip_next:
+                    skip_next = False
+                    continue
+                    
+                current_job = job_list[i]
+                
+                if i < len(job_list) - 1:
+                    next_job = job_list[i+1]
+                    
+                    # Normalize strings for comparison (remove spaces, special chars, lowercase)
+                    def normalize(s): return re.sub(r'[^a-z0-9]', '', str(s).lower())
+                    
+                    c1 = normalize(current_job.get('company_name', ''))
+                    c2 = normalize(next_job.get('company_name', ''))
+                    
+                    # Loose company match
+                    same_company = (c1 == c2) or (c1 in c2) or (c2 in c1) or c1 == 'unknown' or c2 == 'unknown'
+                    
+                    if same_company:
+                        jd_a_raw = current_job.get('jd_text', '') or ''
+                        jd_b_raw = next_job.get('jd_text', '') or ''
+                        
+                        jd_a_len = len(jd_a_raw)
+                        jd_b_len = len(jd_b_raw)
+                        
+                        email_a = bool(current_job.get('email'))
+                        email_b = bool(next_job.get('email'))
+                        
+                        # Heuristic: Is Next a Contact Fragment?
+                        is_next_contact = False
+                        if jd_b_len < 300 and email_b and not email_a:
+                            is_next_contact = True
+                        if jd_b_raw.lower().strip().startswith(('how to apply', 'share your cv', 'send your resume', '📩')):
+                            is_next_contact = True
+                            
+                        # Heuristic: Is Current a Contact Fragment?
+                        is_curr_contact = False
+                        if jd_a_len < 300 and email_a and not email_b:
+                            is_curr_contact = True
+                        if jd_a_raw.lower().strip().startswith(('how to apply', 'share your cv', 'send your resume', '📩')):
+                            is_curr_contact = True
+
+                        # Case A: Merge Next into Current
+                        if is_next_contact and not is_curr_contact:
+                            current_job['email'] = next_job['email']
+                            if not current_job.get('application_link'):
+                                current_job['application_link'] = next_job.get('application_link')
+                            if current_job.get('company_name') == 'Unknown' and next_job.get('company_name') != 'Unknown':
+                                current_job['company_name'] = next_job.get('company_name')
+                            skip_next = True
+                            
+                        # Case B: Merge Current into Next
+                        elif is_curr_contact and not is_next_contact:
+                            next_job['email'] = current_job['email']
+                            if not next_job.get('application_link'):
+                                next_job['application_link'] = current_job.get('application_link')
+                            if next_job.get('company_name') == 'Unknown' and current_job.get('company_name') != 'Unknown':
+                                next_job['company_name'] = current_job.get('company_name')
+                            
+                            current_job = next_job
+                            skip_next = True
+
+                merged.append(current_job)
+            return merged
+
+        # Step 0: Merge fragmented jobs
+        if result:
+            result = _merge_fragmented_jobs(result)
 
         if result:
             # 1. Enhance jd_text using Position-Based Extraction (Raw Text Slicing)
@@ -120,9 +198,9 @@ class LLMProcessor:
             except Exception as e:
                 print(f"Error in raw text reconstruction: {e}")
 
-            # 2. HYBRID FIX: If application_link is missing, try to find it in jd_text using regex
+            # 2. HYBRID FIX: If application_link or email is missing, try to find it in jd_text using regex
             for job in result:
-                # If link is missing (and it's not explicitly an email-only job which might not have a link)
+                # Link Backfill
                 if not job.get('application_link'):
                     found_link = find_link_in_text(job.get('jd_text'))
                     if found_link:
@@ -130,6 +208,13 @@ class LLMProcessor:
                         if '@' not in found_link or 'http' in found_link:
                             job['application_link'] = found_link
                             # print(f"  [Hybrid Fix] Auto-detected link for {job.get('company_name')}: {found_link}")
+                
+                # Email Backfill
+                if not job.get('email'):
+                    found_email = self._extract_email(job.get('jd_text'))
+                    if found_email:
+                        job['email'] = found_email
+                        # print(f"  [Hybrid Fix] Auto-detected email for {job.get('company_name')}: {found_email}")
 
         return result
     
@@ -214,7 +299,29 @@ class LLMProcessor:
         jobs = []
         
         # Simple heuristic: split on double newlines or "---"
-        sections = re.split(r'\n\s*\n|---+', message_text)
+        raw_sections = re.split(r'\n\s*\n|---+', message_text)
+        
+        # Merge sections that look like continuations (e.g. "How to Apply")
+        sections = []
+        if raw_sections:
+            sections.append(raw_sections[0])
+            for i in range(1, len(raw_sections)):
+                prev = sections[-1]
+                curr = raw_sections[i]
+                
+                # Check if current section is just contact info
+                is_continuation = False
+                lower_curr = curr.lower().strip()
+                if (lower_curr.startswith("how to apply") or 
+                    lower_curr.startswith("share your cv") or 
+                    lower_curr.startswith("send your resume") or
+                    (len(curr) < 200 and ("@" in curr or "http" in curr) and "company" not in lower_curr)):
+                    is_continuation = True
+                
+                if is_continuation:
+                    sections[-1] = prev + "\n\n" + curr
+                else:
+                    sections.append(curr)
         
         for section in sections:
             if len(section.strip()) < 50:  # Too short to be a job
