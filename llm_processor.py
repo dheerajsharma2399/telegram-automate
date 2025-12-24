@@ -1,7 +1,8 @@
 import json
 import re
+import random
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import aiohttp
 import asyncio
 from config import SYSTEM_PROMPT
@@ -10,10 +11,10 @@ from pathlib import Path
 
 class LLMProcessor:    
 
-    def __init__(self, api_key: str, model: str, fallback_model: str):
-        self.api_key = api_key
-        self.model = model
-        self.fallback_model = fallback_model
+    def __init__(self, api_keys: List[str], models: List[str], fallback_models: List[str]):
+        self.api_keys = api_keys
+        self.models = models
+        self.fallback_models = fallback_models
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
         # attempt to load a local user profile JSON (optional)
         self.user_profile = None
@@ -26,15 +27,15 @@ class LLMProcessor:
             self.user_profile = None
     
     async def parse_jobs(self, message_text: str, max_retries: int = 3) -> List[Dict]:
-        """Parse job postings from message using LLM"""
+        """Parse job postings from message using LLM with failover and rotation"""
         
-        # Try primary model first
-        jobs = await self._call_llm(message_text, self.model, max_retries)
+        # Try primary model pool
+        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary")
         
-        # If failed, try fallback model
-        if jobs is None:
-            print(f"  Primary model failed, trying fallback: {self.fallback_model}")
-            jobs = await self._call_llm(message_text, self.fallback_model, max_retries)
+        # If failed, try fallback model pool
+        if jobs is None and self.fallback_models:
+            print(f"  Primary pool failed, trying fallback pool...")
+            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback")
         
         # If LLM completely failed, use regex fallback
         if jobs is None:
@@ -45,6 +46,7 @@ class LLMProcessor:
         # the original message into sensible sections and assign per-job jd_text.
         result = jobs or []
         
+        # ... (rest of the method remains the same)
         # Helper to find link in text
         def find_link_in_text(text):
             if not text: return None
@@ -218,12 +220,38 @@ class LLMProcessor:
 
         return result
     
-    async def _call_llm(self, message_text: str, model: str, 
-                       max_retries: int) -> Optional[List[Dict]]:
-        """Call LLM API with retry logic"""
+    async def _try_pool(self, model_pool: List[str], message_text: str, max_retries: int, pool_name: str) -> Optional[List[Dict]]:
+        """Try to fetch jobs using a specific model pool with retries and rotation"""
+        if not model_pool:
+            return None
+
+        for attempt in range(max_retries):
+            # Select random model and key
+            model = random.choice(model_pool)
+            api_key = random.choice(self.api_keys) if self.api_keys else None
+            
+            if not api_key:
+                print("  Error: No API keys available")
+                return None
+
+            try:
+                jobs = await self._call_llm(message_text, model, api_key)
+                if jobs is not None:
+                    return jobs
+            except Exception as e:
+                print(f"  {pool_name} pool error (attempt {attempt+1}/{max_retries}) with model {model}: {e}")
+            
+            # Exponential backoff
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)
+        
+        return None
+
+    async def _call_llm(self, message_text: str, model: str, api_key: str) -> Optional[List[Dict]]:
+        """Make a single LLM API call"""
         
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://job.mooh.me",  # Required by OpenRouter
             "X-Title": "Telegram Job Scraper"      # Required by OpenRouter
@@ -239,35 +267,25 @@ class LLMProcessor:
             "max_tokens": 4000
         }
         
-        for attempt in range(max_retries):
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(self.base_url, 
-                                          headers=headers, 
-                                          json=payload,
-                                          timeout=aiohttp.ClientTimeout(total=30)) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            content = data['choices'][0]['message']['content']
-                            
-                            # Parse JSON from response
-                            jobs = self._extract_json(content)
-                            if jobs is not None:
-                                return jobs
-                        else:
-                            error_text = await response.text()
-                            print(f"  LLM API error (attempt {attempt+1}): {response.status} - {error_text}")
-                
-                # Exponential backoff
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)
-                    
-            except Exception as e:
-                print(f"  LLM API exception (attempt {attempt+1}): {str(e)}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(2 ** attempt)
-        
-        return None
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.base_url, 
+                                      headers=headers, 
+                                      json=payload,
+                                      timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        content = data['choices'][0]['message']['content']
+                        
+                        # Parse JSON from response
+                        return self._extract_json(content)
+                    else:
+                        error_text = await response.text()
+                        raise Exception(f"HTTP {response.status}: {error_text}")
+        except Exception as e:
+            # Re-raise to be handled by _try_pool
+            raise e
+
     
     def _extract_json(self, content: str) -> Optional[List[Dict]]:
         """Extract JSON array from LLM response"""
