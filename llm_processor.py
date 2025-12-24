@@ -44,16 +44,86 @@ class LLMProcessor:
         # If jobs were found, ensure each job has jd_text; if missing, try to split
         # the original message into sensible sections and assign per-job jd_text.
         result = jobs or []
-        if result and any(not j.get('jd_text') for j in result):
-            sections = re.split(r'\n\s*\n|---+', message_text)
-            # assign sections to jobs in order as a best-effort mapping
-            sec_iter = (s.strip() for s in sections if s.strip())
+        
+        # Helper to find link in text
+        def find_link_in_text(text):
+            if not text: return None
+            # Regex to capture http/https URLs, stopping at whitespace or end of string
+            match = re.search(r'https?://[^\s]+', text)
+            return match.group(0) if match else None
+
+        if result:
+            # 1. Enhance jd_text using Position-Based Extraction (Raw Text Slicing)
+            # This ensures we get the EXACT original text for each job, not an LLM summary.
+            try:
+                if message_text and len(result) > 0:
+                    # Create a list of (job_index, start_index)
+                    job_indices = []
+                    current_search_pos = 0
+                    
+                    # Sort result by company name just in case, or trust LLM order? 
+                    # Trusting LLM order is safer as they usually output in sequence.
+                    for i, job in enumerate(result):
+                        cname = job.get('company_name', '')
+                        if not cname: continue
+                        
+                        # Find company name in text
+                        idx = message_text.find(cname, current_search_pos)
+                        if idx == -1:
+                            # Try case-insensitive
+                            idx = message_text.lower().find(cname.lower(), current_search_pos)
+                        
+                        if idx != -1:
+                            job_indices.append((i, idx))
+                            # Advance search position to avoid finding same company twice
+                            current_search_pos = idx + len(cname)
+                    
+                    # Only apply slicing if we found positions for at least some jobs
+                    if job_indices:
+                        for k in range(len(job_indices)):
+                            job_idx, start_pos = job_indices[k]
+                            
+                            # Determine end position (start of next job or end of text)
+                            if k < len(job_indices) - 1:
+                                _, next_start = job_indices[k+1]
+                                end_pos = next_start
+                            else:
+                                end_pos = len(message_text)
+                            
+                            # Refine Start Position: Look back to capture "1) " or "Company -" prefix
+                            # Look back up to 50 chars for the preceding newline
+                            lookback_limit = max(0, start_pos - 50)
+                            prefix_text = message_text[lookback_limit:start_pos]
+                            last_newline_idx = prefix_text.rfind('\n')
+                            
+                            if last_newline_idx != -1:
+                                # Start from the character after the newline
+                                real_start = lookback_limit + last_newline_idx + 1
+                            else:
+                                # No newline found, start from lookback limit (start of message)
+                                real_start = lookback_limit
+                                
+                            # Extract the raw slice
+                            raw_slice = message_text[real_start:end_pos].strip()
+                            
+                            # Update the job's jd_text with the exact raw text
+                            if len(raw_slice) > 10: # Sanity check
+                                result[job_idx]['jd_text'] = raw_slice
+                                
+            except Exception as e:
+                print(f"Error in raw text reconstruction: {e}")
+
+            # 2. HYBRID FIX: If application_link is missing, try to find it in jd_text using regex
             for job in result:
-                if not job.get('jd_text'):
-                    try:
-                        job['jd_text'] = next(sec_iter)
-                    except StopIteration:
-                        job['jd_text'] = message_text  # fallback to entire message
+                # If link is missing (and it's not explicitly an email-only job which might not have a link)
+                if not job.get('application_link'):
+                    found_link = find_link_in_text(job.get('jd_text'))
+                    if found_link:
+                        # Don't overwrite if the found link is just an email (regex shouldn't match emails but safety first)
+                        if '@' not in found_link or 'http' in found_link:
+                            job['application_link'] = found_link
+                            # print(f"  [Hybrid Fix] Auto-detected link for {job.get('company_name')}: {found_link}")
+
         return result
     
     async def _call_llm(self, message_text: str, model: str, 
