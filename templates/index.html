@@ -98,7 +98,7 @@
         }
         
         /* Navigation Tabs */
-        .nav-tabs .nav-link { 
+        .nav-tabs .nav-link {
             cursor: pointer; 
             border-radius: 8px 8px 0 0;
             border: 1px solid #dee2e6;
@@ -123,6 +123,29 @@
             font-weight: 600;
         }
         
+        /* Sortable Headers */
+        th.sortable {
+            cursor: pointer;
+            position: relative;
+        }
+        th.sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            font-size: 12px;
+        }
+        th.sortable.asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+        th.sortable.desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+
         .table-striped tbody tr:nth-of-type(odd) {
             background-color: rgba(0,0,0,0.02);
         }
@@ -328,7 +351,7 @@
                             </div>
                         </div>
                         <div class="col-12 col-md-4 mt-3 mt-md-0">
-                            <input type="text" class="form-control" id="job-search" placeholder="🔍 Search jobs..." oninput="filterJobs()">
+                            <input type="text" class="form-control" id="job-search" placeholder="🔍 Search Job Role..." oninput="filterJobs()">
                         </div>
                     </div>
 
@@ -381,6 +404,8 @@
                                     <option value="3">3 Days</option>
                                     <option value="5">5 Days</option>
                                     <option value="7">7 Days</option>
+                                    <option value="10">10 Days</option>
+                                    <option value="14">14 Days</option>
                                     <option value="30">30 Days</option>
                                 </select>
                                 <button class="btn btn-sm btn-outline-dark" onclick="archiveOlderThan()">
@@ -398,13 +423,13 @@
                                 <tr>
                                     <th><input type="checkbox" id="select-all-dashboard-jobs" onchange="toggleAllJobs()"></th>
                                     <th>#</th>
-                                    <th>Date Added</th>
-                                    <th>Job Role</th>
-                                    <th>Company</th>
-                                    <th>Source</th>
-                                    <th>Link</th>
-                                    <th>Status</th>
-                                    <th>Relevance</th>
+                                    <th class="sortable" data-sort-by="original_created_at">Date Added</th>
+                                    <th class="sortable" data-sort-by="job_role">Job Role</th>
+                                    <th class="sortable" data-sort-by="company_name">Company</th>
+                                    <th class="sortable" data-sort-by="application_link">Source</th>
+                                    <th class="sortable" data-sort-by="application_link">Link</th>
+                                    <th class="sortable" data-sort-by="application_status">Status</th>
+                                    <th class="sortable" data-sort-by="job_relevance">Relevance</th>
                                     <th>Notes</th>
                                     <th>Actions</th>
                                 </tr>
@@ -419,6 +444,12 @@
                     <div class="d-flex justify-content-between align-items-center mt-3" id="pagination-controls" style="display: none !important;">
                         <div>
                             <span class="text-muted small" id="pagination-info">Showing 0-0 of 0 jobs</span>
+                            <select id="page-size-select" class="form-select form-select-sm d-inline-block w-auto ms-2" onchange="changePageSize()">
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
                         </div>
                         <nav aria-label="Job navigation">
                             <ul class="pagination pagination-sm mb-0" id="pagination-pages">
@@ -471,7 +502,7 @@
                 </div>
             </div>
 
-            <!-- Logs - SIMPLIFIED TO SINGLE UNIFIED LOG -->
+            <!-- Logs -->
             <div class="tab-pane fade" id="logs" role="tabpanel">
                 <div class="py-4">
                     <div class="log-header">
@@ -626,6 +657,8 @@
                 let currentPage = 1;
                 let pageSize = 50;
                 let totalJobs = 0;
+                let currentSortColumn = 'created_at';
+                let currentSortDirection = 'desc';
                 let lastTelegramStatus = null;
                 let autoRefreshEnabled = false;
                 let autoRefreshInterval = null;
@@ -725,7 +758,11 @@
                 function formatDate(dateString) {
                     if (!dateString) return 'N/A';
                     const date = new Date(dateString);
-                    return date.toLocaleDateString();
+                    // Format as DD-MM-YYYY
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    return `${day}-${month}-${year}`;
                 }
         
                 async function toggleRelevance(jobId) {
@@ -933,6 +970,12 @@
             }, 500); // Debounce for 500ms
         }
 
+        function changePageSize() {
+            pageSize = document.getElementById('page-size-select').value;
+            currentPage = 1;
+            fetchDashboardJobs(1);
+        }
+
         async function fetchDashboardJobs(page = 1) {
             try {
                 currentPage = page;
@@ -950,6 +993,14 @@
                 if (relevanceFilter) url.searchParams.append('relevance', relevanceFilter);
                 if (searchTerm) url.searchParams.append('job_role', searchTerm);
                 
+                // Sorting params
+                let sortCol = currentSortColumn;
+                // Map frontend sort columns to backend columns if needed
+                if (sortCol === 'index') sortCol = 'created_at'; 
+                
+                url.searchParams.append('sort_by', sortCol);
+                url.searchParams.append('sort_order', currentSortDirection.toUpperCase());
+                
                 // Handle "archived" logic from filter dropdown (backward compatibility)
                 if (statusFilter === 'archived') {
                      url.searchParams.append('include_archived', 'true');
@@ -963,6 +1014,7 @@
                 
                 displayDashboardJobs(allDashboardJobs);
                 renderPagination();
+                if (typeof updateSortIndicators === 'function') updateSortIndicators();
                 
                 document.getElementById('jobs-count').textContent = `${totalJobs} jobs found`;
                 
@@ -1010,7 +1062,7 @@
                         <td>${escapeHtml(job.company_name || 'N/A')}</td>
                         <td><span class="badge bg-light text-dark border">${domain}</span></td>
                         <td>
-                            ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary" title="${escapeHtml(job.application_link)}"><i class="bi bi-box-arrow-up-right"></i> Link</a>` : '<span class="text-muted">-</span>'}
+                            ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary" title="${escapeHtml(job.application_link)}"><i class="bi bi-link-45deg"></i> Open Link</a>` : '<span class="text-muted">-</span>'}
                         </td>
                         <td class="status-cell">
                             <div class="dropdown">
@@ -1050,6 +1102,42 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        // === MISSING FUNCTION RESTORED ===
+        async function toggleJobDescription(jobId) {
+            const row = document.getElementById(`description-${jobId}`);
+            if (!row) return;
+
+            if (row.classList.contains('d-none')) {
+                row.classList.remove('d-none');
+                
+                // Content loading
+                const contentDiv = document.getElementById(`job-desc-content-${jobId}`);
+                if (contentDiv.innerHTML.includes('Loading')) {
+                    try {
+                        const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
+                        const data = await response.json();
+                        
+                        if (data.original_job) {
+                            let content = '';
+                            if (data.original_job.jd_text) {
+                                content += `<h6>Job Description:</h6><pre style="white-space: pre-wrap;">${escapeHtml(data.original_job.jd_text)}</pre>`;
+                            }
+                            if (data.raw_message) {
+                                content += `<hr><h6>Original Message:</h6><pre style="white-space: pre-wrap; font-size: 0.85em;" class="text-muted">${escapeHtml(data.raw_message.message_text)}</pre>`;
+                            }
+                            contentDiv.innerHTML = content || '<p class="text-muted">No details available.</p>';
+                        } else {
+                            contentDiv.innerHTML = '<p class="text-muted">Job details not found.</p>';
+                        }
+                    } catch (e) {
+                        contentDiv.innerHTML = `<p class="text-danger">Error loading details: ${e.message}</p>`;
+                    }
+                }
+            } else {
+                row.classList.add('d-none');
+            }
         }
 
         function renderPagination() {
@@ -1125,6 +1213,52 @@
 
 
 
+        async function importJobsFromSheets() {
+            const maxJobs = prompt("How many jobs to import from processed list?", "100");
+            if (!maxJobs) return;
+            
+            try {
+                showToast('Importing jobs...', 'info');
+                const response = await fetch('/api/dashboard/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheet_name: 'non-email', max_jobs: parseInt(maxJobs) })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    fetchDashboardJobs(1);
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to import jobs: ${error}`, 'error');
+            }
+        }
+
+        async function detectDuplicates() {
+            try {
+                showToast('Detecting duplicates...', 'info');
+                const response = await fetch('/api/dashboard/detect_duplicates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to detect duplicates: ${error}`, 'error');
+            }
+        }
+
+        function exportJobs() {
+            window.open('/api/dashboard/jobs/export?format=csv', '_blank');
+        }
 
         // === OTHER FUNCTIONS ===
         async function fetchQueue() {
@@ -1441,6 +1575,102 @@
             }
         }
 
+        // === ACTION FUNCTIONS ===
+        
+        async function updateJobStatus(jobId, status, archive = false) {
+            try {
+                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status, archive: archive })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Job status updated to ${status}.`, 'success');
+                    // Optimistic update
+                    const job = allDashboardJobs.find(j => j.id === jobId);
+                    if (job) {
+                        job.application_status = status;
+                    }
+                    
+                    // Refresh if archiving to remove from list
+                    if (archive) {
+                        fetchDashboardJobs(currentPage);
+                    } else {
+                        // Just update the UI
+                        const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+                        if (row) {
+                            const badge = row.querySelector('.status-cell .dropdown-toggle');
+                            if (badge) badge.innerHTML = getStatusBadge(status);
+                        }
+                    }
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error("Failed to update job status:", error);
+                showToast(`Failed to update job status: ${error}`, 'error');
+            }
+        }
+
+        async function bulkUpdateStatus(status) {
+            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) {
+                showToast('No jobs selected.', 'warning');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to update ${selectedIds.length} jobs to '${status}'? ${status === 'applied' || status === 'rejected' ? 'They will also be archived.' : ''}`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/dashboard/jobs/bulk_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: selectedIds, status: status, archive: true })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`${data.updated_count} jobs updated.`, 'success');
+                    fetchDashboardJobs(currentPage); // Refresh page
+                    // Reset selection
+                    document.getElementById('select-all-dashboard-jobs').checked = false;
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error("Failed to bulk update:", error);
+                showToast(`Failed to perform bulk update: ${error}`, 'error');
+            }
+        }
+
+        function toggleAllJobs() {
+            const selectAll = document.getElementById('select-all-dashboard-jobs');
+            const checkboxes = document.querySelectorAll('.dashboard-job-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        // === SORTING FUNCTIONS ===
+        function sortJobs(column) {
+            if (currentSortColumn === column) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+            fetchDashboardJobs(1); // Fetch first page with new sort
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('#dashboard-jobs-table th.sortable').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if (th.dataset.sortBy === currentSortColumn) {
+                    th.classList.add(currentSortDirection);
+                }
+            });
+        }
+
         // === EVENT LISTENERS ===
         document.addEventListener('DOMContentLoaded', function() {
             try {
@@ -1470,28 +1700,5 @@
             }
         });
     </script>
-    <style>
-        /* Add styles for sort indicators */
-        th.sortable {
-            cursor: pointer;
-            position: relative;
-        }
-        th.sortable::after {
-            content: '';
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: 4px solid transparent;
-        }
-        th.sortable.asc::after {
-            border-bottom-color: white;
-            margin-top: -6px;
-        }
-        th.sortable.desc::after {
-            border-top-color: white;
-            margin-top: 2px;
-        }
-    </style>
 </body>
 </html>
