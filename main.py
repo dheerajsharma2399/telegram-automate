@@ -30,7 +30,7 @@ async def safety_net_fetch(monitor, context):
     
     # Your monitor's client
     fetcher = HistoricalMessageFetcher(db, monitor.client)
-    result = await fetcher.fetch_historical_messages(hours_back=2)
+    result = await fetcher.fetch_historical_messages(hours_back=6)
     
     if result > 0:
         logger.warning(f"⚠️ Safety net caught {result} missed messages!")
