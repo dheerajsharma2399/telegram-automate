@@ -497,6 +497,7 @@ class LLMProcessor:
             "location": job_data.get("location"),
             "eligibility": job_data.get("eligibility"),
             "experience_required": job_data.get("experience_required"),  # NEW: Experience requirements
+            "salary": job_data.get("salary"),  # NEW: Salary/Compensation
             "job_relevance": job_data.get("job_relevance"),  # NEW: Job relevance for freshers
             "application_method": application_method,
             "application_link": job_data.get("application_link"),  # FIX: Include application link

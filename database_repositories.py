@@ -532,8 +532,8 @@ class DashboardRepository(BaseRepository):
             INSERT INTO dashboard_jobs (
                 source_job_id, original_sheet, company_name, job_role, location,
                 application_link, phone, recruiter_name, job_relevance, original_created_at,
-                application_status, application_date, notes, is_duplicate, duplicate_of_id, conflict_status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                application_status, application_date, notes, is_duplicate, duplicate_of_id, conflict_status, salary
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
         values = (
@@ -552,7 +552,8 @@ class DashboardRepository(BaseRepository):
             job_data.get('notes'),
             job_data.get('is_duplicate', False),
             job_data.get('duplicate_of_id'),
-            job_data.get('conflict_status', 'none')
+            job_data.get('conflict_status', 'none'),
+            job_data.get('salary')
         )
         
         if cursor:
@@ -714,7 +715,8 @@ class DashboardRepository(BaseRepository):
                     'recruiter_name': job.get('recruiter_name'),
                     'job_relevance': job.get('job_relevance', 'relevant'),
                     'original_created_at': job['created_at'],
-                    'application_status': 'not_applied'
+                    'application_status': 'not_applied',
+                    'salary': job.get('salary')
                 }
                 
                 job_id = self.add_dashboard_job(dashboard_job, cursor=cursor)
@@ -777,7 +779,7 @@ class DashboardRepository(BaseRepository):
             cursor.execute("""
                 SELECT
                     company_name, job_role, location, application_link, phone,
-                    job_relevance, application_status, application_date, notes, created_at
+                    job_relevance, application_status, application_date, notes, created_at, salary
                 FROM dashboard_jobs
                 ORDER BY created_at DESC
             """)
@@ -788,7 +790,7 @@ class DashboardRepository(BaseRepository):
                 'count': len(jobs),
                 'data': jobs,
                 'columns': ['company_name', 'job_role', 'location', 'application_link', 'phone',
-                           'job_relevance', 'application_status', 'application_date', 'notes', 'created_at']
+                           'job_relevance', 'application_status', 'application_date', 'notes', 'created_at', 'salary']
             }
 
     def get_dashboard_job_by_id(self, job_id: int) -> Optional[Dict]:
