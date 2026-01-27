@@ -1127,9 +1127,11 @@
                             if (data.original_job.jd_text) {
                                 content += `<h6>Job Description:</h6><pre style="white-space: pre-wrap;">${escapeHtml(data.original_job.jd_text)}</pre>`;
                             }
+                            /*
                             if (data.raw_message) {
                                 content += `<hr><h6>Original Message:</h6><pre style="white-space: pre-wrap; font-size: 0.85em;" class="text-muted">${escapeHtml(data.raw_message.message_text)}</pre>`;
                             }
+                            */
                             contentDiv.innerHTML = content || '<p class="text-muted">No details available.</p>';
                         } else {
                             contentDiv.innerHTML = '<p class="text-muted">Job details not found.</p>';
