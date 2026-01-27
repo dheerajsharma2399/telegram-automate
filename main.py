@@ -182,7 +182,8 @@ async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
                                 'recruiter_name': processed_data.get('recruiter_name'),
                                 'job_relevance': processed_data.get('job_relevance', 'relevant'),
                                 'original_created_at': processed_data.get('updated_at'),
-                                'application_status': 'not_applied'
+                                'application_status': 'not_applied',
+                                'salary': processed_data.get('salary')
                             }
                             
                             # Check if already exists in dashboard

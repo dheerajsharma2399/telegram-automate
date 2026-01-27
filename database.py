@@ -128,6 +128,12 @@ def init_database(pool):
             ALTER TABLE processed_jobs
             ADD COLUMN IF NOT EXISTS sheet_name TEXT;
                 """)
+
+                # Add salary column to processed_jobs if it doesn't exist
+                cursor.execute("""
+            ALTER TABLE processed_jobs
+            ADD COLUMN IF NOT EXISTS salary TEXT;
+                """)
                 
                 # Bot config table
                 cursor.execute("""
@@ -210,6 +216,12 @@ def init_database(pool):
                 cursor.execute("""
             ALTER TABLE dashboard_jobs
             ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE;
+                """)
+
+                # Add salary column to dashboard_jobs if it doesn't exist
+                cursor.execute("""
+            ALTER TABLE dashboard_jobs
+            ADD COLUMN IF NOT EXISTS salary TEXT;
                 """)
 
                 # Add indexes to dashboard_jobs for faster filtering and lookups
