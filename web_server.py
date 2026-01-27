@@ -1079,8 +1079,8 @@ def fetch_historical_messages():
         data = request.get_json(force=True) or {}
         hours_back = data.get('hours_back', 12)  # Default to 12 hours
         
-        if hours_back < 1 or hours_back > 48:
-            return jsonify({"error": "hours_back must be between 1 and 48"}), 400
+        if hours_back < 1 or hours_back > 168:
+            return jsonify({"error": "hours_back must be between 1 and 168"}), 400
         
         # Import the historical message fetcher
         import sys
