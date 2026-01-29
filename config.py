@@ -39,7 +39,7 @@ SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 # Database Configuration - PURE POSTGRESQL ONLY (Supabase)
 DATABASE_TYPE = 'postgresql'  # Always PostgreSQL, no SQLite
 DATABASE_PATH = os.getenv('DATABASE_PATH')  # Ignored in PostgreSQL mode
-DATABASE_URL = os.getenv('DATABASE_URL') or 'postgres://***REMOVED***@152.67.7.111:5433/postgres'
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Ensure DATABASE_URL is set for Supabase connection
 if not DATABASE_URL:

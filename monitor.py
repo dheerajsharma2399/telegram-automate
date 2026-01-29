@@ -127,7 +127,9 @@ class TelegramMonitor:
                         message_text = extract_message_text(message)
                         
                         # Save to database
-                        new_id = self.db.messages.add_raw_message(
+                        # CRITICAL FIX: Run synchronous DB call in a separate thread to avoid blocking asyncio loop
+                        new_id = await asyncio.to_thread(
+                            self.db.messages.add_raw_message,
                             message_id=message.id,
                             message_text=message_text or '',
                             sender_id=message.sender_id if message.sender_id else None,

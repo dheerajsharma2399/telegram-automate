@@ -3,6 +3,7 @@ from google.oauth2.service_account import Credentials
 import json
 import logging
 from typing import Dict
+import time
 
 class GoogleSheetsSync:
     def __init__(self, credentials_json: str, spreadsheet_id: str):
@@ -175,6 +176,9 @@ class GoogleSheetsSync:
                 # Update the specific range A{row}:Q{row} (17 columns)
                 cell_range = f"A{next_row}:Q{next_row}"
                 worksheet.update(range_name=cell_range, values=[row])
+                
+                # RATE LIMITING: Sleep briefly to avoid hitting Google API quotas (60 req/min)
+                time.sleep(1.0)
                 
                 self.logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
                 return True
