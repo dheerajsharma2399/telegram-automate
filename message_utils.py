@@ -234,50 +234,8 @@ async def send_rate_limited_telegram_notification(message: str):
     """
     Sends a notification to the admin, respecting a process-safe global rate limit.
     """
-    if not (TELEGRAM_BOT_TOKEN and ADMIN_USER_ID):
-        return
-
-    lock_file, time_file = _get_lock_files()
-    
-    # Acquire lock
-    while os.path.exists(lock_file):
-        await asyncio.sleep(0.1)
-    
-    try:
-        # Create lock file
-        with open(lock_file, 'w') as f:
-            f.write('locked')
-
-        # Check timestamp
-        last_time = 0
-        if os.path.exists(time_file):
-            with open(time_file, 'r') as f:
-                try:
-                    last_time = float(f.read())
-                except (ValueError, TypeError):
-                    pass
-        
-        # Enforce delay
-        now = time.time()
-        if now - last_time < 2.0:
-            await asyncio.sleep(2.0 - (now - last_time))
-        
-        # Send notification
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": ADMIN_USER_ID, "text": message}
-        async with aiohttp.ClientSession() as session:
-            await session.post(url, json=payload, timeout=10)
-
-        # Update timestamp
-        with open(time_file, 'w') as f:
-            f.write(str(time.time()))
-
-    except Exception as e:
-        logger.error(f"Exception while sending admin notification: {e}")
-    finally:
-        # Release lock
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
+    # Notifications disabled by user request
+    return
 
 # Export commonly used functions
 __all__ = [
