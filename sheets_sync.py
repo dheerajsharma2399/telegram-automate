@@ -49,13 +49,13 @@ class GoogleSheetsSync:
             self.sheet_email_exp = self._get_or_create_worksheet(spreadsheet, "email-exp")    # Irrelevant jobs with email
             self.sheet_other_exp = self._get_or_create_worksheet(spreadsheet, "non-email-exp")  # Irrelevant jobs with link/phone
             
-            print("Google Sheets connected: " + spreadsheet.url)
+            self.logger.info("Google Sheets connected: " + spreadsheet.url)
             
         except gspread.exceptions.SpreadsheetNotFound:
-            print("Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
+            self.logger.error("Google Sheets setup failed: Spreadsheet not found. Check the SPREADSHEET_ID.")
             self.client = None
         except Exception as e:
-            print("Google Sheets setup failed: " + str(e))
+            self.logger.error("Google Sheets setup failed: " + str(e), exc_info=True)
             self.client = None
     
     def _get_or_create_worksheet(self, spreadsheet, sheet_name: str):
@@ -91,13 +91,11 @@ class GoogleSheetsSync:
     def sync_job(self, job_data: Dict) -> bool:
         """Sync job to appropriate Google Sheet with robust field mapping"""
         if not self.client:
-            logger = logging.getLogger(__name__)
-            logger.error("Google Sheets client not initialized")
+            self.logger.error("Google Sheets client not initialized")
             return False
             
         try:
-            logger = logging.getLogger(__name__)
-            logger.info(f"Syncing job {job_data.get('job_id', 'unknown')}")
+            self.logger.info(f"Syncing job {job_data.get('job_id', 'unknown')}")
             
             # COMPATIBILITY FIX: Handle missing fields gracefully
             # Extract available fields with fallbacks
@@ -109,6 +107,16 @@ class GoogleSheetsSync:
             
             # Route to appropriate worksheet based on sheet_name
             sheet_name = job_data.get('sheet_name')
+            
+            # Fallback: If sheet_name is missing (old jobs), infer it
+            if not sheet_name:
+                has_email = bool(job_data.get('email'))
+                if job_relevance == 'relevant':
+                    sheet_name = 'email' if has_email else 'non-email'
+                else:
+                    sheet_name = 'email-exp' if has_email else 'non-email-exp'
+                self.logger.warning(f"Job {job_data.get('job_id')} missing sheet_name. Inferred: {sheet_name}")
+
             worksheet = None
             if sheet_name == 'email':
                 worksheet = self.sheet_email
@@ -120,7 +128,7 @@ class GoogleSheetsSync:
                 worksheet = self.sheet_other_exp
             
             if not worksheet:
-                logger.error(f"Target worksheet not available for sheet_name={sheet_name}")
+                self.logger.error(f"Target worksheet not available for sheet_name='{sheet_name}'. Job ID: {job_data.get('job_id')}")
                 return False
             
             # ROBUST DATA MAPPING with missing field handling
@@ -144,19 +152,17 @@ class GoogleSheetsSync:
                 job_relevance                        # NEW: Job relevance (with fallback)
             ]
             
-            logger.info(f"Prepared row data: {len(row)} columns")
-            logger.debug(f"Row content: {row[:5]}...")  # Log first 5 columns for debugging
+            self.logger.info(f"Prepared row data: {len(row)} columns")
             
             # Append row (automatically handles resizing)
             worksheet.append_row(row)
             
-            logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
+            self.logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
             return True
             
         except Exception as e:
-            logger = logging.getLogger(__name__)
-            logger.error(f"Google Sheets sync error for job {job_data.get('job_id', 'unknown')}: {str(e)}")
-            logger.error(f"Job data keys: {list(job_data.keys())}")
+            self.logger.error(f"Google Sheets sync error for job {job_data.get('job_id', 'unknown')}: {str(e)}")
+            self.logger.error(f"Job data keys: {list(job_data.keys())}")
             return False
 
     def get_jobs_needing_email_generation(self, sheet_name: str) -> list[Dict]:
