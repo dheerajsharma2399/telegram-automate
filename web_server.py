@@ -440,6 +440,69 @@ def api_hide_jobs():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/sheets/advanced_sync", methods=["POST"])
+def api_advanced_sheets_sync():
+    """Advanced sync: Sync jobs from past N days, skipping existing ones in sheets."""
+    try:
+        data = request.get_json(force=True) or {}
+        days = int(data.get('days', 7))
+        
+        sheets_sync = get_sheets_sync()
+        if not (sheets_sync and sheets_sync.client):
+            return jsonify({"error": "Google Sheets not configured"}), 500
+
+        # 1. Fetch jobs from DB
+        jobs = db.jobs.get_jobs_created_since(days)
+        if not jobs:
+            return jsonify({"message": "No jobs found in the specified period", "synced_count": 0})
+
+        # 2. Pre-fetch existing IDs from sheets to minimize API calls during check
+        existing_ids = {}
+        for s_name in ['email', 'non-email', 'email-exp', 'non-email-exp']:
+            existing_ids[s_name] = sheets_sync.get_all_job_ids(s_name)
+
+        synced_count = 0
+        skipped_count = 0
+        
+        for job in jobs:
+            # Determine target sheet name logic
+            sheet_name = job.get('sheet_name')
+            if not sheet_name:
+                job_relevance = job.get('job_relevance', 'relevant')
+                has_email = bool(job.get('email'))
+                if job_relevance == 'relevant':
+                    sheet_name = 'email' if has_email else 'non-email'
+                else:
+                    sheet_name = 'email-exp' if has_email else 'non-email-exp'
+            
+            # Check if exists in the target sheet
+            if sheet_name in existing_ids and job.get('job_id') in existing_ids[sheet_name]:
+                skipped_count += 1
+                if not job.get('synced_to_sheets'):
+                    db.jobs.mark_job_synced(job.get('job_id'))
+                continue
+            
+            # Sync the job
+            if not job.get('sheet_name'):
+                job['sheet_name'] = sheet_name
+                
+            if sheets_sync.sync_job(job):
+                db.jobs.mark_job_synced(job.get('job_id'))
+                if sheet_name in existing_ids:
+                    existing_ids[sheet_name].add(job.get('job_id'))
+                synced_count += 1
+                
+        return jsonify({
+            "message": f"Sync complete. Added {synced_count} unique jobs. Skipped {skipped_count} existing jobs.",
+            "synced_count": synced_count,
+            "skipped_count": skipped_count,
+            "total_checked": len(jobs)
+        })
+
+    except Exception as e:
+        logging.error(f"Advanced sync failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
 # ===============================================
 # DASHBOARD JOBS API ENDPOINTS (NEW)
 # ===============================================
