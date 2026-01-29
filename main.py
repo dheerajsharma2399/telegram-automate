@@ -1127,9 +1127,8 @@ async def run_bot_webhook():
     logger.info("Bot ready for webhook mode")
 
     # Keep the main thread alive for the background threads to run
-    import time
     while True:
-        time.sleep(3600) # Sleep for a long time
+        await asyncio.sleep(3600) # Sleep asynchronously to allow scheduler to run
 
     return True
 

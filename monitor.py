@@ -14,15 +14,6 @@ from datetime import datetime, timedelta
 import psycopg2
 import pytz
 
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("/app/logs/app.log"),
-        logging.StreamHandler()
-    ]
-)
-
 from telethon.sessions import StringSession
 
 # IST timezone
@@ -412,6 +403,15 @@ class TelegramMonitor:
             return False
 
 if __name__ == "__main__":
+    # Configure logging only when running standalone
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("/app/logs/app.log"),
+            logging.StreamHandler()
+        ]
+    )
     db = Database(DATABASE_URL)
     monitor = TelegramMonitor(
         TELEGRAM_API_ID,
