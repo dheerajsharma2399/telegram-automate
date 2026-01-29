@@ -15,7 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from config import *
-from database import Database
+from database import Database, init_database
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
 from historical_message_fetcher import HistoricalMessageFetcher
@@ -104,6 +104,13 @@ def cleanup_bot_instance():
 
 # Initialize components
 db = Database(DATABASE_URL)
+
+# Ensure database is initialized at runtime
+try:
+    init_database(db.pool)
+except Exception as e:
+    logger.warning(f"Runtime database initialization check failed: {e}")
+
 llm_processor = LLMProcessor(OPENROUTER_API_KEYS, OPENROUTER_MODELS, OPENROUTER_FALLBACK_MODELS)
 sheets_sync = None
 

@@ -1,4 +1,5 @@
 import logging
+import sys
 from database import init_connection_pool, init_database
 from config import DATABASE_URL
 
@@ -7,6 +8,11 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     logger.info("Starting database initialization...")
+    
+    if not DATABASE_URL:
+        logger.warning("DATABASE_URL is not set. Skipping database initialization (likely build environment).")
+        sys.exit(0)
+        
     try:
         pool = init_connection_pool(DATABASE_URL)
         init_database(pool)
