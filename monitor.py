@@ -193,7 +193,7 @@ class TelegramMonitor:
         
         # Queue command for execution
         self.db.commands.enqueue_command(command_text)
-        await event.respond(f"Command `{command_text}` queued for execution.", parse_mode='markdown')
+        # await event.respond(f"Command `{command_text}` queued for execution.", parse_mode='markdown')
 
     async def start(self):
         logging.info("🚀 Starting Telegram monitor loop...")
@@ -234,7 +234,6 @@ class TelegramMonitor:
                             # Update status
                             self.db.auth.set_telegram_login_status('connected')
                             logging.info("✅ Successfully connected to Telegram")
-                            await send_rate_limited_telegram_notification("✅ Monitor connected")
                             
                             # Prime dialog cache
                             await self._prime_dialog_cache()

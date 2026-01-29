@@ -110,22 +110,9 @@ def get_sheets_sync():
 
 def send_telegram_command(command):
     """Sends a command to the Telegram bot as the admin user."""
-    if not TELEGRAM_BOT_TOKEN or not ADMIN_USER_ID:
-        logging.error("TELEGRAM_BOT_TOKEN or ADMIN_USER_ID not set.")
-        return False, "Bot token or admin user ID is not configured."
-
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": ADMIN_USER_ID,
-        "text": command,
-    }
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        return True, response.json()
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to send command to Telegram: {e}")
-        return False, str(e)
+    # Notifications disabled
+    logging.info(f"Command '{command}' processed (Telegram notifications disabled).")
+    return True, {"ok": True, "result": "Notifications disabled"}
 
 
 @app.route("/health")

@@ -246,7 +246,7 @@ async def sync_sheets_automatically():
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /start command to begin the automatic job processing schedule."""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
     
     if not scheduler.running:
@@ -261,32 +261,32 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             scheduler.start()
 
         db.config.set_config('monitoring_status', 'running')
-        await update.message.reply_text(
-            "✅ Automatic job processing has been started.\n\nI will now check for jobs every 10 minutes and import them to dashboard every 5 minutes. Note: Message monitoring is always running in the background."
-        )
+        # await update.message.reply_text(
+        #     "✅ Automatic job processing has been started.\n\nI will now check for jobs every 10 minutes and import them to dashboard every 5 minutes. Note: Message monitoring is always running in the background."
+        # )
     else:
-        await update.message.reply_text("⚠️ Automatic job processing is already running!")
+        pass # await update.message.reply_text("⚠️ Automatic job processing is already running!")
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stop command to halt the automatic job processing schedule."""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
     
     if scheduler.running:
         scheduler.pause()
         db.config.set_config('monitoring_status', 'stopped')
-        await update.message.reply_text(
-            "🛑 Automatic job processing has been stopped.\n\nUse /start to resume."
-        )
+        # await update.message.reply_text(
+        #     "🛑 Automatic job processing has been stopped.\n\nUse /start to resume."
+        # )
     else:
-        await update.message.reply_text("⚠️ Automatic job processing is not running.")
+        pass # await update.message.reply_text("⚠️ Automatic job processing is not running.")
 
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /status command"""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
     
     processing_status = db.config.get_config('monitoring_status')
@@ -305,22 +305,22 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"  - 📧 With Email: *{jobs_today['with_email']}*\n"
         f"  - 🔗 Without Email: *{jobs_today['without_email']}*\n"
     )
-    await update.message.reply_text(message, parse_mode='Markdown')
+    # await update.message.reply_text(message, parse_mode='Markdown')
 
 async def process_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /process command"""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
     
-    await update.message.reply_text("⚙️ Manually starting job processing...")
+    # await update.message.reply_text("⚙️ Manually starting job processing...")
     await process_jobs(context)
-    await update.message.reply_text("✅ Manual processing complete.")
+    # await update.message.reply_text("✅ Manual processing complete.")
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /stats command"""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
 
     days = 7
@@ -328,7 +328,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             days = int(context.args[0])
         except (ValueError, IndexError):
-            await update.message.reply_text("Usage: /stats [days]")
+            # await update.message.reply_text("Usage: /stats [days]")
             return
 
     stats = db.jobs.get_stats(days)
@@ -341,15 +341,15 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for company, count in stats["top_companies"].items():
         message += f"  - {company}: {count} jobs\n"
 
-    await update.message.reply_text(message, parse_mode='Markdown')
+    # await update.message.reply_text(message, parse_mode='Markdown')
 
 async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /export command"""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
 
-    await update.message.reply_text("📦 Generating CSV exports...")
+    # await update.message.reply_text("📦 Generating CSV exports...")
     
     try:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -363,13 +363,13 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 writer = csv.DictWriter(f, fieldnames=email_jobs[0].keys())
                 writer.writeheader()
                 writer.writerows(email_jobs)
-            await update.message.reply_document(
-                document=open(email_file_path, "rb"),
-                caption="Jobs with email applications.",
-                filename=os.path.basename(email_file_path)
-            )
+            # await update.message.reply_document(
+            #     document=open(email_file_path, "rb"),
+            #     caption="Jobs with email applications.",
+            #     filename=os.path.basename(email_file_path)
+            # )
         else:
-            await update.message.reply_text("No processed jobs with emails to export.")
+            pass # await update.message.reply_text("No processed jobs with emails to export.")
 
         # Export jobs without email
         os.makedirs("data/non-email", exist_ok=True)
@@ -380,30 +380,30 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 writer = csv.DictWriter(f, fieldnames=non_email_jobs[0].keys())
                 writer.writeheader()
                 writer.writerows(non_email_jobs)
-            await update.message.reply_document(
-                document=open(non_email_file_path, "rb"),
-                caption="Jobs without email applications.",
-                filename=os.path.basename(non_email_file_path)
-            )
+            # await update.message.reply_document(
+            #     document=open(non_email_file_path, "rb"),
+            #     caption="Jobs without email applications.",
+            #     filename=os.path.basename(non_email_file_path)
+            # )
         else:
-            await update.message.reply_text("No processed jobs without emails to export.")
+            pass # await update.message.reply_text("No processed jobs without emails to export.")
 
     except Exception as e:
         logger.error(f"Failed to export CSV: {e}")
-        await update.message.reply_text(f"❌ Failed to export CSV: {e}")
+        # await update.message.reply_text(f"❌ Failed to export CSV: {e}")
 
 async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /sync_sheets command with enhanced logging and debugging"""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
 
     sheets_sync = get_sheets_sync()
     if not (sheets_sync and sheets_sync.client):
-        await update.message.reply_text("Google Sheets is not configured.")
+        # await update.message.reply_text("Google Sheets is not configured.")
         return
 
-    await update.message.reply_text("🔄 Checking for new jobs to sync to Google Sheets...")
+    # await update.message.reply_text("🔄 Checking for new jobs to sync to Google Sheets...")
     
     try:
         # Use the new automatic sync function
@@ -412,21 +412,21 @@ async def sync_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Check again to see if any are left (in case of mid-sync failures)
         remaining_unsynced = db.jobs.get_unsynced_jobs()
         if not remaining_unsynced:
-            await update.message.reply_text("✅ All jobs are now synced with Google Sheets.")
+            pass # await update.message.reply_text("✅ All jobs are now synced with Google Sheets.")
         else:
-            await update.message.reply_text(f"⚠️ Sync finished, but {len(remaining_unsynced)} jobs could not be synced. Please check the logs.")
+            pass # await update.message.reply_text(f"⚠️ Sync finished, but {len(remaining_unsynced)} jobs could not be synced. Please check the logs.")
 
     except Exception as e:
         logger.error(f"Manual sync with Google Sheets failed: {e}")
-        await update.message.reply_text(f"❌ An error occurred during the sync process: {e}")
+        # await update.message.reply_text(f"❌ An error occurred during the sync process: {e}")
 
 async def backfill_sheets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """One-time command to backfill sheet_name for old jobs."""
     if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("❌ Unauthorized access.")
+        # await update.message.reply_text("❌ Unauthorized access.")
         return
 
-    await update.message.reply_text("🚀 Starting backfill process for `sheet_name` on old jobs. This may take a moment...")
+    # await update.message.reply_text("🚀 Starting backfill process for `sheet_name` on old jobs. This may take a moment...")
     
     try:
         with db.get_connection() as conn:
@@ -436,10 +436,10 @@ async def backfill_sheets_command(update: Update, context: ContextTypes.DEFAULT_
                 jobs_to_update = cursor.fetchall()
 
                 if not jobs_to_update:
-                    await update.message.reply_text("✅ No jobs found needing a backfill. All records are up-to-date.")
+                    # await update.message.reply_text("✅ No jobs found needing a backfill. All records are up-to-date.")
                     return
 
-                await update.message.reply_text(f"Found {len(jobs_to_update)} jobs to update. Starting now...")
+                # await update.message.reply_text(f"Found {len(jobs_to_update)} jobs to update. Starting now...")
                 
                 updated_count = 0
                 for job in jobs_to_update:
@@ -455,10 +455,10 @@ async def backfill_sheets_command(update: Update, context: ContextTypes.DEFAULT_
                     updated_count += 1
             conn.commit()
 
-        await update.message.reply_text(f"✅ Backfill complete! Updated {updated_count} jobs.")
+        # await update.message.reply_text(f"✅ Backfill complete! Updated {updated_count} jobs.")
     except Exception as e:
         logger.error(f"Backfill failed: {e}")
-        await update.message.reply_text(f"❌ An error occurred during the backfill process: {e}")
+        # await update.message.reply_text(f"❌ An error occurred during the backfill process: {e}")
 
 
 # async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -550,7 +550,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         await cq.answer()
         # Optionally send a small message or edit the message
         if cq.data:
-            await cq.message.reply_text(f"Button pressed: {cq.data}")
+            pass # await cq.message.reply_text(f"Button pressed: {cq.data}")
     except Exception as e:
         logger.exception(f"Error in callback_query_handler: {e}")
 
@@ -562,7 +562,7 @@ async def echo_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Echo handler received text: {text}")
         # Only reply in private chats for now to avoid spamming groups
         if update.effective_chat and update.effective_chat.type == 'private':
-            await update.message.reply_text("I received your message. Try /status or press a button if present.")
+            pass # await update.message.reply_text("I received your message. Try /status or press a button if present.")
     except Exception as e:
         logger.exception(f"Error in echo_text_handler: {e}")
 
@@ -1001,14 +1001,7 @@ async def setup_bot():
                             # build a robust fake update/context for handlers
                             class _FakeMessage:
                                 async def reply_text(self, text, **kwargs):
-                                    if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
-                                        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-                                        payload = {"chat_id": ADMIN_USER_ID, "text": text}
-                                        try:
-                                            async with aiohttp.ClientSession() as session:
-                                                await session.post(url, json=payload)
-                                        except Exception as e:
-                                            logger.error(f"Failed to send reply from fake message: {e}")
+                                    # Notifications disabled
                                     return None
                                 async def reply_document(self, *a, **k):
                                     return None
@@ -1046,22 +1039,10 @@ async def setup_bot():
                                     await backfill_sheets_command(fake_update, application)
                                     executed_ok = True
                                 else:
-                                    # Unknown command: send it as admin message to bot chat as fallback
-                                    ok, resp = False, None
-                                    try:
-                                        if TELEGRAM_BOT_TOKEN and ADMIN_USER_ID:
-                                            r = requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage", json={"chat_id": ADMIN_USER_ID, "text": text}, timeout=5)
-                                            ok = r.ok
-                                            try:
-                                                resp = r.json()
-                                            except Exception:
-                                                resp = r.text
-                                        else:
-                                            ok = False
-                                    except Exception:
-                                        ok = False
-                                    executed_ok = ok
-                                    result_text = str(resp)
+                                    # Unknown command: log only
+                                    logger.warning(f"Unknown command received: {text}")
+                                    executed_ok = False
+                                    result_text = "Unknown command"
                             except Exception as e:
                                 logger.exception(f"Error executing command from queue id={cmd['id']}: {e}")
                                 executed_ok = False

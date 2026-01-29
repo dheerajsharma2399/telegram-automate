@@ -43,7 +43,8 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Ensure DATABASE_URL is set for Supabase connection
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL must be set for Supabase PostgreSQL connection")
+    import logging
+    logging.warning("DATABASE_URL is not set. Database connections will fail.")
 
 # Processing Configuration
 BATCH_SIZE = 10
