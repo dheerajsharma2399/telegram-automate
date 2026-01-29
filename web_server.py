@@ -482,27 +482,28 @@ def api_advanced_sheets_sync():
                     db.jobs.mark_job_synced(job.get('job_id'))
                 continue
             
-            # Sync the job
-            if not job.get('sheet_name'):
-                job['sheet_name'] = sheet_name
+            #   # Mark as unsynced so background task picks it up
+                with db.get_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("UPDATE processed_jobs SET synced_to_sheets = FALSE, sheet_name = %s WHERE job_id = %s", 
+                                     (sheet_name, job.get('job_id')))
+                    conn.commit()
+                synced_count += 1 # Count as "queued for sync"
+            else:
+                # Small batch, sync immediately
+                if not job.get('sheet_name'):
+                    job['sheet_name'] = sheet_name
+                    
+                if sheets_sync.sync_job(job):
+                    db.jobs.mark_job_synced(job.get('job_id'))
+                    if sheet_name in existing_ids:
+                        existing_ids[sheet_name].add(job.get('job_id'))
+                    synced_count += 1
                 
-            if sheets_sync.sync_job(job):
-                db.jobs.mark_job_synced(job.get('job_id'))
-                if sheet_name in existing_ids:
-                    existing_ids[sheet_name].add(job.get('job_id'))
-                synced_count += 1
-                
-        return jsonify({
-            "message": f"Sync complete. Added {synced_count} unique jobs. Skipped {skipped_count} existing jobs.",
-            "synced_count": synced_count,
-            "skipped_count": skipped_count,
-            "total_checked": len(jobs)
-        })
-
-    except Exception as e:
+        return jsonify({a
+ })    except Exception as e:
         logging.error(f"Advanced sync failed: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        return jsonify(
 # ===============================================
 # DASHBOARD JOBS API ENDPOINTS (NEW)
 # ===============================================
