@@ -637,6 +637,26 @@
 
                     <div class="row mt-4">
                         <div class="col-12">
+                            <h5><i class="bi bi-cloud-sync me-2"></i>Advanced Sheets Sync</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Sync Historical Jobs</h6>
+                                    <p class="text-muted">Sync jobs from the past N days to Google Sheets. Existing jobs in the sheet will be skipped to prevent duplicates.</p>
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text">Days to Sync</span>
+                                        <input type="number" id="syncDaysInput" class="form-control" value="7" min="1" max="365">
+                                        <button class="btn btn-primary" type="button" onclick="runAdvancedSync()">
+                                            <i class="bi bi-cloud-upload me-1"></i>Sync Now
+                                        </button>
+                                    </div>
+                                    <div id="advanced-sync-status"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
                             <h5><i class="bi bi-wrench me-2"></i>Data Maintenance</h5>
                             <div class="card">
                                 <div class="card-body">
@@ -1064,6 +1084,7 @@
                         <td><small>${dateAdded}</small></td>
                         <td><strong>${escapeHtml(job.job_role || 'N/A')}</strong></td>
                         <td>${escapeHtml(job.company_name || 'N/A')}</td>
+                        <td>${escapeHtml(job.salary || 'N/A')}</td>
                         <td><span class="badge bg-light text-dark border">${domain}</span></td>
                         <td>
                             ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary" title="${escapeHtml(job.application_link)}"><i class="bi bi-link-45deg"></i> Open Link</a>` : '<span class="text-muted">-</span>'}
@@ -1072,12 +1093,12 @@
                             <div class="dropdown">
                                 <span class="dropdown-toggle" data-bs-toggle="dropdown" style="cursor:pointer;">${statusBadge}</span>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'not_applied')">Not Applied</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'applied')">Applied</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'interview')">Interview</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'rejected')">Rejected</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'offer')">Offer</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="updateJobStatus(${job.id}, 'archived')">Archived</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'not_applied')">Not Applied</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'applied')">Applied</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'interview')">Interview</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'rejected')">Rejected</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'offer')">Offer</a></li>
+                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'archived')">Archived</a></li>
                                 </ul>
                             </div>
                         </td>
@@ -1092,7 +1113,7 @@
                         </td>
                     </tr>
                     <tr class="job-description-row d-none" id="description-${job.id}">
-                        <td colspan="11">
+                        <td colspan="12">
                             <div class="p-3 bg-light border rounded" style="max-height: 300px; overflow-y: auto; margin: 0 10px;">
                                 <div class="d-flex justify-content-between mb-2">
                                     <strong>Full Details:</strong>
@@ -1578,6 +1599,38 @@
                 statusDiv.innerHTML = `<div class="alert alert-danger">
                     ❌ <strong>Error:</strong> ${error.message}
                 </div>`;
+            }
+        }
+
+        async function runAdvancedSync() {
+            const days = document.getElementById('syncDaysInput').value;
+            const statusDiv = document.getElementById('advanced-sync-status');
+            
+            if (!days || days < 1) {
+                showToast('Please enter a valid number of days', 'error');
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split me-2"></i>Syncing... This may take a while.</div>';
+            
+            try {
+                const response = await fetch('/api/sheets/advanced_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: days })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>${data.message}</div>`;
+                    showToast('Advanced sync complete', 'success');
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Error: ${data.error}</div>`;
+                    showToast('Sync failed', 'error');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Request failed: ${error.message}</div>`;
+                showToast('Request failed', 'error');
             }
         }
 

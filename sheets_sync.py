@@ -152,13 +152,41 @@ class GoogleSheetsSync:
                 job_relevance                        # NEW: Job relevance (with fallback)
             ]
             
+            # SAFETY: Truncate fields that might exceed Google Sheets cell limit (50k chars)
+            # Index 10 is jd_text, Index 12 is email_body
+            if len(str(row[10])) > 45000:
+                row[10] = str(row[10])[:45000] + "...(truncated)"
+            if len(str(row[12])) > 45000:
+                row[12] = str(row[12])[:45000] + "...(truncated)"
+            
             self.logger.info(f"Prepared row data: {len(row)} columns")
             
-            # Append row (automatically handles resizing)
-            worksheet.append_row(row)
-            
-            self.logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
-            return True
+            try:
+                # Append row (automatically handles resizing)
+                worksheet.append_row(row)
+                self.logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
+                return True
+            except Exception as e:
+                self.logger.warning(f"Sync failed for '{sheet_name}', attempting refresh and retry. Error: {e}")
+                
+                # RETRY LOGIC: Refresh the worksheet object and try again
+                # This handles cases where the sheet was modified (rows added) and the old object is stale
+                try:
+                    spreadsheet = self.client.open_by_key(self.spreadsheet_id)
+                    worksheet = self._get_or_create_worksheet(spreadsheet, sheet_name)
+                    
+                    # Update the cached reference
+                    if sheet_name == 'email': self.sheet_email = worksheet
+                    elif sheet_name == 'non-email': self.sheet_other = worksheet
+                    elif sheet_name == 'email-exp': self.sheet_email_exp = worksheet
+                    elif sheet_name == 'non-email-exp': self.sheet_other_exp = worksheet
+                    
+                    worksheet.append_row(row)
+                    self.logger.info(f"Retry successful for job {job_data.get('job_id', 'unknown')}")
+                    return True
+                except Exception as retry_e:
+                    self.logger.error(f"Retry failed for job {job_data.get('job_id')}: {retry_e}")
+                    raise retry_e # Re-raise to be caught by outer block
             
         except Exception as e:
             self.logger.error(f"Google Sheets sync error for job {job_data.get('job_id', 'unknown')}: {str(e)}")
@@ -235,3 +263,28 @@ class GoogleSheetsSync:
         except Exception as e:
             self.logger.error(f"Error updating email body for job {job_id} in sheet '{sheet_name}': {e}")
             return False
+
+    def get_all_job_ids(self, sheet_name: str) -> set:
+        """Get all Job IDs present in a specific sheet to prevent duplicates"""
+        if not self.client:
+            return set()
+            
+        worksheet = None
+        if sheet_name == 'email': worksheet = self.sheet_email
+        elif sheet_name == 'non-email': worksheet = self.sheet_other
+        elif sheet_name == 'email-exp': worksheet = self.sheet_email_exp
+        elif sheet_name == 'non-email-exp': worksheet = self.sheet_other_exp
+        
+        if not worksheet:
+            return set()
+            
+        try:
+            # Assuming Job ID is in column 1. col_values(1) returns the list of values.
+            ids = worksheet.col_values(1)
+            # Remove header if present
+            if ids and ids[0] == 'Job ID':
+                ids = ids[1:]
+            return set(ids)
+        except Exception as e:
+            self.logger.error(f"Failed to fetch Job IDs from {sheet_name}: {e}")
+            return set()

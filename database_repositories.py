@@ -288,6 +288,17 @@ class JobRepository(BaseRepository):
             cursor.execute('SELECT * FROM processed_jobs WHERE sheet_name = %s AND is_hidden = FALSE ORDER BY created_at DESC', (sheet_name,))
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_jobs_created_since(self, days: int) -> List[Dict]:
+        """Get jobs created in the last N days"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM processed_jobs 
+                WHERE created_at >= CURRENT_DATE - make_interval(days => %s)
+                ORDER BY created_at ASC
+            """, (days,))
+            return [dict(row) for row in cursor.fetchall()]
+
     def hide_jobs(self, job_ids: List[str]) -> int:
         """Mark a list of jobs as hidden."""
         with self.get_connection() as conn:
