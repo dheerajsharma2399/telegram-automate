@@ -469,7 +469,9 @@ def api_advanced_sheets_sync():
                     db.jobs.mark_job_synced(job.get('job_id'))
                 continue
             
-            #   # Mark as unsynced so background task picks it up
+            # Optimization: If many jobs, queue them for background sync
+            if len(jobs) > 10:
+                # Mark as unsynced so background task picks it up
                 with db.get_connection() as conn:
                     with conn.cursor() as cursor:
                         cursor.execute("UPDATE processed_jobs SET synced_to_sheets = FALSE, sheet_name = %s WHERE job_id = %s", 
@@ -487,10 +489,16 @@ def api_advanced_sheets_sync():
                         existing_ids[sheet_name].add(job.get('job_id'))
                     synced_count += 1
                 
-        return jsonify({a
- })    except Exception as e:
+        return jsonify({
+            "message": f"Sync processed. {synced_count} jobs added/queued. {skipped_count} existing jobs skipped.",
+            "synced_count": synced_count,
+            "skipped_count": skipped_count,
+            "total_checked": len(jobs)
+        })
+
+    except Exception as e:
         logging.error(f"Advanced sync failed: {e}")
-        return jsonify(
+        return jsonify({"error": str(e)}), 500
 # ===============================================
 # DASHBOARD JOBS API ENDPOINTS (NEW)
 # ===============================================
