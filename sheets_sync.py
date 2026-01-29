@@ -162,8 +162,20 @@ class GoogleSheetsSync:
             self.logger.info(f"Prepared row data: {len(row)} columns")
             
             try:
-                # Append row (automatically handles resizing)
-                worksheet.append_row(row)
+                # ROBUST SYNC FIX:
+                # Instead of append_row (which can be confused by ragged columns like Email Body),
+                # we find the next empty row based specifically on Column A (Job ID).
+                col_a_values = worksheet.col_values(1)
+                next_row = len(col_a_values) + 1
+                
+                # Ensure sheet has enough rows
+                if next_row > worksheet.row_count:
+                    worksheet.add_rows(100)
+                
+                # Update the specific range A{row}:Q{row} (17 columns)
+                cell_range = f"A{next_row}:Q{next_row}"
+                worksheet.update(range_name=cell_range, values=[row])
+                
                 self.logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
                 return True
             except Exception as e:
@@ -181,7 +193,14 @@ class GoogleSheetsSync:
                     elif sheet_name == 'email-exp': self.sheet_email_exp = worksheet
                     elif sheet_name == 'non-email-exp': self.sheet_other_exp = worksheet
                     
-                    worksheet.append_row(row)
+                    # Retry with robust logic
+                    col_a_values = worksheet.col_values(1)
+                    next_row = len(col_a_values) + 1
+                    if next_row > worksheet.row_count:
+                        worksheet.add_rows(100)
+                    cell_range = f"A{next_row}:Q{next_row}"
+                    worksheet.update(range_name=cell_range, values=[row])
+                    
                     self.logger.info(f"Retry successful for job {job_data.get('job_id', 'unknown')}")
                     return True
                 except Exception as retry_e:
