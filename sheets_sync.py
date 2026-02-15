@@ -363,4 +363,3 @@ class MultiSheetSync:
 
     def get_all_job_ids(self, sheet_name: str) -> set:
         return self.primary_sync.get_all_job_ids(sheet_name)
-            return set()
