@@ -241,12 +241,24 @@ async def sync_sheets_automatically():
 
         logger.info(f"Found {len(unsynced_jobs)} new jobs to sync to Google Sheets.")
         synced_count = 0
-        for job in unsynced_jobs:
-            if sheets_sync.sync_job(job):
-                db.jobs.mark_job_synced(job.get('job_id'))
-                synced_count += 1
+        failed_count = 0
         
-        logger.info(f"Google Sheets sync complete. Synced {synced_count} new jobs.")
+        for job in unsynced_jobs:
+            try:
+                if sheets_sync.sync_job(job):
+                    db.jobs.mark_job_synced(job.get('job_id'))
+                    synced_count += 1
+                else:
+                    failed_count += 1
+                    logger.warning(f"Failed to sync job {job.get('job_id')}: {job.get('company_name')} - {job.get('job_role')}")
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"Exception syncing job {job.get('job_id')} ({job.get('company_name')}): {e}")
+        
+        if failed_count > 0:
+            logger.warning(f"Google Sheets sync complete. Synced {synced_count} jobs, {failed_count} failed.")
+        else:
+            logger.info(f"Google Sheets sync complete. Successfully synced {synced_count} new jobs.")
     except Exception as e:
         logger.error(f"Automatic Google Sheets sync failed: {e}")
 

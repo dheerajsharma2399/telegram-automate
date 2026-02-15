@@ -449,6 +449,7 @@ def api_advanced_sheets_sync():
             existing_ids[s_name] = sheets_sync.get_all_job_ids(s_name)
 
         synced_count = 0
+        queued_count = 0
         skipped_count = 0
         
         for job in jobs:
@@ -465,8 +466,8 @@ def api_advanced_sheets_sync():
             # Check if exists in the target sheet
             if sheet_name in existing_ids and job.get('job_id') in existing_ids[sheet_name]:
                 skipped_count += 1
-                if not job.get('synced_to_sheets'):
-                    db.jobs.mark_job_synced(job.get('job_id'))
+                # FIX: Don't mark as synced just because it exists in sheets
+                # Let the normal sync process verify and mark it properly
                 continue
             
             # Optimization: If many jobs, queue them for background sync
@@ -477,7 +478,7 @@ def api_advanced_sheets_sync():
                         cursor.execute("UPDATE processed_jobs SET synced_to_sheets = FALSE, sheet_name = %s WHERE job_id = %s", 
                                      (sheet_name, job.get('job_id')))
                     conn.commit()
-                synced_count += 1 # Count as "queued for sync"
+                queued_count += 1  # FIX: Track as queued, not synced
             else:
                 # Small batch, sync immediately
                 if not job.get('sheet_name'):
@@ -488,10 +489,13 @@ def api_advanced_sheets_sync():
                     if sheet_name in existing_ids:
                         existing_ids[sheet_name].add(job.get('job_id'))
                     synced_count += 1
+                else:
+                    logging.warning(f"Failed to sync job {job.get('job_id')}: {job.get('company_name')}")
                 
         return jsonify({
-            "message": f"Sync processed. {synced_count} jobs added/queued. {skipped_count} existing jobs skipped.",
+            "message": f"Sync processed. {synced_count} synced, {queued_count} queued, {skipped_count} skipped.",
             "synced_count": synced_count,
+            "queued_count": queued_count,
             "skipped_count": skipped_count,
             "total_checked": len(jobs)
         })
