@@ -288,11 +288,22 @@ async def main():
         id='sync_sheets',
         replace_existing=True
     )
+
+    # NEW: Safety net historical fetch every 4 hours
+    scheduler.add_job(
+        safety_net_fetch,
+        'interval',
+        hours=4,
+        id='safety_net_fetch',
+        args=[monitor, None], # Pass monitor as argument
+        replace_existing=True
+    )
     
     scheduler.start()
     logger.info("Background scheduler started")
     logger.info(f"- Job processing: every {PROCESSING_INTERVAL_MINUTES} minutes")
     logger.info("- Sheets sync: every 5 minutes")
+    logger.info("- Historical safety net: every 4 hours")
     
     # Start monitor (blocks here)
     try:
