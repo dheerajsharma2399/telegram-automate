@@ -474,10 +474,15 @@ def api_advanced_sheets_sync():
             if len(jobs) > 10:
                 # Mark as unsynced so background task picks it up
                 with db.get_connection() as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute("UPDATE processed_jobs SET synced_to_sheets = FALSE, sheet_name = %s WHERE job_id = %s", 
-                                     (sheet_name, job.get('job_id')))
-                    conn.commit()
+                    try:
+                        with conn.cursor() as cursor:
+                            cursor.execute("UPDATE processed_jobs SET synced_to_sheets = FALSE, sheet_name = %s WHERE job_id = %s", 
+                                         (sheet_name, job.get('job_id')))
+                        conn.commit()
+                    except Exception as e:
+                        conn.rollback()
+                        logging.error(f"Failed to queue job for sync: {e}")
+                        raise
                 queued_count += 1  # FIX: Track as queued, not synced
             else:
                 # Small batch, sync immediately

@@ -7,10 +7,6 @@ import sys
 import tempfile
 from datetime import datetime
 import aiohttp
-from telegram import Update
-from telegram.ext import (
-    Application, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters
-)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -19,7 +15,6 @@ from database import Database, init_database
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
 from historical_message_fetcher import HistoricalMessageFetcher
-from message_utils import send_rate_limited_telegram_notification
 from logging.handlers import RotatingFileHandler
 from monitor import TelegramMonitor
 
@@ -48,11 +43,11 @@ log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(me
 log_handler = RotatingFileHandler(log_file_path, maxBytes=1024*1024, backupCount=5)
 log_handler.setFormatter(log_formatter)
 
-# Configure the root logger to capture logs from all modules
+# Configure logging
 root_logger = logging.getLogger()
 root_logger.addHandler(log_handler)
 root_logger.addHandler(logging.StreamHandler()) # Also log to console
-root_logger.setLevel(logging.INFO)
+root_logger.setLevel(getattr(logging, LOG_LEVEL.upper()))  # Configurable log level
 
 logger = logging.getLogger(__name__)
 
@@ -124,14 +119,7 @@ scheduler = AsyncIOScheduler()
 
 
 
-# Authorization check
-def is_authorized(user_id: int) -> bool:
-    """Check if user is authorized to use the bot"""
-    if not AUTHORIZED_USER_IDS:
-        return True  # If no IDs specified, allow all
-    return user_id in AUTHORIZED_USER_IDS
-
-async def process_jobs(context: ContextTypes.DEFAULT_TYPE):
+async def process_jobs():
     """The core job processing function with proper transaction handling."""
     logger.info("Starting job processing...")
     unprocessed_messages = db.messages.get_unprocessed_messages(limit=BATCH_SIZE)
@@ -262,56 +250,65 @@ async def sync_sheets_automatically():
     except Exception as e:
         logger.error(f"Automatic Google Sheets sync failed: {e}")
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command to begin the automatic job processing schedule."""
-    if not is_authorized(update.effective_user.id):
+
+# All bot command handlers removed - passive monitoring only
+
+async def main():
+    """Main entry point - passive message monitoring only"""
+    logger.info("Starting Telegram Job Scraper (Monitor Mode)")
+    
+    # Check bot instance
+    check_bot_instance()
+    
+    # Initialize monitor
+    monitor = TelegramMonitor(
+        TELEGRAM_API_ID,
+        TELEGRAM_API_HASH,
+        TELEGRAM_PHONE,
+        TELEGRAM_GROUP_USERNAMES,
+        db
+    )
+    
+    # Start scheduler for background tasks
+    scheduler.add_job(
+        process_jobs,
+        'interval',
+        minutes=PROCESSING_INTERVAL_MINUTES,
+        id='process_jobs',
+        replace_existing=True
+    )
+    
+    scheduler.add_job(
+        sync_sheets_automatically,
+        'interval',
+        minutes=5,
+        id='sync_sheets',
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    logger.info("Background scheduler started")
+    logger.info(f"- Job processing: every {PROCESSING_INTERVAL_MINUTES} minutes")
+    logger.info("- Sheets sync: every 5 minutes")
+    
+    # Start monitor (blocks here)
+    try:
+        await monitor.start()
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
+    finally:
+        scheduler.shutdown()
+        cleanup_bot_instance()
+
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Application stopped.")
+        cleanup_bot_instance()
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
         # await update.message.reply_text("❌ Unauthorized access.")
-        return
-    
-    if not scheduler.running:
-        # Use a unique job ID to prevent adding the same job multiple times
-        if not scheduler.get_job('process_jobs_task'):
-            scheduler.add_job(process_jobs, IntervalTrigger(minutes=PROCESSING_INTERVAL_MINUTES), args=[context], id='process_jobs_task')
-        
-        if scheduler.state == 2: # STATE_PAUSED
-            scheduler.resume()
-            logger.info("Job processing scheduler resumed.")
-        elif not scheduler.running:
-            scheduler.start()
-
-        db.config.set_config('monitoring_status', 'running')
-        # await update.message.reply_text(
-        #     "✅ Automatic job processing has been started.\n\nI will now check for jobs every 10 minutes and import them to dashboard every 5 minutes. Note: Message monitoring is always running in the background."
-        # )
-    else:
-        pass # await update.message.reply_text("⚠️ Automatic job processing is already running!")
-
-async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /stop command to halt the automatic job processing schedule."""
-    if not is_authorized(update.effective_user.id):
-        # await update.message.reply_text("❌ Unauthorized access.")
-        return
-    
-    if scheduler.running:
-        scheduler.pause()
-        db.config.set_config('monitoring_status', 'stopped')
-        # await update.message.reply_text(
-        #     "🛑 Automatic job processing has been stopped.\n\nUse /start to resume."
-        # )
-    else:
-        pass # await update.message.reply_text("⚠️ Automatic job processing is not running.")
-
-
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /status command"""
-    if not is_authorized(update.effective_user.id):
-        # await update.message.reply_text("❌ Unauthorized access.")
-        return
-    
-    processing_status = db.config.get_config('monitoring_status')
-    unprocessed_count = db.messages.get_unprocessed_count()
-    jobs_today = db.jobs.get_jobs_today_stats()
-    
     status_emoji = "🟢" if processing_status == 'running' else "🔴"
     status_text = "Running" if processing_status == 'running' else "Stopped"
     
@@ -445,25 +442,25 @@ async def backfill_sheets_command(update: Update, context: ContextTypes.DEFAULT_
         # await update.message.reply_text("❌ Unauthorized access.")
         return
 
-    # await update.message.reply_text("🚀 Starting backfill process for `sheet_name` on old jobs. This may take a moment...")
-    
     try:
+        logger.info("Starting backfill for sheet_name...")
+        
         with db.get_connection() as conn:
-            with conn.cursor() as cursor:
-                # Get all jobs where sheet_name is NULL
-                cursor.execute("SELECT id, job_relevance, email FROM processed_jobs WHERE sheet_name IS NULL")
-                jobs_to_update = cursor.fetchall()
-
-                if not jobs_to_update:
-                    # await update.message.reply_text("✅ No jobs found needing a backfill. All records are up-to-date.")
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, email, job_relevance FROM processed_jobs WHERE sheet_name IS NULL")
+                jobs = cursor.fetchall()
+                
+                if not jobs:
+                    logger.info("No jobs found needing a backfill. All records are up-to-date.")
                     return
-
-                # await update.message.reply_text(f"Found {len(jobs_to_update)} jobs to update. Starting now...")
+                
+                logger.info(f"Found {len(jobs)} jobs to update. Starting backfill now...")
                 
                 updated_count = 0
-                for job in jobs_to_update:
-                    job_relevance = job.get('job_relevance', 'relevant')
+                for job in jobs:
                     has_email = bool(job.get('email'))
+                    job_relevance = job.get('job_relevance', 'relevant')
                     
                     if job_relevance == 'relevant':
                         sheet_name = 'email' if has_email else 'non-email'
@@ -472,9 +469,13 @@ async def backfill_sheets_command(update: Update, context: ContextTypes.DEFAULT_
                     
                     cursor.execute("UPDATE processed_jobs SET sheet_name = %s WHERE id = %s", (sheet_name, job['id']))
                     updated_count += 1
-            conn.commit()
-
-        # await update.message.reply_text(f"✅ Backfill complete! Updated {updated_count} jobs.")
+                conn.commit()
+                logger.info(f"Backfill complete! Updated {updated_count} jobs.")
+                # await update.message.reply_text(f"✅ Backfill complete! Updated {updated_count} jobs.")
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Backfill transaction failed: {e}")
+                raise # Re-raise to be caught by the outer try-except
     except Exception as e:
         logger.error(f"Backfill failed: {e}")
         # await update.message.reply_text(f"❌ An error occurred during the backfill process: {e}")
@@ -801,10 +802,9 @@ async def run_bot_webhook():
     # Webhook setup will be handled by web server
     logger.info("Bot ready for webhook mode")
 
-    # Keep the main thread alive for the background threads to run
-    import time
+    # Keep the event loop alive for the background threads to run
     while True:
-        time.sleep(3600) # Sleep for a long time
+        await asyncio.sleep(3600)  # Non-blocking sleep
 
     return True
 
@@ -837,7 +837,64 @@ if __name__ == '__main__':
         sys.exit(1)
 
 
-# async def generate_emails_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def main():
+    """Main entry point - passive message monitoring only"""
+    logger.info("Starting Telegram Job Scraper (Monitor Mode)")
+    
+    # Check bot instance
+    check_bot_instance()
+    
+    # Initialize monitor
+    monitor = TelegramMonitor(
+        TELEGRAM_API_ID,
+        TELEGRAM_API_HASH,
+        TELEGRAM_PHONE,
+        TELEGRAM_GROUP_USERNAMES,
+        db
+    )
+    
+    # Start scheduler for background tasks
+    scheduler.add_job(
+        process_jobs,
+        'interval',
+        minutes=PROCESSING_INTERVAL_MINUTES,
+        id='process_jobs',
+        replace_existing=True
+    )
+    
+    scheduler.add_job(
+        sync_sheets_automatically,
+        'interval',
+        minutes=5,
+        id='sync_sheets',
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    logger.info("Background scheduler started")
+    logger.info(f"- Job processing: every {PROCESSING_INTERVAL_MINUTES} minutes")
+    logger.info("- Sheets sync: every 5 minutes")
+    
+    # Start monitor (blocks here)
+    try:
+        await monitor.start()
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
+    finally:
+        scheduler.shutdown()
+        cleanup_bot_instance()
+
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Application stopped.")
+        cleanup_bot_instance()
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        cleanup_bot_instance()
+        sys.exit(1)
 #     """Handle /generate_emails command - generate personalized email bodies for processed jobs."""
 #     if not is_authorized(update.effective_user.id):
 #         await update.message.reply_text("❌ Unauthorized access.")

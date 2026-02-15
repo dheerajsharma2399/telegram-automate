@@ -41,10 +41,34 @@ DATABASE_TYPE = 'postgresql'  # Always PostgreSQL, no SQLite
 DATABASE_PATH = os.getenv('DATABASE_PATH')  # Ignored in PostgreSQL mode
 DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Ensure DATABASE_URL is set for Supabase connection
+# Validate critical environment variables
 if not DATABASE_URL:
-    import logging
-    logging.warning("DATABASE_URL is not set. Database connections will fail.")
+    raise ValueError(
+        "DATABASE_URL environment variable is required but not set. "
+        "Please configure it in .env file with format: "
+        "postgresql://user:password@host:port/database"
+    )
+
+if not TELEGRAM_API_ID or not TELEGRAM_API_HASH:
+    raise ValueError(
+        "TELEGRAM_API_ID and TELEGRAM_API_HASH are required for Telegram API access. "
+        "Please configure them in .env file."
+    )
+
+if not OPENROUTER_API_KEYS or not OPENROUTER_API_KEYS[0]:
+    raise ValueError(
+        "OPENROUTER_API_KEY is required for LLM job parsing. "
+        "Please configure it in .env file."
+    )
+
+if not GOOGLE_CREDENTIALS_JSON or not SPREADSHEET_ID:
+    raise ValueError(
+        "GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID are required for Google Sheets sync. "
+        "Please configure them in .env file."
+    )
+
+# Logging Configuration
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
 # Processing Configuration
 BATCH_SIZE = 10

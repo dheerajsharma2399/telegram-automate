@@ -39,14 +39,19 @@ class TelegramAuthRepository(BaseRepository):
     def set_telegram_session(self, session_string: str):
         """Store Telegram session string in Supabase"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                UPDATE telegram_auth 
-                SET session_string = %s, updated_at = CURRENT_TIMESTAMP 
-                WHERE id = 1
-                """, (session_string,))
-                self.logger.info("Telegram session updated in Supabase")
-            conn.commit()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                    UPDATE telegram_auth 
+                    SET session_string = %s, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = 1
+                    """, (session_string,))
+                    self.logger.info("Telegram session updated in Supabase")
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to set telegram session: {e}")
+                raise
 
     def get_telegram_login_status(self) -> str:
         """Get Telegram login status from Supabase"""
@@ -59,31 +64,41 @@ class TelegramAuthRepository(BaseRepository):
     def set_telegram_login_status(self, status: str):
         """Set Telegram login status in Supabase"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                UPDATE telegram_auth 
-                SET login_status = %s, updated_at = CURRENT_TIMESTAMP 
-                WHERE id = 1
-                """, (status,))
-                self.logger.info(f"Telegram login status updated: {status}")
-            conn.commit()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                    UPDATE telegram_auth 
+                    SET login_status = %s, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = 1
+                    """, (status,))
+                    self.logger.info(f"Telegram login status updated: {status}")
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to set login status: {e}")
+                raise
 
 class MessageRepository(BaseRepository):
     def add_raw_message(self, message_id: int, message_text: str, 
                        sender_id: int, sent_at, group_id: int) -> Optional[int]:
         """Add a new raw message"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO raw_messages 
-                    (message_id, message_text, sender_id, sent_at, status, group_id)
-                    VALUES (%s, %s, %s, %s, 'unprocessed', %s)
-                    ON CONFLICT (group_id, message_id) DO NOTHING
-                    RETURNING id
-                """, (message_id, message_text, sender_id, sent_at, group_id))
-                result = cursor.fetchone()
-            conn.commit()
-            return result['id'] if result else None
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO raw_messages 
+                        (message_id, message_text, sender_id, sent_at, status, group_id)
+                        VALUES (%s, %s, %s, %s, 'unprocessed', %s)
+                        ON CONFLICT (group_id, message_id) DO NOTHING
+                        RETURNING id
+                    """, (message_id, message_text, sender_id, sent_at, group_id))
+                    result = cursor.fetchone()
+                conn.commit()
+                return result['id'] if result else None
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to add raw message: {e}")
+                raise
 
     def get_unprocessed_messages(self, limit: int = 10) -> List[Dict]:
         """Get unprocessed messages"""
@@ -101,13 +116,18 @@ class MessageRepository(BaseRepository):
                             error_message: str = None):
         """Update message processing status"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                UPDATE raw_messages 
-                SET status = %s, error_message = %s
-                WHERE id = %s
-                """, (status, error_message, message_id))
-            conn.commit()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                    UPDATE raw_messages 
+                    SET status = %s, error_message = %s
+                    WHERE id = %s
+                    """, (status, error_message, message_id))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to update message status: {e}")
+                raise
 
     def get_unprocessed_count(self) -> int:
         """Get count of unprocessed messages"""
@@ -219,13 +239,18 @@ class JobRepository(BaseRepository):
     def mark_job_synced(self, job_id: str):
         """Mark job as synced to Google Sheets"""
         with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    UPDATE processed_jobs 
-                    SET synced_to_sheets = TRUE
-                    WHERE job_id = %s
-                """, (job_id,))
-            conn.commit()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE processed_jobs 
+                        SET synced_to_sheets = TRUE
+                        WHERE job_id = %s
+                    """, (job_id,))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to mark job as synced: {e}")
+                raise
 
     def get_processed_jobs_by_email_status(self, has_email: bool) -> List[Dict]:
         """Get processed jobs based on whether they have an email."""
