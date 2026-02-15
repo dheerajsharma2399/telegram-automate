@@ -272,7 +272,7 @@ class LLMProcessor:
                 async with session.post(self.base_url, 
                                       headers=headers, 
                                       json=payload,
-                                      timeout=aiohttp.ClientTimeout(total=30)) as response:
+                                      timeout=aiohttp.ClientTimeout(total=60)) as response:  # Increased to 60s
                     if response.status == 200:
                         data = await response.json()
                         content = data['choices'][0]['message']['content']
