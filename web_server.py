@@ -451,7 +451,7 @@ def api_advanced_sheets_sync():
             with conn.cursor() as cursor:
                 cursor.execute("""
                     SELECT * FROM processed_jobs
-                    WHERE created_at >= NOW() - INTERVAL '%s days'
+                    WHERE created_at >= NOW() - make_interval(days => %s)
                     ORDER BY created_at DESC
                 """, (days,))
                 jobs = [dict(row) for row in cursor.fetchall()]
