@@ -1216,7 +1216,6 @@ if __name__ == "__main__":
     application = app
     
     # Initialize database and LLM processor
-    global db, llm_processor
     db = Database(DATABASE_URL)
     llm_processor = LLMProcessor()
     
