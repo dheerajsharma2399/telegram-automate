@@ -878,7 +878,6 @@ async def process_webhook_async(update_data):
 # --- Webhook Logger Setup ---
 webhook_logger = logging.getLogger('webhook')
 webhook_logger.setLevel(logging.INFO)
-webhook_logger.addHandler(log_handler) # Use the unified log_handler
 
 
 @app.route("/webhook", methods=["POST"])
