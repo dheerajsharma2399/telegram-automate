@@ -466,13 +466,12 @@
                                     <th>Salary</th>
                                     <th class="sortable" data-sort-by="application_link">Source</th>
                                     <th class="sortable" data-sort-by="application_link">Link</th>
-                                    <th class="sortable" data-sort-by="application_status">Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="dashboard-jobs-body">
                                 <tr>
-                                    <td colspan="10" class="text-center text-muted">Click "Refresh" to load jobs</td>
+                                    <td colspan="9" class="text-center text-muted">Click "Refresh" to load jobs</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1091,48 +1090,30 @@
 
             jobsTableBody.innerHTML = jobs.map((job, index) => {
                 const serialNumber = (currentPage - 1) * pageSize + (index + 1);
-                const statusBadge = getStatusBadge(job.application_status);
-                const relevanceBadge = getRelevanceBadge(job.job_relevance);
                 const domain = getDomainFromUrl(job.application_link);
                 const dateAdded = formatDate(job.original_created_at || job.created_at);
 
                 return `
-                    <tr data-job-id="${job.id}">
-                        <td><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}"></td>
+                    <tr data-job-id="${job.id}" onclick="handleRowClick(event, ${job.id})" style="cursor: pointer;">
+                        <td onclick="event.stopPropagation()"><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}"></td>
                         <td>${serialNumber}</td>
                         <td><small>${dateAdded}</small></td>
                         <td><strong>${escapeHtml(job.job_role || 'N/A')}</strong></td>
                         <td>${escapeHtml(job.company_name || 'N/A')}</td>
                         <td>${escapeHtml(job.salary || 'N/A')}</td>
                         <td><span class="badge bg-light text-dark border">${domain}</span></td>
-                        <td>
+                        <td onclick="event.stopPropagation()">
                             ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary" title="${escapeHtml(job.application_link)}"><i class="bi bi-link-45deg"></i> Open Link</a>` : '<span class="text-muted">-</span>'}
                         </td>
-                        <td class="status-cell">
-                            <div class="dropdown">
-                                <span class="dropdown-toggle" data-bs-toggle="dropdown" style="cursor:pointer;">${statusBadge}</span>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'not_applied')">Not Applied</a></li>
-                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'applied')">Applied</a></li>
-                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'interview')">Interview</a></li>
-                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'rejected')">Rejected</a></li>
-                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'offer')">Offer</a></li>
-                                    <li><a class="dropdown-item" href="javascript:void(0)" onclick="updateJobStatus(${job.id}, 'archived')">Archived</a></li>
-                                </ul>
-                            </div>
-                        </td>
-                        <td class="relevance-cell" onclick="toggleRelevance(${job.id})" style="cursor: pointer;">${relevanceBadge}</td>
-                        <td class="notes-cell" onclick="editNotes(${job.id})" title="Edit Notes" style="cursor: pointer;">${job.notes ? '📝' : ''}</td>
-                        <td>
+                        <td onclick="event.stopPropagation()">
                             <div class="btn-group" role="group">
                                 <button class="btn btn-sm btn-outline-info" onclick="toggleJobDescription(${job.id})" title="Details">📄</button>
-                                <button class="btn btn-sm btn-outline-success" onclick="updateJobStatus(${job.id}, 'applied')" title="Mark Applied">✅</button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="updateJobStatus(${job.id}, 'rejected')" title="Mark Rejected">❌</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="updateJobStatus(${job.id}, 'archived', true)" title="Archive">🗄️</button>
                             </div>
                         </td>
                     </tr>
                     <tr class="job-description-row d-none" id="description-${job.id}">
-                        <td colspan="12">
+                        <td colspan="9">
                             <div class="p-3 bg-light border rounded" style="max-height: 300px; overflow-y: auto; margin: 0 10px;">
                                 <div class="d-flex justify-content-between mb-2">
                                     <strong>Full Details:</strong>
@@ -1146,6 +1127,20 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        // === ROW CLICK HANDLER ===
+        function handleRowClick(event, jobId) {
+            // Don't trigger if clicking on interactive elements
+            const target = event.target;
+            if (target.tagName === 'INPUT' ||
+                target.tagName === 'BUTTON' ||
+                target.tagName === 'A' ||
+                target.closest('button') ||
+                target.closest('a')) {
+                return;
+            }
+            toggleJobDescription(jobId);
         }
 
         // === MISSING FUNCTION RESTORED ===
@@ -1674,14 +1669,8 @@
                     // Refresh if archiving to remove from list
                     if (archive) {
                         fetchDashboardJobs(currentPage);
-                    } else {
-                        // Just update the UI
-                        const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
-                        if (row) {
-                            const badge = row.querySelector('.status-cell .dropdown-toggle');
-                            if (badge) badge.innerHTML = getStatusBadge(status);
-                        }
                     }
+                    // No UI update needed since status column is removed
                 } else {
                     showToast(`Error: ${data.error}`, 'error');
                 }
