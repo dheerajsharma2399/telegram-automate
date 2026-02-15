@@ -16,7 +16,8 @@ from database_repositories import (
     JobRepository,
     ConfigRepository,
     CommandRepository,
-    DashboardRepository
+    DashboardRepository,
+    UserRepository
 )
 
 # Global pool
@@ -265,6 +266,7 @@ class Database:
         self.config = ConfigRepository(self.pool)
         self.commands = CommandRepository(self.pool)
         self.dashboard = DashboardRepository(self.pool)
+        self.users = UserRepository(self.pool)
 
     def get_connection(self):
         return get_db_connection(self.pool)

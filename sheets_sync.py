@@ -312,3 +312,55 @@ class GoogleSheetsSync:
         except Exception as e:
             self.logger.error(f"Failed to fetch Job IDs from {sheet_name}: {e}")
             return set()
+
+class MultiSheetSync:
+    """
+    Wrapper to sync jobs to multiple Google Strings.
+    Writes are broadcast to ALL sheets.
+    Reads are performed ONLY on the PRIMARY sheet.
+    """
+    def __init__(self, credentials_json: str, primary_spreadsheet_id: str, additional_spreadsheet_ids: list[str] = None):
+        self.logger = logging.getLogger(__name__)
+        self.primary_sync = GoogleSheetsSync(credentials_json, primary_spreadsheet_id)
+        self.additional_syncs = []
+        
+        if additional_spreadsheet_ids:
+            for sheet_id in additional_spreadsheet_ids:
+                if sheet_id and sheet_id != primary_spreadsheet_id:
+                    try:
+                        self.logger.info(f"Initializing additional sync for sheet ID: {sheet_id}")
+                        sync = GoogleSheetsSync(credentials_json, sheet_id)
+                        if sync.client:
+                            self.additional_syncs.append(sync)
+                    except Exception as e:
+                        self.logger.error(f"Failed to initialize additional sheet {sheet_id}: {e}")
+        
+        self.client = self.primary_sync.client # Expose client for checks
+
+    def sync_job(self, job_data: Dict) -> bool:
+        """Sync job to ALL configured sheets"""
+        # Always sync to primary
+        primary_success = self.primary_sync.sync_job(job_data)
+        
+        # Broadcast to others (best effort)
+        for sync in self.additional_syncs:
+            try:
+                sync.sync_job(job_data)
+            except Exception as e:
+                self.logger.error(f"Failed to sync to additional sheet {sync.spreadsheet_id}: {e}")
+                
+        return primary_success
+
+    # --- Read-only methods delegate to PRIMARY only ---
+    
+    def get_jobs_needing_email_generation(self, sheet_name: str) -> list[Dict]:
+        return self.primary_sync.get_jobs_needing_email_generation(sheet_name)
+
+    def update_job_email_body_in_sheet(self, job_id: str, email_body: str, sheet_name: str) -> bool:
+        # We only update email body in the primary sheet for now, as that's where the app manages state
+        # If users are running their own scripts, they'll generate their own emails
+        return self.primary_sync.update_job_email_body_in_sheet(job_id, email_body, sheet_name)
+
+    def get_all_job_ids(self, sheet_name: str) -> set:
+        return self.primary_sync.get_all_job_ids(sheet_name)
+            return set()

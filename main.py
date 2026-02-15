@@ -113,7 +113,8 @@ sheets_sync = None
 def get_sheets_sync():
     global sheets_sync
     if sheets_sync is None and GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID:
-        sheets_sync = GoogleSheetsSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID)
+        from sheets_sync import MultiSheetSync
+        sheets_sync = MultiSheetSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, ADDITIONAL_SPREADSHEET_IDS)
     return sheets_sync
 
 scheduler = AsyncIOScheduler()

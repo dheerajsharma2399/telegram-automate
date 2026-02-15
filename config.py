@@ -35,11 +35,18 @@ OPENROUTER_FALLBACK_MODEL = OPENROUTER_FALLBACK_MODELS[0] if OPENROUTER_FALLBACK
 # Google Sheets Configuration
 GOOGLE_CREDENTIALS_JSON = os.getenv('GOOGLE_CREDENTIALS_JSON')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+# Support multiple spreadsheets for broadcasting jobs to other users
+_additional_sheets_str = os.getenv('ADDITIONAL_SPREADSHEET_IDS', '')
+ADDITIONAL_SPREADSHEET_IDS = [s.strip() for s in _additional_sheets_str.split(',') if s.strip()]
 
 # Database Configuration - PURE POSTGRESQL ONLY (Supabase)
 DATABASE_TYPE = 'postgresql'  # Always PostgreSQL, no SQLite
 DATABASE_PATH = os.getenv('DATABASE_PATH')  # Ignored in PostgreSQL mode
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Fix for SQLAlchemy compatibility with postgres:// scheme
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Validate critical environment variables
 if not DATABASE_URL:
