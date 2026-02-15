@@ -23,6 +23,14 @@ from sheets_sync import GoogleSheetsSync
 from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, ADDITIONAL_SPREADSHEET_IDS
 from sheets_sync import MultiSheetSync
 
+# Initialize Flask app
+app = Flask(__name__)
+
+# Global variables
+db = None
+llm_processor = None
+sheets_sync = None
+
 # ... (Logging setup remains)
 
 def get_sheets_sync():
@@ -1206,6 +1214,11 @@ def fetch_historical_messages():
 if __name__ == "__main__":
     # Create Flask application instance for Gunicorn
     application = app
+    
+    # Initialize database and LLM processor
+    global db, llm_processor
+    db = Database(DATABASE_URL)
+    llm_processor = LLMProcessor()
     
     # Get port from environment
     port = int(os.environ.get("PORT", 9501))
