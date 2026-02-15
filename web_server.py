@@ -432,7 +432,15 @@ def api_advanced_sheets_sync():
     """Advanced sync: Sync jobs from past N days, skipping existing ones in sheets."""
     try:
         data = request.get_json(force=True) or {}
-        days = int(data.get('days', 7))
+        
+        # Input validation
+        try:
+            days = int(data.get('days', 7))
+        except (ValueError, TypeError):
+            return jsonify({"error": "days must be a valid integer"}), 400
+        
+        if not (1 <= days <= 365):
+            return jsonify({"error": "days must be between 1 and 365"}), 400
         
         sheets_sync = get_sheets_sync()
         if not (sheets_sync and sheets_sync.client):

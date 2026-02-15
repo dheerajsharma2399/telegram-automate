@@ -28,8 +28,9 @@ def init_connection_pool(db_url: str):
     if _pool is None:
         try:
             _pool = ThreadedConnectionPool(
-                1, 20,
-                db_url,
+                minconn=2,  # Keep minimum 2 connections warm
+                maxconn=20,
+                dsn=db_url,
                 cursor_factory=RealDictCursor
             )
             logging.info("PostgreSQL connection pool created for Supabase")
@@ -40,12 +41,17 @@ def init_connection_pool(db_url: str):
 
 @contextmanager
 def get_db_connection(pool):
-    """Get PostgreSQL connection from pool"""
-    connection = pool.getconn()
+    """Get PostgreSQL connection from pool with timeout handling"""
+    connection = None
     try:
+        connection = pool.getconn()
+        if connection is None:
+            raise Exception("Connection pool exhausted - failed to get connection")
         yield connection
-    except Exception:
-        connection.rollback()
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        logging.error(f"Database connection error: {e}")
         raise
     finally:
         pool.putconn(connection)
