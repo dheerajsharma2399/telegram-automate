@@ -9,6 +9,7 @@ from datetime import datetime
 import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from config import *
 from database import Database, init_database
@@ -211,6 +212,7 @@ async def process_jobs():
     # After processing the batch, automatically sync to sheets
     logger.info("Job processing batch finished. Starting automatic Google Sheets sync.")
     await sync_sheets_automatically()
+
 async def sync_sheets_automatically():
     """
     Automatically finds all unsynced jobs and syncs them to Google Sheets.
