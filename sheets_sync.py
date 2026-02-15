@@ -109,13 +109,10 @@ class GoogleSheetsSync:
             # Route to appropriate worksheet based on sheet_name
             sheet_name = job_data.get('sheet_name')
             
-            # Fallback: If sheet_name is missing (old jobs), infer it
+            # Fallback: If sheet_name is missing, determine based on email presence only
             if not sheet_name:
                 has_email = bool(job_data.get('email'))
-                if job_relevance == 'relevant':
-                    sheet_name = 'email' if has_email else 'non-email'
-                else:
-                    sheet_name = 'email-exp' if has_email else 'non-email-exp'
+                sheet_name = 'email' if has_email else 'non-email'
                 self.logger.warning(f"Job {job_data.get('job_id')} missing sheet_name. Inferred: {sheet_name}")
 
             worksheet = None
@@ -123,10 +120,14 @@ class GoogleSheetsSync:
                 worksheet = self.sheet_email
             elif sheet_name == 'non-email':
                 worksheet = self.sheet_other
-            elif sheet_name == 'email-exp':
-                worksheet = self.sheet_email_exp
-            elif sheet_name == 'non-email-exp':
-                worksheet = self.sheet_other_exp
+            else:
+                # Fallback for legacy sheet names (email-exp, non-email-exp)
+                if 'email' in sheet_name:
+                    worksheet = self.sheet_email
+                    self.logger.info(f"Routing legacy '{sheet_name}' to 'email' sheet")
+                else:
+                    worksheet = self.sheet_other
+                    self.logger.info(f"Routing legacy '{sheet_name}' to 'non-email' sheet")
             
             if not worksheet:
                 self.logger.error(f"Target worksheet not available for sheet_name='{sheet_name}'. Job ID: {job_data.get('job_id')}")

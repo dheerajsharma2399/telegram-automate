@@ -459,9 +459,9 @@ def api_advanced_sheets_sync():
         if not jobs:
             return jsonify({"message": "No jobs found in the specified period", "synced_count": 0})
 
-        # 2. Get existing job IDs from ALL sheets
+        # 2. Get existing job IDs from sheets (only email and non-email)
         existing_ids = {}
-        for s_name in ['email', 'non-email', 'email-exp', 'non-email-exp']:
+        for s_name in ['email', 'non-email']:
             try:
                 existing_ids[s_name] = set(sheets_sync.get_all_job_ids(s_name))
                 app_logger.info(f"Sheet '{s_name}': {len(existing_ids[s_name])} existing jobs")
@@ -476,15 +476,14 @@ def api_advanced_sheets_sync():
         for job in jobs:
             job_id = job.get('job_id')
             
-            # Determine target sheet name
+            # Determine target sheet name (simplified: only email/non-email)
             sheet_name = job.get('sheet_name')
             if not sheet_name:
-                job_relevance = job.get('job_relevance', 'relevant')
                 has_email = bool(job.get('email'))
-                if job_relevance == 'relevant':
-                    sheet_name = 'email' if has_email else 'non-email'
-                else:
-                    sheet_name = 'email-exp' if has_email else 'non-email-exp'
+                sheet_name = 'email' if has_email else 'non-email'
+            elif sheet_name in ['email-exp', 'non-email-exp']:
+                # Migrate legacy relevance-based sheets to simple email/non-email
+                sheet_name = 'email' if 'email' in sheet_name else 'non-email'
             
             # Check if job actually exists in the target sheet
             if sheet_name in existing_ids and job_id in existing_ids[sheet_name]:

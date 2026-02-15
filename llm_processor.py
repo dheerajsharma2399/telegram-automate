@@ -484,8 +484,8 @@ class LLMProcessor:
         #     except Exception:
         #         email_body = None
 
-        # Use the sheet_name provided by the LLM, with a sensible fallback.
-        sheet_name = job_data.get('sheet_name', 'non-email')
+        # Use the sheet_name provided by the LLM. If missing, let sheets_sync.py determine it.
+        sheet_name = job_data.get('sheet_name')  # No fallback - proper routing in sheets_sync.py
         return {
             "raw_message_id": raw_message_id,
             "job_id": job_id,
