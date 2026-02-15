@@ -24,9 +24,6 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/data /app/logs
 
-# Initialize database schema
-RUN python initialize_db.py
-
 # Set environment variables for Dokploy
 ENV PORT=9501
 ENV FLASK_ENV=production
@@ -39,7 +36,7 @@ EXPOSE 9501
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:9501/health', timeout=5)" || exit 1
+    CMD curl -f http://localhost:9501/health || exit 1
 
-# Start command - Run web server with Gunicorn and Telegram bot in background
-CMD ["honcho", "start"]
+# Start command - Database will be initialized at runtime when DATABASE_URL is available
+CMD python initialize_db.py && honcho start
