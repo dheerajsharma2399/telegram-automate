@@ -429,7 +429,7 @@ def api_hide_jobs():
 
 @app.route("/api/sheets/advanced_sync", methods=["POST"])
 def api_advanced_sheets_sync():
-    """Advanced sync: Sync jobs from past N days, skipping existing ones in sheets."""
+    """Advanced sync: Compare DB jobs with actual sheets content and sync missing ones."""
     try:
         data = request.get_json(force=True) or {}
         
@@ -446,22 +446,37 @@ def api_advanced_sheets_sync():
         if not (sheets_sync and sheets_sync.client):
             return jsonify({"error": "Google Sheets not configured"}), 500
 
-        # 1. Fetch jobs from DB
-        jobs = db.jobs.get_jobs_created_since(days)
+        # 1. Fetch ALL jobs from DB in the time range (ignore sync status)
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM processed_jobs
+                    WHERE created_at >= NOW() - INTERVAL '%s days'
+                    ORDER BY created_at DESC
+                """, (days,))
+                jobs = [dict(row) for row in cursor.fetchall()]
+        
         if not jobs:
             return jsonify({"message": "No jobs found in the specified period", "synced_count": 0})
 
-        # 2. Pre-fetch existing IDs from sheets to minimize API calls during check
+        # 2. Get existing job IDs from ALL sheets
         existing_ids = {}
         for s_name in ['email', 'non-email', 'email-exp', 'non-email-exp']:
-            existing_ids[s_name] = sheets_sync.get_all_job_ids(s_name)
+            try:
+                existing_ids[s_name] = set(sheets_sync.get_all_job_ids(s_name))
+                app_logger.info(f"Sheet '{s_name}': {len(existing_ids[s_name])} existing jobs")
+            except Exception as e:
+                app_logger.warning(f"Failed to get IDs from sheet '{s_name}': {e}")
+                existing_ids[s_name] = set()
 
         synced_count = 0
-        queued_count = 0
         skipped_count = 0
+        fixed_count = 0  # Jobs that were marked as synced but weren't in sheets
         
         for job in jobs:
-            # Determine target sheet name logic
+            job_id = job.get('job_id')
+            
+            # Determine target sheet name
             sheet_name = job.get('sheet_name')
             if not sheet_name:
                 job_relevance = job.get('job_relevance', 'relevant')
@@ -471,51 +486,79 @@ def api_advanced_sheets_sync():
                 else:
                     sheet_name = 'email-exp' if has_email else 'non-email-exp'
             
-            # Check if exists in the target sheet
-            if sheet_name in existing_ids and job.get('job_id') in existing_ids[sheet_name]:
+            # Check if job actually exists in the target sheet
+            if sheet_name in existing_ids and job_id in existing_ids[sheet_name]:
+                # Job exists in sheet
                 skipped_count += 1
-                # FIX: Don't mark as synced just because it exists in sheets
-                # Let the normal sync process verify and mark it properly
+                
+                # Fix database if it was marked as unsynced
+                if not job.get('synced_to_sheets'):
+                    with db.get_connection() as conn:
+                        try:
+                            with conn.cursor() as cursor:
+                                cursor.execute("""
+                                    UPDATE processed_jobs 
+                                    SET synced_to_sheets = TRUE, sheet_name = %s 
+                                    WHERE job_id = %s
+                                """, (sheet_name, job_id))
+                            conn.commit()
+                            fixed_count += 1
+                        except Exception as e:
+                            conn.rollback()
+                            app_logger.error(f"Failed to update sync status for {job_id}: {e}")
                 continue
             
-            # Optimization: If many jobs, queue them for background sync
-            if len(jobs) > 10:
-                # Mark as unsynced so background task picks it up
-                with db.get_connection() as conn:
-                    try:
-                        with conn.cursor() as cursor:
-                            cursor.execute("UPDATE processed_jobs SET synced_to_sheets = FALSE, sheet_name = %s WHERE job_id = %s", 
-                                         (sheet_name, job.get('job_id')))
-                        conn.commit()
-                    except Exception as e:
-                        conn.rollback()
-                        logging.error(f"Failed to queue job for sync: {e}")
-                        raise
-                queued_count += 1  # FIX: Track as queued, not synced
-            else:
-                # Small batch, sync immediately
-                if not job.get('sheet_name'):
-                    job['sheet_name'] = sheet_name
-                    
+            # Job doesn't exist in sheet - sync it
+            if not job.get('sheet_name'):
+                job['sheet_name'] = sheet_name
+            
+            try:
                 if sheets_sync.sync_job(job):
-                    db.jobs.mark_job_synced(job.get('job_id'))
+                    # Mark as synced in database
+                    with db.get_connection() as conn:
+                        try:
+                            with conn.cursor() as cursor:
+                                cursor.execute("""
+                                    UPDATE processed_jobs 
+                                    SET synced_to_sheets = TRUE, sheet_name = %s 
+                                    WHERE job_id = %s
+                                """, (sheet_name, job_id))
+                            conn.commit()
+                        except Exception as e:
+                            conn.rollback()
+                            app_logger.error(f"Failed to mark job {job_id} as synced: {e}")
+                    
+                    # Add to existing IDs to avoid duplicate checks
                     if sheet_name in existing_ids:
-                        existing_ids[sheet_name].add(job.get('job_id'))
+                        existing_ids[sheet_name].add(job_id)
+                    
                     synced_count += 1
+                    
+                    # Check if this was a data integrity fix
+                    if job.get('synced_to_sheets'):
+                        fixed_count += 1
+                        app_logger.info(f"Fixed job {job_id} - was marked as synced but wasn't in sheets")
                 else:
-                    logging.warning(f"Failed to sync job {job.get('job_id')}: {job.get('company_name')}")
-                
+                    app_logger.warning(f"Failed to sync job {job_id}: {job.get('company_name')}")
+            except Exception as e:
+                app_logger.error(f"Error syncing job {job_id}: {e}")
+        
+        message = f"Sync completed. {synced_count} synced, {skipped_count} already in sheets"
+        if fixed_count > 0:
+            message += f", {fixed_count} data integrity issues fixed"
+        
         return jsonify({
-            "message": f"Sync processed. {synced_count} synced, {queued_count} queued, {skipped_count} skipped.",
+            "message": message,
             "synced_count": synced_count,
-            "queued_count": queued_count,
             "skipped_count": skipped_count,
+            "fixed_count": fixed_count,
             "total_checked": len(jobs)
         })
 
     except Exception as e:
-        logging.error(f"Advanced sync failed: {e}")
+        app_logger.error(f"Advanced sync failed: {e}")
         return jsonify({"error": str(e)}), 500
+
 # ===============================================
 # DASHBOARD JOBS API ENDPOINTS (NEW)
 # ===============================================
