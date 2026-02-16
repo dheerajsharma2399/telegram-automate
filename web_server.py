@@ -240,7 +240,7 @@ def api_queue():
 def api_logs():
     """API endpoint to get logs."""
     lines = request.args.get('lines', 1000, type=int)
-    app_logger.info(f"API logs endpoint was hit! Fetching last {lines} lines.")
+    logging.info(f"API logs endpoint was hit! Fetching last {lines} lines.")
     try:
         logs = {
             "app_logs": read_log_file(log_file_path, lines=lines),
@@ -406,9 +406,9 @@ def api_advanced_sheets_sync():
         for s_name in ['email', 'non-email']:
             try:
                 existing_ids[s_name] = set(sheets_sync.get_all_job_ids(s_name))
-                app_logger.info(f"Sheet '{s_name}': {len(existing_ids[s_name])} existing jobs")
+                logging.info(f"Sheet '{s_name}': {len(existing_ids[s_name])} existing jobs")
             except Exception as e:
-                app_logger.warning(f"Failed to get IDs from sheet '{s_name}': {e}")
+                logging.warning(f"Failed to get IDs from sheet '{s_name}': {e}")
                 existing_ids[s_name] = set()
 
         synced_count = 0
@@ -446,7 +446,7 @@ def api_advanced_sheets_sync():
                             fixed_count += 1
                         except Exception as e:
                             conn.rollback()
-                            app_logger.error(f"Failed to update sync status for {job_id}: {e}")
+                            logging.error(f"Failed to update sync status for {job_id}: {e}")
                 continue
             
             # Job doesn't exist in sheet - sync it
@@ -467,7 +467,7 @@ def api_advanced_sheets_sync():
                             conn.commit()
                         except Exception as e:
                             conn.rollback()
-                            app_logger.error(f"Failed to mark job {job_id} as synced: {e}")
+                            logging.error(f"Failed to mark job {job_id} as synced: {e}")
                     
                     # Add to existing IDs to avoid duplicate checks
                     if sheet_name in existing_ids:
@@ -478,11 +478,11 @@ def api_advanced_sheets_sync():
                     # Check if this was a data integrity fix
                     if job.get('synced_to_sheets'):
                         fixed_count += 1
-                        app_logger.info(f"Fixed job {job_id} - was marked as synced but wasn't in sheets")
+                        logging.info(f"Fixed job {job_id} - was marked as synced but wasn't in sheets")
                 else:
-                    app_logger.warning(f"Failed to sync job {job_id}: {job.get('company_name')}")
+                    logging.warning(f"Failed to sync job {job_id}: {job.get('company_name')}")
             except Exception as e:
-                app_logger.error(f"Error syncing job {job_id}: {e}")
+                logging.error(f"Error syncing job {job_id}: {e}")
         
         message = f"Sync completed. {synced_count} synced, {skipped_count} already in sheets"
         if fixed_count > 0:
@@ -497,7 +497,7 @@ def api_advanced_sheets_sync():
         })
 
     except Exception as e:
-        app_logger.error(f"Advanced sync failed: {e}")
+        logging.error(f"Advanced sync failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 # ===============================================

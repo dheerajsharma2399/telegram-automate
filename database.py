@@ -263,6 +263,7 @@ class Database:
         self.messages = MessageRepository(self.pool)
         self.jobs = JobRepository(self.pool)
         self.config = ConfigRepository(self.pool)
+        self.commands = CommandRepository(self.pool)
         self.dashboard = DashboardRepository(self.pool)
 
     def get_connection(self):
