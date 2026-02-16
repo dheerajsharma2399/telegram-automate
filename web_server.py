@@ -26,12 +26,11 @@ from sheets_sync import MultiSheetSync
 # Initialize Flask app
 app = Flask(__name__)
 
-# Global variables
-db = None
-llm_processor = None
+# Initialize database and LLM processor at module level
+# This ensures they're available when Gunicorn imports the module
+db = Database(DATABASE_URL) if DATABASE_URL else None
+llm_processor = LLMProcessor() if OPENROUTER_API_KEY else None
 sheets_sync = None
-
-# ... (Logging setup remains)
 
 def get_sheets_sync():
     global sheets_sync
@@ -1213,10 +1212,6 @@ def fetch_historical_messages():
 if __name__ == "__main__":
     # Create Flask application instance for Gunicorn
     application = app
-    
-    # Initialize database and LLM processor
-    db = Database(DATABASE_URL)
-    llm_processor = LLMProcessor()
     
     # Get port from environment
     port = int(os.environ.get("PORT", 9501))
