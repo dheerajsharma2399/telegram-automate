@@ -362,4 +362,20 @@ class MultiSheetSync:
         return self.primary_sync.update_job_email_body_in_sheet(job_id, email_body, sheet_name)
 
     def get_all_job_ids(self, sheet_name: str) -> set:
-        return self.primary_sync.get_all_job_ids(sheet_name)
+        """Get all job IDs from ALL configured sheets (primary + additional)"""
+        all_ids = set()
+        
+        # Get IDs from primary sheet
+        try:
+            all_ids.update(self.primary_sync.get_all_job_ids(sheet_name))
+        except Exception as e:
+            self.logger.error(f"Failed to get IDs from primary sheet: {e}")
+        
+        # Get IDs from additional sheets
+        for sync in self.additional_syncs:
+            try:
+                all_ids.update(sync.get_all_job_ids(sheet_name))
+            except Exception as e:
+                self.logger.error(f"Failed to get IDs from additional sheet {sync.spreadsheet_id}: {e}")
+        
+        return all_ids

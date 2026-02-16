@@ -541,5 +541,5 @@ class LLMProcessor:
     def _generate_email_subject(self, job_role: str, custom_subject: Optional[str]) -> str:
         """Generates an email subject line for the job application."""
         if custom_subject:
-            return custom_subject.replace("[Your Name]", "Dheeraj Sharma").replace("[Name]", "Dheeraj Sharma")
-        return f"Application for {job_role} - Dheeraj Sharma"
+            return custom_subject  # Keep placeholders as-is for users to customize
+        return f"Application for {job_role} - [Your Name]"
