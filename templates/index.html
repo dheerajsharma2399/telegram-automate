@@ -1743,6 +1743,7 @@
             try {
                 // Initial data load
                 fetchStatus();
+                fetchDashboardJobs(); // Load dashboard jobs on initial page load
                 setInterval(fetchStatus, 5000); // Refresh status every 5 seconds
 
                 // Event listeners for tabs
