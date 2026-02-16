@@ -427,27 +427,10 @@ def api_advanced_sheets_sync():
                 # Migrate legacy relevance-based sheets to simple email/non-email
                 sheet_name = 'email' if 'email' in sheet_name else 'non-email'
             
-            # Check if job actually exists in the target sheet
-            if sheet_name in existing_ids and job_id in existing_ids[sheet_name]:
-                # Job exists in sheet
-                skipped_count += 1
-                
-                # Fix database if it was marked as unsynced
-                if not job.get('synced_to_sheets'):
-                    with db.get_connection() as conn:
-                        try:
-                            with conn.cursor() as cursor:
-                                cursor.execute("""
-                                    UPDATE processed_jobs 
-                                    SET synced_to_sheets = TRUE, sheet_name = %s 
-                                    WHERE job_id = %s
-                                """, (sheet_name, job_id))
-                            conn.commit()
-                            fixed_count += 1
-                        except Exception as e:
-                            conn.rollback()
-                            logging.error(f"Failed to update sync status for {job_id}: {e}")
-                continue
+            # Since sync_job is now idempotent (checks for existence before appending),
+            # we can safely call it for all jobs. This ensures new sheets get populated
+            # even if the job exists in other sheets or was previously tracked.
+
             
             # Job doesn't exist in sheet - sync it
             if not job.get('sheet_name'):

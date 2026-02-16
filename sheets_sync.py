@@ -168,6 +168,12 @@ class GoogleSheetsSync:
                 # Instead of append_row (which can be confused by ragged columns like Email Body),
                 # we find the next empty row based specifically on Column A (Job ID).
                 col_a_values = worksheet.col_values(1)
+                
+                # Check for existing job ID to prevent duplicates (Idempotency)
+                if str(job_data.get('job_id')) in col_a_values:
+                    self.logger.debug(f"Job {job_data.get('job_id')} already in sheet '{sheet_name}', skipping append.")
+                    return True
+
                 next_row = len(col_a_values) + 1
                 
                 # Ensure sheet has enough rows
