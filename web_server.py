@@ -20,7 +20,12 @@ from urllib.parse import urljoin
 from llm_processor import LLMProcessor
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from sheets_sync import GoogleSheetsSync
-from config import OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, ADDITIONAL_SPREADSHEET_IDS
+from config import (
+    OPENROUTER_API_KEY, OPENROUTER_API_KEYS, OPENROUTER_MODEL, OPENROUTER_MODELS,
+    OPENROUTER_FALLBACK_MODEL, OPENROUTER_FALLBACK_MODELS,
+    GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, TELEGRAM_API_ID, TELEGRAM_API_HASH,
+    TELEGRAM_PHONE, ADDITIONAL_SPREADSHEET_IDS
+)
 from sheets_sync import MultiSheetSync
 
 # Initialize Flask app
@@ -29,7 +34,7 @@ app = Flask(__name__)
 # Initialize database and LLM processor at module level
 # This ensures they're available when Gunicorn imports the module
 db = Database(DATABASE_URL) if DATABASE_URL else None
-llm_processor = LLMProcessor() if OPENROUTER_API_KEY else None
+llm_processor = LLMProcessor(OPENROUTER_API_KEYS, OPENROUTER_MODELS, OPENROUTER_FALLBACK_MODELS) if OPENROUTER_API_KEYS else None
 sheets_sync = None
 
 def get_sheets_sync():
