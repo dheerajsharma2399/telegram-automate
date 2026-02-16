@@ -184,13 +184,19 @@ class GoogleSheetsSync:
                 cell_range = f"A{next_row}:Q{next_row}"
                 worksheet.update(range_name=cell_range, values=[row])
                 
-                # RATE LIMITING: Sleep briefly to avoid hitting Google API quotas (60 req/min)
-                time.sleep(1.0)
+                # RATE LIMITING: Sleep to avoid hitting Google API quotas (60 req/min)
+                time.sleep(2.0)
                 
                 self.logger.info(f"Successfully synced job {job_data.get('job_id', 'unknown')} to Google Sheets")
                 return True
             except Exception as e:
-                self.logger.warning(f"Sync failed for '{sheet_name}', attempting refresh and retry. Error: {e}")
+                # RATE LIMIT HANDLING: Check for 429 Quota Exceeded
+                error_str = str(e)
+                if "429" in error_str or "Quota exceeded" in error_str:
+                    self.logger.warning(f"Google API Quota Exceeded. Sleeping for 60 seconds... Error: {e}")
+                    time.sleep(60)
+                else:
+                    self.logger.warning(f"Sync failed for '{sheet_name}', attempting refresh and retry. Error: {e}")
                 
                 # RETRY LOGIC: Refresh the worksheet object and try again
                 # This handles cases where the sheet was modified (rows added) and the old object is stale
@@ -206,6 +212,12 @@ class GoogleSheetsSync:
                     
                     # Retry with robust logic
                     col_a_values = worksheet.col_values(1)
+                    
+                    # Check for existing job ID (Idempotency) on retry as well
+                    if str(job_data.get('job_id')) in col_a_values:
+                        self.logger.debug(f"Job {job_data.get('job_id')} already in sheet '{sheet_name}' (found on retry), skipping append.")
+                        return True
+
                     next_row = len(col_a_values) + 1
                     if next_row > worksheet.row_count:
                         worksheet.add_rows(100)
@@ -215,7 +227,11 @@ class GoogleSheetsSync:
                     self.logger.info(f"Retry successful for job {job_data.get('job_id', 'unknown')}")
                     return True
                 except Exception as retry_e:
-                    self.logger.error(f"Retry failed for job {job_data.get('job_id')}: {retry_e}")
+                    # If we hit 429 again on retry, log it clearly
+                    if "429" in str(retry_e) or "Quota exceeded" in str(retry_e):
+                        self.logger.error(f"Retry failed due to QUOTA EXCEEDED for job {job_data.get('job_id')}. Stopping to let quota recover.")
+                    else:
+                        self.logger.error(f"Retry failed for job {job_data.get('job_id')}: {retry_e}")
                     raise retry_e # Re-raise to be caught by outer block
             
         except Exception as e:
