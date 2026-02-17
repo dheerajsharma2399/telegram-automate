@@ -336,11 +336,26 @@ class TelegramMonitor:
 
                 # Check if this entity's ID matches any of our targets
                 # We check the raw ID (positive) against our set of absolute target IDs
-                # This handles -100..., -..., and plain IDs
+                # This handles -100..., -..., and plain IDs by trying multiple variations
+
+                # Direct match
                 if entity_id in target_ids:
                     group_entities.append(entity)
                     from telethon.utils import get_peer_id
                     logging.info(f"✅ Resolved entity: {dialog.name} (ID: {get_peer_id(entity)})")
+                    continue
+
+                # Check with channel prefix (100...) logic
+                # Telethon entity.id for channels often excludes the 100 prefix, but input configs usually include it
+                possible_ids = {
+                    entity_id,
+                    int(f"100{entity_id}") # Add 100 prefix (common for channels)
+                }
+
+                if not target_ids.isdisjoint(possible_ids):
+                    group_entities.append(entity)
+                    from telethon.utils import get_peer_id
+                    logging.info(f"✅ Resolved entity (prefix match): {dialog.name} (ID: {get_peer_id(entity)})")
         except Exception as e:
             logging.error(f"❌ Error iterating dialogs: {e}")
 
