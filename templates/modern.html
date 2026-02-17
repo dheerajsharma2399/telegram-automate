@@ -512,6 +512,21 @@
             box-shadow: var(--shadow-lg);
             z-index: 200;
             font-size: 1.5rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Sidebar Overlay */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+            backdrop-filter: blur(2px);
         }
 
         /* Loading Spinner */
@@ -599,45 +614,105 @@
                 transform: translateX(0);
             }
 
+            .sidebar-overlay.open {
+                display: block;
+            }
+
             .main-content {
                 margin-left: 0;
+                padding: 1rem;
+                padding-top: 4rem;
             }
 
             .mobile-toggle {
                 display: flex;
             }
+
+            .header {
+                position: sticky;
+                top: 0;
+                background: var(--bg-primary);
+                padding: 1rem 0;
+                z-index: 50;
+                margin: -1rem -1rem 1rem -1rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
         }
 
-        @media (max-width: 640px) {
-            .header {
-                flex-direction: column;
-                align-items: flex-start;
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .stat-card {
+                padding: 1rem;
+            }
+
+            .stat-card .stat-value {
+                font-size: 1.5rem;
+            }
+
+            .header-title h1 {
+                font-size: 1.25rem;
             }
 
             .header-actions {
+                flex-wrap: wrap;
+            }
+
+            .search-input {
+                order: 10;
+                max-width: 100%;
                 width: 100%;
-                justify-content: flex-start;
+                flex-basis: 100%;
             }
 
-            .stats-grid {
-                grid-template-columns: 1fr;
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.8125rem;
             }
+        }
 
+        @media (max-width: 640px) {
             .job-item {
                 flex-direction: column;
                 align-items: flex-start;
+                gap: 0.75rem;
             }
 
             .job-item .job-meta {
                 width: 100%;
-                justify-content: flex-start;
                 flex-wrap: wrap;
+                gap: 0.5rem;
             }
 
             .card-header {
                 flex-direction: column;
                 gap: 1rem;
                 align-items: flex-start;
+            }
+
+            .table th,
+            .table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.8125rem;
+            }
+
+            .table-container {
+                margin: -1.5rem;
+                padding: 0 0.5rem;
+            }
+
+            .badge {
+                font-size: 0.6875rem;
+                padding: 0.2rem 0.5rem;
+            }
+
+            .toast {
+                min-width: auto;
+                max-width: calc(100vw - 2rem);
             }
         }
 
@@ -717,7 +792,13 @@
 </head>
 
 <body data-theme="dark">
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <div class="app-container">
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
@@ -997,6 +1078,7 @@
         const navItems = document.querySelectorAll('.nav-item[data-view]');
         const views = document.querySelectorAll('[id^="view-"]');
         const pageTitle = document.getElementById('page-title');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
 
         // Theme Toggle
         themeToggle.addEventListener('click', () => {
@@ -1016,6 +1098,7 @@
         // Mobile Toggle
         mobileToggle.addEventListener('click', () => {
             sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('open');
         });
 
         // Close sidebar when clicking outside on mobile
@@ -1024,6 +1107,7 @@
                 !sidebar.contains(e.target) &&
                 !mobileToggle.contains(e.target)) {
                 sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('open');
             }
         });
 
@@ -1066,6 +1150,8 @@
 
             // Close mobile sidebar
             sidebar.classList.remove('open');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (overlay) overlay.classList.remove('open');
         }
 
         // API Functions
