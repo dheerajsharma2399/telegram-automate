@@ -39,18 +39,18 @@ services:
       - "traefik.docker.network=dokploy-network"
 
       # --- ROUTER: PUBLIC APP (Everything Accessible) ---
-      - "traefik.http.routers.job-app.rule=Host(`job.mooh.me`)"
-      - "traefik.http.routers.job-app.entrypoints=websecure"
-      - "traefik.http.routers.job-app.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.job-app.service=job-service"
+      - "traefik.http.routers.telegram-job-app.rule=Host(`job.mooh.me`)"
+      - "traefik.http.routers.telegram-job-app.entrypoints=websecure"
+      - "traefik.http.routers.telegram-job-app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.telegram-job-app.service=telegram-job-service"
 
       # --- HTTP Redirect ---
-      - "traefik.http.routers.job-http.rule=Host(`job.mooh.me`)"
-      - "traefik.http.routers.job-http.entrypoints=web"
-      - "traefik.http.routers.job-http.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.telegram-job-http.rule=Host(`job.mooh.me`)"
+      - "traefik.http.routers.telegram-job-http.entrypoints=web"
+      - "traefik.http.routers.telegram-job-http.middlewares=redirect-to-https@file"
 
       # --- Service Definition ---
-      - "traefik.http.services.job-service.loadbalancer.server.port=9501"
+      - "traefik.http.services.telegram-job-service.loadbalancer.server.port=9501"
 
     deploy:
       resources:
