@@ -2,8 +2,8 @@ import asyncio
 import logging
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from config import TELEGRAM_API_ID, TELEGRAM_API_HASH
-from database import Database, DATABASE_URL
+from config import TELEGRAM_API_ID, TELEGRAM_API_HASH, DATABASE_URL
+from database import Database
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

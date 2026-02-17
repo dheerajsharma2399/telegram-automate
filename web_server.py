@@ -1006,6 +1006,14 @@ except Exception:
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/modern")
+def modern():
+    """Modern responsive dashboard"""
+    return render_template("modern.html")
+
+
 from telethon.sessions import StringSession
 from telethon import TelegramClient, errors
 from flask import session
