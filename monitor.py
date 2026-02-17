@@ -298,7 +298,7 @@ class TelegramMonitor:
         """Register message handlers for monitored groups"""
         if not self.client:
             return
-        
+
         if not force_check and self._handler_registered:
             return
 
@@ -307,27 +307,58 @@ class TelegramMonitor:
         groups_config_list_str = [s.strip() for s in groups_val.split(',') if s.strip()]
 
         # Convert to proper types
-        groups_config_list = []
+        target_ids = set()
         for g in groups_config_list_str:
             try:
-                groups_config_list.append(int(g))
+                # Store absolute values for easier matching
+                val = int(g)
+                target_ids.add(abs(val))
             except (ValueError, TypeError):
-                groups_config_list.append(g)
+                logging.warning(f"Invalid group ID format in config: {g}")
 
-        # Resolve entities
-        unique_groups = sorted(list(set(groups_config_list)))
+        if not target_ids:
+            logging.warning("⚠️ No valid group IDs found in configuration")
+            return
+
+        # Resolve entities by iterating through ALL dialogs (more robust than get_entity)
         group_entities = []
-        
-        for g_str in unique_groups:
-            try:
-                from telethon.utils import get_peer_id
-                entity = await self.client.get_entity(g_str)
-                group_entities.append(entity)
-                logging.info(f"✅ Resolved entity: {g_str} (ID: {get_peer_id(entity)})")
-            except Exception as e:
-                logging.error(f"❌ Failed to resolve entity {g_str}: {e}")
-                continue
-        
+
+        try:
+            # We assume cache is already primed with fetch_dialogs(limit=500)
+            # But let's fetch again if needed to be safe, or just use the cache
+            # Iterating over dialogs is safer than get_entity for ID mismatches
+            async for dialog in self.client.iter_dialogs(limit=None):
+                entity = dialog.entity
+                entity_id = getattr(entity, 'id', None)
+
+                if not entity_id:
+                    continue
+
+                # Check if this entity's ID matches any of our targets
+                # We check the raw ID (positive) against our set of absolute target IDs
+                # This handles -100..., -..., and plain IDs
+                if entity_id in target_ids:
+                    group_entities.append(entity)
+                    from telethon.utils import get_peer_id
+                    logging.info(f"✅ Resolved entity: {dialog.name} (ID: {get_peer_id(entity)})")
+        except Exception as e:
+            logging.error(f"❌ Error iterating dialogs: {e}")
+
+
+        if not group_entities:
+             # Fallback to get_entity for any missed ones (direct lookup)
+             for g_str in groups_config_list_str:
+                try:
+                    from telethon.utils import get_peer_id
+                    entity = await self.client.get_entity(int(g_str))
+                    # Avoid duplicates
+                    if entity.id not in [e.id for e in group_entities]:
+                        group_entities.append(entity)
+                        logging.info(f"✅ Resolved entity (direct): {g_str} (ID: {get_peer_id(entity)})")
+                except Exception as e:
+                    logging.error(f"❌ Failed to resolve entity {g_str}: {e}")
+
+        from telethon.utils import get_peer_id
         new_group_ids = {get_peer_id(entity) for entity in group_entities}
 
         if new_group_ids == self._current_monitored_group_ids and self._handler_registered:
@@ -348,13 +379,13 @@ class TelegramMonitor:
             async def job_message_handler(event):
                 if not isinstance(event, events.NewMessage.Event):
                     return
-                
+
                 if not event.chat_id or not event.message:
                     return
-                
+
                 # Just queue it - worker will process
                 await self._queue_message(event.message, event.chat_id)
-            
+
             self.client.add_event_handler(job_message_handler)
             self.job_message_handler = job_message_handler
             logging.info(f"✅ Job handler registered for {len(group_entities)} groups")
@@ -367,10 +398,10 @@ class TelegramMonitor:
             async def command_dispatch_handler(event):
                 if not hasattr(event, 'message') or not hasattr(event, 'sender_id'):
                     return
-                
+
                 logging.info(f"Command from {event.sender_id}: {event.message.text}")
                 await self._command_handler(event)
-            
+
             self.client.add_event_handler(command_dispatch_handler)
             self.command_dispatch_handler = command_dispatch_handler
             logging.info(f"✅ Command handler registered for {len(self.authorized_users)} users")
