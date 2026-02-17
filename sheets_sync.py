@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Dict
 import time
+from message_utils import log_execution
 
 class GoogleSheetsSync:
     def __init__(self, credentials_json: str, spreadsheet_id: str):
@@ -88,7 +89,8 @@ class GoogleSheetsSync:
             ]
             worksheet.append_row(headers)
         return worksheet
-    
+
+    @log_execution
     def sync_job(self, job_data: Dict) -> bool:
         """Sync job to appropriate Google Sheet with robust field mapping"""
         if not self.client:
@@ -359,6 +361,7 @@ class MultiSheetSync:
         
         self.client = self.primary_sync.client # Expose client for checks
 
+    @log_execution
     def sync_job(self, job_data: Dict) -> bool:
         """Sync job to ALL configured sheets"""
         # Always sync to primary

@@ -18,8 +18,10 @@ from sheets_sync import GoogleSheetsSync
 from historical_message_fetcher import HistoricalMessageFetcher
 from logging.handlers import RotatingFileHandler
 from monitor import TelegramMonitor
+from message_utils import log_execution
 
 
+@log_execution
 async def safety_net_fetch(monitor, context):
     """Hourly check for missed messages"""
     from historical_message_fetcher import HistoricalMessageFetcher
@@ -121,6 +123,7 @@ scheduler = AsyncIOScheduler()
 
 
 
+@log_execution
 async def process_jobs(context=None):
     """The core job processing function with proper transaction handling."""
     logger.info("🚀 Starting job processing...")
@@ -223,6 +226,7 @@ async def process_jobs(context=None):
     logger.info("Job processing batch finished. Starting automatic Google Sheets sync.")
     await sync_sheets_automatically()
 
+@log_execution
 async def sync_sheets_automatically():
     """
     Automatically finds all unsynced jobs and syncs them to Google Sheets.
@@ -861,6 +865,7 @@ if __name__ == '__main__':
 
 
 
+@log_execution
 async def scheduled_fetch_and_process(monitor):
     """
     Scheduled task to fetch recent messages and process them.

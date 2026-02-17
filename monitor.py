@@ -9,7 +9,7 @@ from config import (
 )
 from database import Database
 from config import TELEGRAM_GROUP_USERNAMES, DATABASE_URL
-from message_utils import extract_message_text, get_message_info, send_rate_limited_telegram_notification
+from message_utils import extract_message_text, get_message_info, send_rate_limited_telegram_notification, log_execution
 from datetime import datetime, timedelta
 import psycopg2
 import pytz
@@ -91,6 +91,7 @@ class TelegramMonitor:
             logging.warning(f"⚠️ Message queue full! Message {message.id} from group {group_id} dropped")
             self.stats['total_errors'] += 1
 
+    @log_execution
     async def _message_worker(self):
         """Background worker to process queued messages with retry logic"""
         logging.info("✅ Message worker started")
@@ -186,9 +187,10 @@ class TelegramMonitor:
         self.db.commands.enqueue_command(command_text)
         # await event.respond(f"Command `{command_text}` queued for execution.", parse_mode='markdown')
 
+    @log_execution
     async def start(self):
         logging.info("🚀 Starting Telegram monitor loop...")
-        
+
         while True:
             try:
                 session_string = self.db.auth.get_telegram_session()

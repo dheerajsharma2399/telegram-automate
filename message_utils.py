@@ -8,12 +8,54 @@ import asyncio
 import logging
 import os
 import tempfile
-from typing import Optional
+import functools
 import time
+from typing import Optional, Any, Callable
 import aiohttp
 from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID
 
 logger = logging.getLogger(__name__)
+
+def log_execution(func: Callable) -> Callable:
+    """
+    Decorator to log the start, end, and duration of a function execution.
+    Also logs any exceptions raised by the function.
+    Supports both synchronous and asynchronous functions.
+    """
+    @functools.wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        func_name = func.__name__
+        logger.info(f"▶️ START: {func_name}")
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            duration = time.time() - start_time
+            logger.info(f"✅ END: {func_name} (took {duration:.2f}s)")
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"❌ ERROR: {func_name} failed after {duration:.2f}s: {e}", exc_info=True)
+            raise
+
+    @functools.wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        func_name = func.__name__
+        logger.info(f"▶️ START (Async): {func_name}")
+        start_time = time.time()
+        try:
+            result = await func(*args, **kwargs)
+            duration = time.time() - start_time
+            logger.info(f"✅ END (Async): {func_name} (took {duration:.2f}s)")
+            return result
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"❌ ERROR (Async): {func_name} failed after {duration:.2f}s: {e}", exc_info=True)
+            raise
+
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper
 
 def extract_message_text(message) -> str:
     """
@@ -245,5 +287,6 @@ __all__ = [
     'should_process_message',
     'get_message_info',
     'debug_message_structure',
-    'send_rate_limited_telegram_notification'
+    'send_rate_limited_telegram_notification',
+    'log_execution'
 ]

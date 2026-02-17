@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from message_utils import extract_message_text, should_process_message
+from message_utils import extract_message_text, should_process_message, log_execution
 
 class HistoricalMessageFetcher:
     def __init__(self, db: Database, client: TelegramClient):
@@ -120,11 +120,12 @@ class HistoricalMessageFetcher:
                     
                     logger.info(f"✅ Saved batch of {len(batch_data)} messages to database")
                     return len(batch_data)
-                    
+
         except Exception as e:
             logger.error(f"Failed to save message batch: {e}")
             return 0
-    
+
+    @log_execution
     async def fetch_historical_messages(self, hours_back=12):
         """
         Fetch messages from the past N hours using efficient batch processing
@@ -241,6 +242,7 @@ class HistoricalMessageFetcher:
             logger.error(f"❌ Failed to fetch historical messages: {e}")
             return 0
 
+    @log_execution
     async def fetch_and_process_historical_messages(self, hours_back: int = 12) -> dict:
         """
         Enhanced method: Fetch historical messages AND queue them for processing

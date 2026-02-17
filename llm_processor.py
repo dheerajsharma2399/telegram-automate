@@ -8,8 +8,9 @@ import asyncio
 from config import SYSTEM_PROMPT
 import os
 from pathlib import Path
+from message_utils import log_execution
 
-class LLMProcessor:    
+class LLMProcessor:
 
     def __init__(self, api_keys: List[str], models: List[str], fallback_models: List[str]):
         self.api_keys = api_keys
@@ -26,9 +27,10 @@ class LLMProcessor:
         except Exception:
             self.user_profile = None
     
+    @log_execution
     async def parse_jobs(self, message_text: str, max_retries: int = 3) -> List[Dict]:
         """Parse job postings from message using LLM with failover and rotation"""
-        
+
         # Try primary model pool
         jobs = await self._try_pool(self.models, message_text, max_retries, "Primary")
         
@@ -247,9 +249,10 @@ class LLMProcessor:
         
         return None
 
+    @log_execution
     async def _call_llm(self, message_text: str, model: str, api_key: str) -> Optional[List[Dict]]:
         """Make a single LLM API call"""
-        
+
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
