@@ -788,6 +788,82 @@
             background: rgba(239, 68, 68, 0.15);
             color: var(--danger);
         }
+
+        /* Sortable Headers */
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .sortable::after {
+            content: ' ↕';
+            opacity: 0.3;
+            font-size: 0.75em;
+        }
+
+        .sortable.asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        .sortable.desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        /* Expandable Row */
+        .job-details-row {
+            display: none;
+        }
+
+        .job-details-row.expanded {
+            display: table-row;
+        }
+
+        .job-details-row td {
+            padding: 1rem !important;
+            background: var(--bg-tertiary);
+        }
+
+        .job-details-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            margin-top: 0.5rem;
+        }
+
+        .job-details-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8125rem;
+            margin: 0;
+        }
+
+        .job-row {
+            cursor: pointer;
+        }
+
+        .job-row:hover {
+            background: var(--bg-tertiary) !important;
+        }
+
+        /* Domain Badge */
+        .domain-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
@@ -932,7 +1008,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">All Jobs</h3>
-                        <div style="display: flex; gap: 0.5rem;">
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <select class="btn btn-secondary" id="filter-relevance" style="padding: 0.5rem 1rem;">
                                 <option value="">All Relevance</option>
                                 <option value="relevant">Relevant</option>
@@ -947,20 +1023,21 @@
                     </div>
                     <div class="card-body">
                         <div class="table-container">
-                            <table class="table">
+                            <table class="table" id="jobs-table">
                                 <thead>
                                     <tr>
-                                        <th>Company</th>
-                                        <th>Role</th>
-                                        <th>Location</th>
-                                        <th>Type</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
+                                        <th class="sortable" data-sort-by="index" style="width: 50px;">#</th>
+                                        <th class="sortable" data-sort-by="created_at">Date</th>
+                                        <th class="sortable" data-sort-by="job_role">Job Role</th>
+                                        <th class="sortable" data-sort-by="company_name">Company</th>
+                                        <th>Salary</th>
+                                        <th class="sortable" data-sort-by="application_link">Application Link</th>
+                                        <th style="width: 80px;">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="jobs-table">
+                                <tbody id="jobs-table-body">
                                     <tr>
-                                        <td colspan="6">
+                                        <td colspan="7">
                                             <div class="loading">
                                                 <div class="spinner"></div>
                                             </div>
@@ -1070,6 +1147,8 @@
         let currentView = 'dashboard';
         let jobsData = [];
         let queueData = [];
+        let currentSortColumn = 'created_at';
+        let currentSortDirection = 'desc'; // Default newest first
 
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -1223,39 +1302,200 @@
         }
 
         async function loadJobsData() {
-            const container = document.getElementById('jobs-table');
+            const container = document.getElementById('jobs-table-body');
             const jobs = await fetchAPI('/api/jobs');
 
             if (!jobs || jobs.length === 0) {
-                container.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No jobs found</td></tr>';
+                container.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No jobs found</td></tr>';
                 return;
             }
 
-            jobsData = jobs;
-            renderJobsTable(jobs);
+            // Sort jobs by date (newest first by default)
+            const sortedJobs = sortJobsArray(jobs, currentSortColumn, currentSortDirection);
+            jobsData = sortedJobs;
+            renderJobsTable(sortedJobs);
+
+            // Setup sortable headers
+            setupSortableHeaders();
+        }
+
+        function sortJobsArray(jobs, column, direction) {
+            return [...jobs].sort((a, b) => {
+                let valA = a[column] || '';
+                let valB = b[column] || '';
+
+                // Handle date sorting
+                if (column === 'created_at' || column === 'original_created_at') {
+                    valA = new Date(valA || a.created_at || 0).getTime();
+                    valB = new Date(valB || b.created_at || 0).getTime();
+                }
+
+                // Handle index
+                if (column === 'index') {
+                    valA = a.id || 0;
+                    valB = b.id || 0;
+                }
+
+                // Handle application_link (domain sorting)
+                if (column === 'application_link') {
+                    valA = getDomainFromUrl(valA).toLowerCase();
+                    valB = getDomainFromUrl(valB).toLowerCase();
+                }
+
+                if (valA < valB) return direction === 'asc' ? -1 : 1;
+                if (valA > valB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function getDomainFromUrl(url) {
+            if (!url) return '';
+            try {
+                // Remove protocol
+                let cleanUrl = url.replace(/^https?:\/\//, '');
+                // Remove www.
+                cleanUrl = cleanUrl.replace(/^www\./, '');
+                // Get domain (first part)
+                const parts = cleanUrl.split('/');
+                return parts[0] || '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function setupSortableHeaders() {
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const column = th.dataset.sortBy;
+                    if (currentSortColumn === column) {
+                        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSortColumn = column;
+                        currentSortDirection = column === 'created_at' || column === 'index' ? 'desc' : 'asc';
+                    }
+
+                    // Update sort indicators
+                    document.querySelectorAll('.sortable').forEach(h => h.classList.remove('asc', 'desc'));
+                    th.classList.add(currentSortDirection);
+
+                    // Re-sort and render
+                    const sorted = sortJobsArray(jobsData, currentSortColumn, currentSortDirection);
+                    renderJobsTable(sorted);
+                });
+            });
         }
 
         function renderJobsTable(jobs) {
-            const container = document.getElementById('jobs-table');
-            container.innerHTML = jobs.map(job => `
-                <tr>
-                    <td><strong>${job.company_name || 'N/A'}</strong></td>
-                    <td>${job.job_role || 'N/A'}</td>
-                    <td>${job.location || 'N/A'}</td>
+            const container = document.getElementById('jobs-table-body');
+
+            // Clear existing rows
+            container.innerHTML = '';
+
+            jobs.forEach((job, index) => {
+                // Main row
+                const row = document.createElement('tr');
+                row.className = 'job-row';
+                row.dataset.jobId = job.id;
+                row.onclick = () => toggleJobDetails(job.id);
+
+                const domain = getDomainFromUrl(job.application_link);
+
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${formatDate(job.original_created_at || job.created_at)}</td>
+                    <td><strong>${job.job_role || 'N/A'}</strong></td>
+                    <td>${job.company_name || 'N/A'}</td>
+                    <td>${job.salary || '-'}</td>
                     <td>
-                        <span class="badge ${job.email ? 'badge-success' : 'badge-info'}">
-                            ${job.email ? 'Email' : 'Link'}
-                        </span>
+                        ${job.application_link ?
+                        `<a href="${job.application_link}" target="_blank" class="domain-badge" title="${escapeHtml(job.application_link)}">${domain}</a>` :
+                        '<span style="color: var(--text-muted);">-</span>'}
                     </td>
-                    <td>
-                        <span class="badge badge-primary">${job.status || 'pending'}</span>
-                    </td>
-                    <td>
+                    <td onclick="event.stopPropagation()">
                         <button class="action-btn" title="View Details"><i class="bi bi-eye"></i></button>
                         <button class="action-btn danger" title="Hide Job"><i class="bi bi-eye-slash"></i></button>
                     </td>
-                </tr>
-            `).join('');
+                `;
+                container.appendChild(row);
+
+                // Details row (hidden by default)
+                const detailsRow = document.createElement('tr');
+                detailsRow.id = `details-${job.id}`;
+                detailsRow.className = 'job-details-row';
+                detailsRow.innerHTML = `
+                    <td colspan="7">
+                        <div class="job-details-content" id="content-${job.id}">
+                            <div style="text-align: center; color: var(--text-muted);">
+                                <i class="bi bi-arrow-down-circle"></i> Click to load details
+                            </div>
+                        </div>
+                    </td>
+                `;
+                container.appendChild(detailsRow);
+            });
+        }
+
+        async function toggleJobDetails(jobId) {
+            const detailsRow = document.getElementById(`details-${jobId}`);
+            if (!detailsRow) return;
+
+            const contentDiv = document.getElementById(`content-${jobId}`);
+
+            if (detailsRow.classList.contains('expanded')) {
+                detailsRow.classList.remove('expanded');
+            } else {
+                detailsRow.classList.add('expanded');
+
+                // Load details if not loaded
+                if (contentDiv.innerHTML.includes('Click to load')) {
+                    contentDiv.innerHTML = '<div style="text-align: center;"><div class="spinner"></div></div>';
+
+                    try {
+                        const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
+                        const data = await response.json();
+
+                        if (data.original_job) {
+                            let content = '';
+                            if (data.original_job.jd_text) {
+                                content += `<h6>Job Description:</h6><pre>${escapeHtml(data.original_job.jd_text)}</pre>`;
+                            }
+                            if (data.original_job.email) {
+                                content += `<p><strong>Email:</strong> ${escapeHtml(data.original_job.email)}</p>`;
+                            }
+                            if (data.original_job.location) {
+                                content += `<p><strong>Location:</strong> ${escapeHtml(data.original_job.location)}</p>`;
+                            }
+                            if (data.original_job.eligibility) {
+                                content += `<p><strong>Eligibility:</strong> ${escapeHtml(data.original_job.eligibility)}</p>`;
+                            }
+                            if (data.original_job.experience_required) {
+                                content += `<p><strong>Experience:</strong> ${escapeHtml(data.original_job.experience_required)}</p>`;
+                            }
+                            if (data.original_job.application_link) {
+                                content += `<p><strong>Link:</strong> <a href="${data.original_job.application_link}" target="_blank">${escapeHtml(data.original_job.application_link)}</a></p>`;
+                            }
+                            contentDiv.innerHTML = content || '<p style="color: var(--text-muted);">No details available.</p>';
+                        } else {
+                            contentDiv.innerHTML = '<p style="color: var(--text-muted);">Job details not found.</p>';
+                        }
+                    } catch (e) {
+                        contentDiv.innerHTML = `<p style="color: var(--danger);">Error loading details: ${e.message}</p>`;
+                    }
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         async function loadQueueData() {
