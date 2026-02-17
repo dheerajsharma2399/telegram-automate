@@ -1,27 +1,19 @@
-# Source code deployment with external database connection to existing Supabase
 version: '3.8'
 
 services:
   telegram-job-scraper:
-    build: .  # Build from source code instead of using Docker image
+    build: .
     container_name: telegram-job-scraper
     restart: unless-stopped
     command: honcho start
+    env_file: .env
     environment:
-      # Container Configuration
+      # Connect to the 'postgres-db' container on the dokploy-network
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres-db:5432/${POSTGRES_DB:-telegram_bot}
+
+      # App Configuration
       - CONTAINER_TYPE=all
-      - BOT_RUN_MODE=polling
-      
-      # Web Server Configuration
       - PORT=9501
-      - FLASK_ENV=production
-      - FLASK_DEBUG=0
-      
-      # External Database Configuration (connects to user's existing Supabase)
-      - DATABASE_TYPE=postgresql
-      - DATABASE_URL=${DATABASE_URL:-postgresql://***REMOVED***@152.67.7.111:5432/postgres}
-      
-      # All other environment variables
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - TELEGRAM_PHONE=${TELEGRAM_PHONE}
@@ -32,17 +24,34 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-anthropic/claude-3.5-sonnet}
       - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-4o-mini}
-      - BATCH_SIZE=10
-      - PROCESSING_INTERVAL_MINUTES=5
-      - MAX_RETRIES=3
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON}
       - SPREADSHEET_ID=${SPREADSHEET_ID}
+      - ADDITIONAL_SPREADSHEET_IDS=${ADDITIONAL_SPREADSHEET_IDS}
+      - BATCH_SIZE=${BATCH_SIZE:-10}
+      - PROCESSING_INTERVAL_MINUTES=${PROCESSING_INTERVAL_MINUTES:-5}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
-    ports:
-      - "9501:9501"
     networks:
-      - telegram_scraper_network
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+
+      # --- ROUTER: PUBLIC APP (Everything Accessible) ---
+      - "traefik.http.routers.job-app.rule=Host(`job.mooh.me`)"
+      - "traefik.http.routers.job-app.entrypoints=websecure"
+      - "traefik.http.routers.job-app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.job-app.service=job-service"
+
+      # --- HTTP Redirect ---
+      - "traefik.http.routers.job-http.rule=Host(`job.mooh.me`)"
+      - "traefik.http.routers.job-http.entrypoints=web"
+      - "traefik.http.routers.job-http.middlewares=redirect-to-https@file"
+
+      # --- Service Definition ---
+      - "traefik.http.services.job-service.loadbalancer.server.port=9501"
+
     deploy:
       resources:
         limits:
@@ -53,5 +62,5 @@ services:
           cpus: '0.25'
 
 networks:
-  telegram_scraper_network:
-    driver: bridge
+  dokploy-network:
+    external: true

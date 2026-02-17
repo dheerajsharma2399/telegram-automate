@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-telegram_bot}
+    volumes:
+      - /home/ubuntu/torrent/adminer-pgdb:/var/lib/postgresql/data
+      - ./supabase_init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      # Binds ONLY to the Tailscale IP (not public internet)
+      - "${TAILSCALE_IP}:5432:5432"
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Adminer (Database Dashboard) - SECURED via Tailscale Middleware
+  adminer:
+    image: adminer
+    container_name: adminer-ui
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      # Optional: Bind Adminer to Tailscale IP on port 8000 for direct access
+      - "${TAILSCALE_IP}:8000:8080"
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+
+      # HTTPS Router - private middleware restricts to Tailscale IPs only
+      - "traefik.http.routers.adminer-secure.rule=Host(`adminer.mooh.me`)"
+      - "traefik.http.routers.adminer-secure.entrypoints=websecure"
+      - "traefik.http.routers.adminer-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.adminer-secure.middlewares=private@file"
+      - "traefik.http.routers.adminer-secure.service=adminer-service"
+      - "traefik.http.routers.adminer-secure.priority=100"
+
+      # HTTP -> HTTPS Redirect
+      - "traefik.http.routers.adminer-http.rule=Host(`adminer.mooh.me`)"
+      - "traefik.http.routers.adminer-http.entrypoints=web"
+      - "traefik.http.routers.adminer-http.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.adminer-http.priority=100"
+
+      # Service port
+      - "traefik.http.services.adminer-service.loadbalancer.server.port=8080"
+    depends_on:
+      - postgres
+
+networks:
+  dokploy-network:
+    external: true
