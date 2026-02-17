@@ -123,30 +123,37 @@ scheduler = AsyncIOScheduler()
 
 async def process_jobs(context=None):
     """The core job processing function with proper transaction handling."""
-    logger.info("Starting job processing...")
+    logger.info("🚀 Starting job processing...")
     unprocessed_messages = db.messages.get_unprocessed_messages(limit=BATCH_SIZE)
     if not unprocessed_messages:
         logger.info("No unprocessed messages to process.")
         return
 
+    logger.info(f"Found {len(unprocessed_messages)} unprocessed messages. Starting batch...")
+
     for message in unprocessed_messages:
+        logger.info(f"Processing message ID: {message['id']} (Text len: {len(message.get('message_text', ''))})")
         # Process each message independently with its own transaction
         try:
             # Step 1: Mark as processing
             db.messages.update_message_status(message["id"], "processing")
-            
+
             # Step 2: Parse jobs with LLM
+            logger.info(f"Sending message {message['id']} to LLM...")
             parsed_jobs = await llm_processor.parse_jobs(message["message_text"])
-            
+
             if not parsed_jobs:
+                logger.warning(f"Message {message['id']} yielded NO jobs from LLM.")
                 db.messages.update_message_status(message["id"], "processed", "No jobs found")
                 continue
+
+            logger.info(f"LLM found {len(parsed_jobs)} jobs in message {message['id']}")
 
             # Step 3: Process and store each job
             for job_data in parsed_jobs:
                 try:
                     processed_data = llm_processor.process_job_data(job_data, message["id"])
-                    
+
                     # Check for duplicates before adding
                     duplicate_job = db.jobs.find_duplicate_processed_job(
                         processed_data.get('company_name'),
@@ -159,11 +166,13 @@ async def process_jobs(context=None):
 
                     # Add to processed_jobs table (without cursor - let it manage its own connection)
                     job_id = db.jobs.add_processed_job(processed_data)
-                    
+
                     if not job_id:
                         logger.error(f"Failed to add job to processed_jobs table")
                         continue
-                    
+
+                    logger.info(f"✅ Job saved successfully: {processed_data.get('company_name')} (ID: {job_id})")
+
                     # AUTOMATIC DASHBOARD POPULATION: Add non-email jobs to dashboard
                     if processed_data.get('application_method') != 'email':
                         try:
@@ -182,12 +191,12 @@ async def process_jobs(context=None):
                                 'application_status': 'not_applied',
                                 'salary': processed_data.get('salary')
                             }
-                            
+
                             # Check if already exists in dashboard
                             with db.get_connection() as conn:
                                 with conn.cursor() as cursor:
                                     cursor.execute(
-                                        "SELECT id FROM dashboard_jobs WHERE source_job_id = %s", 
+                                        "SELECT id FROM dashboard_jobs WHERE source_job_id = %s",
                                         (processed_data.get('job_id'),)
                                     )
                                     if not cursor.fetchone():
@@ -197,19 +206,19 @@ async def process_jobs(context=None):
                                             logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
                         except Exception as e:
                             logger.error(f"Failed to auto-import job to dashboard: {e}")
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to process individual job: {e}")
                     continue
-            
+
             # Step 4: Mark message as processed
             db.messages.update_message_status(message["id"], "processed")
-            logger.info(f"Processed message {message['id']} and found {len(parsed_jobs)} jobs.")
+            logger.info(f"✅ Fully processed message {message['id']}")
 
         except Exception as e:
-            logger.error(f"Failed to process message {message['id']}: {e}")
+            logger.error(f"❌ Failed to process message {message['id']}: {e}", exc_info=True)
             db.messages.update_message_status(message["id"], "failed", str(e))
-    
+
     # After processing the batch, automatically sync to sheets
     logger.info("Job processing batch finished. Starting automatic Google Sheets sync.")
     await sync_sheets_automatically()
@@ -868,7 +877,7 @@ async def scheduled_fetch_and_process(monitor):
             return
 
         if not monitor.client or not monitor.client.is_connected():
-            # Create/Connect client just for this cycle
+            logger.info("Connecting Telegram client for scheduled fetch...")
             from telethon import TelegramClient
             from telethon.sessions import StringSession
             monitor.client = TelegramClient(StringSession(session_string), monitor.api_id, monitor.api_hash)
@@ -879,18 +888,21 @@ async def scheduled_fetch_and_process(monitor):
             return
 
         # Use fetcher logic
+        logger.info("Fetching messages from last 10 minutes...")
         fetcher = HistoricalMessageFetcher(db, monitor.client)
         # Fetch last 10 minutes
         fetched_count = await fetcher.fetch_historical_messages(hours_back=0.17) # ~10 minutes
         logger.info(f"✅ Scheduled fetch retrieved {fetched_count} messages.")
 
     except Exception as e:
-        logger.error(f"❌ Error during scheduled fetch: {e}")
+        logger.error(f"❌ Error during scheduled fetch: {e}", exc_info=True)
 
     # 2. Process any new messages
+    logger.info("Triggering process_jobs()...")
     await process_jobs()
 
     # 3. Sync to sheets
+    logger.info("Triggering sync_sheets_automatically()...")
     await sync_sheets_automatically()
     logger.info("🕒 Scheduled cycle complete.")
 
