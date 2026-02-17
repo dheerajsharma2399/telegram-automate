@@ -121,7 +121,7 @@ scheduler = AsyncIOScheduler()
 
 
 
-async def process_jobs():
+async def process_jobs(context=None):
     """The core job processing function with proper transaction handling."""
     logger.info("Starting job processing...")
     unprocessed_messages = db.messages.get_unprocessed_messages(limit=BATCH_SIZE)
@@ -852,14 +852,57 @@ if __name__ == '__main__':
 
 
 
+async def scheduled_fetch_and_process(monitor):
+    """
+    Scheduled task to fetch recent messages and process them.
+    Replaces continuous monitoring with robust polling.
+    """
+    logger.info("🕒 Starting scheduled fetch and process cycle...")
+
+    # 1. Fetch recent messages (last 10 minutes to be safe)
+    try:
+        # Check session first
+        session_string = db.auth.get_telegram_session()
+        if not session_string:
+            logger.warning("No Telegram session found. Skipping fetch.")
+            return
+
+        if not monitor.client or not monitor.client.is_connected():
+            # Create/Connect client just for this cycle
+            from telethon import TelegramClient
+            from telethon.sessions import StringSession
+            monitor.client = TelegramClient(StringSession(session_string), monitor.api_id, monitor.api_hash)
+            await monitor.client.connect()
+
+        if not await monitor.client.is_user_authorized():
+            logger.error("Telegram session invalid/expired.")
+            return
+
+        # Use fetcher logic
+        fetcher = HistoricalMessageFetcher(db, monitor.client)
+        # Fetch last 10 minutes
+        fetched_count = await fetcher.fetch_historical_messages(hours_back=0.17) # ~10 minutes
+        logger.info(f"✅ Scheduled fetch retrieved {fetched_count} messages.")
+
+    except Exception as e:
+        logger.error(f"❌ Error during scheduled fetch: {e}")
+
+    # 2. Process any new messages
+    await process_jobs()
+
+    # 3. Sync to sheets
+    await sync_sheets_automatically()
+    logger.info("🕒 Scheduled cycle complete.")
+
+
 async def main():
-    """Main entry point - passive message monitoring only"""
-    logger.info("Starting Telegram Job Scraper (Monitor Mode)")
-    
+    """Main entry point - Scheduled Polling Mode"""
+    logger.info("Starting Telegram Job Scraper (Scheduled Polling Mode)")
+
     # Check bot instance
     check_bot_instance()
-    
-    # Initialize monitor
+
+    # Initialize monitor (used for config holder and client connection)
     monitor = TelegramMonitor(
         TELEGRAM_API_ID,
         TELEGRAM_API_HASH,
@@ -867,32 +910,41 @@ async def main():
         TELEGRAM_GROUP_USERNAMES,
         db
     )
-    
-    # Start scheduler for background tasks
+
+    # Start scheduler
+    # We remove the separate 'process_jobs' and 'sync_sheets' jobs because
+    # they are now integrated into the single fetch_and_process cycle
     scheduler.add_job(
-        process_jobs,
-        'interval',
-        minutes=PROCESSING_INTERVAL_MINUTES,
-        id='process_jobs',
-        replace_existing=True
-    )
-    
-    scheduler.add_job(
-        sync_sheets_automatically,
+        scheduled_fetch_and_process,
         'interval',
         minutes=5,
-        id='sync_sheets',
+        id='fetch_and_process',
+        args=[monitor],
         replace_existing=True
     )
-    
+
+    # Keep safety net for deeper history every 4 hours
+    scheduler.add_job(
+        safety_net_fetch,
+        'interval',
+        hours=4,
+        id='safety_net_fetch',
+        args=[monitor, None],
+        replace_existing=True
+    )
+
     scheduler.start()
-    logger.info("Background scheduler started")
-    logger.info(f"- Job processing: every {PROCESSING_INTERVAL_MINUTES} minutes")
-    logger.info("- Sheets sync: every 5 minutes")
-    
-    # Start monitor (blocks here)
+    logger.info("✅ Background scheduler started")
+    logger.info("- Fetch & Process: every 5 minutes")
+    logger.info("- Safety Net: every 4 hours")
+
+    # Run one cycle immediately on startup
+    asyncio.create_task(scheduled_fetch_and_process(monitor))
+
+    # Keep alive
     try:
-        await monitor.start()
+        while True:
+            await asyncio.sleep(3600)
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
