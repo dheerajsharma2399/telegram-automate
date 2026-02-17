@@ -288,8 +288,8 @@ class TelegramMonitor:
         if not self.client or not self.client.is_connected():
             return
         try:
-            logging.info("Priming entity cache (fetching top 100 dialogs)...")
-            await self.client.get_dialogs(limit=100)
+            logging.info("Priming entity cache (fetching top 500 dialogs)...")
+            await self.client.get_dialogs(limit=500)
             logging.info("✅ Entity cache primed")
         except Exception as e:
             logging.warning(f"Could not prime cache: {e}")

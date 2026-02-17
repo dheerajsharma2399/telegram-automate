@@ -716,7 +716,7 @@
     </style>
 </head>
 
-<body>
+<body data-theme="dark">
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
@@ -774,7 +774,7 @@
                         Refresh
                     </button>
                     <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
-                        <i class="bi bi-moon"></i>
+                        <i class="bi bi-sun"></i>
                     </button>
                 </div>
             </header>
@@ -1006,8 +1006,8 @@
             localStorage.setItem('theme', isDark ? 'light' : 'dark');
         });
 
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme') || 'light';
+        // Load saved theme (default to dark)
+        const savedTheme = localStorage.getItem('theme') || 'dark';
         if (savedTheme === 'dark') {
             document.body.setAttribute('data-theme', 'dark');
             themeToggle.innerHTML = '<i class="bi bi-sun"></i>';
