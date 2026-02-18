@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Job Scraper Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* Global Styles */
+        body {
+            background-color: #f8f9fa;
+            font-size: 14px;
+        }
+
+        /* Toast Notifications - Side positioning */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        .custom-toast {
+            max-width: 125px;
+            /* Reduced width by half */
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 0.875rem;
+        }
+
+        .custom-toast .toast-body {
+            font-size: 12px;
+            padding: 8px 12px;
+            word-wrap: break-word;
+        }
+
+        .toast-success {
+            border-left: 4px solid #28a745;
+        }
+
+        .toast-error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .toast-info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .toast-warning {
+            border-left: 4px solid #ffc107;
+        }
+
+        /* Enhanced Log Box */
+        .log-box {
+            background-color: #343a40;
+            color: #f8f9fa;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            height: 400px;
+            overflow-y: scroll;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #495057;
+        }
+
+        .log-controls {
+            margin-bottom: 10px;
+        }
+
+        .log-controls .btn {
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .log-header h4 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        /* Status Cards Enhancement */
+        .status-card {
+            text-align: center;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .status-card .card-body {
+            padding: 1.5rem;
+        }
+
+        .status-card .fs-4 {
+            font-size: 2rem !important;
+            font-weight: 600;
+        }
+
+        /* Navigation Tabs */
+        .nav-tabs .nav-link {
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid #dee2e6;
+            margin-right: 2px;
+        }
+
+        .nav-tabs .nav-link.active {
+            background-color: #fff;
+            border-bottom-color: #fff;
+        }
+
+        /* Table Enhancements */
+        .table {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .table th {
+            background-color: #343a40;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Sortable Headers */
+        th.sortable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        th.sortable::after {
+            content: '↕';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            font-size: 12px;
+        }
+
+        th.sortable.asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+
+        th.sortable.desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Button Enhancements */
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* Pulse Animation for Live Data */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Mobile-Responsive Layout */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 10px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 1rem;
+            }
+
+            .nav-tabs {
+                font-size: 12px;
+            }
+
+            .nav-tabs .nav-link {
+                padding: 8px 12px;
+            }
+
+            .btn-group .btn {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+
+            .status-card {
+                margin-bottom: 15px;
+            }
+
+            .table-responsive {
+                font-size: 12px;
+            }
+
+            .modal-dialog {
+                margin: 10px;
+                max-width: none;
+            }
+
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+
+            .custom-toast {
+                min-width: auto;
+            }
+
+            /* Job Table Mobile Optimization */
+            #dashboard-jobs-table {
+                font-size: 11px;
+            }
+
+            #dashboard-jobs-table th,
+            #dashboard-jobs-table td {
+                padding: 4px 2px;
+            }
+
+            .btn-group .btn {
+                padding: 2px 4px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <div class="container mt-4">
+        <h1 class="mb-4">
+            <i class="bi bi-telegram me-2"></i>
+            Telegram Job Scraper Dashboard
+        </h1>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard"
+                    type="button" role="tab">
+                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="jobs-tab" data-bs-toggle="tab" data-bs-target="#jobs" type="button"
+                    role="tab">
+                    <i class="bi bi-briefcase me-1"></i>Jobs
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="queue-tab" data-bs-toggle="tab" data-bs-target="#queue" type="button"
+                    role="tab">
+                    <i class="bi bi-list-ul me-1"></i>Queue
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button"
+                    role="tab">
+                    <i class="bi bi-clock me-1"></i>Pending
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button"
+                    role="tab">
+                    <i class="bi bi-file-text me-1"></i>Logs
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="setup-tab" data-bs-toggle="tab" data-bs-target="#setup" type="button"
+                    role="tab">
+                    <i class="bi bi-gear me-1"></i>Setup
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="myTabContent">
+            <!-- Dashboard -->
+            <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+                <div class="py-4">
+                    <h4><i class="bi bi-play-circle me-2"></i>Controls</h4>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="btn-group flex-wrap" role="group">
+                                <button class="btn btn-success" onclick="sendCommand('/start')">
+                                    <i class="bi bi-play-fill me-1"></i>Start Monitor
+                                </button>
+                                <button class="btn btn-danger" onclick="sendCommand('/stop')">
+                                    <i class="bi bi-stop-fill me-1"></i>Stop Monitor
+                                </button>
+                                <button class="btn btn-primary" onclick="sendCommand('/process')">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Process Queue
+                                </button>
+                                <button class="btn btn-info" onclick="sendCommand('/export')">
+                                    <i class="bi bi-download me-1"></i>Export CSV
+                                </button>
+                                <button class="btn btn-warning" onclick="sendCommand('/sync_sheets')">
+                                    <i class="bi bi-cloud-upload me-1"></i>Sync Sheets
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h4><i class="bi bi-activity me-2"></i>Status</h4>
+                    <div class="row" id="status-cards">
+                        <!-- Status cards will be injected here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jobs -->
+            <div class="tab-pane fade" id="jobs" role="tabpanel">
+                <div class="py-4">
+                    <h4><i class="bi bi-briefcase me-2"></i>My Applications - Job Management</h4>
+
+                    <div class="row mb-3">
+                        <div class="col-12 col-md-8">
+                            <div class="btn-group flex-wrap" role="group">
+                                <button class="btn btn-primary" onclick="importJobsFromSheets()">
+                                    <i class="bi bi-download me-1"></i>Import from Sheets
+                                </button>
+                                <button class="btn btn-success" onclick="detectDuplicates()">
+                                    <i class="bi bi-search me-1"></i>Detect Duplicates
+                                </button>
+                                <button class="btn btn-info" onclick="exportJobs()">
+                                    <i class="bi bi-file-earmark-export me-1"></i>Export CSV
+                                </button>
+                                <button class="btn btn-secondary" onclick="fetchDashboardJobs()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4 mt-3 mt-md-0">
+                            <input type="text" class="form-control" id="job-search" placeholder="🔍 Search Job Role..."
+                                oninput="filterJobs()">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6 col-md-3">
+                            <select class="form-select" id="status-filter" onchange="filterJobs()">
+                                <option value="">All Statuses</option>
+                                <option value="not_applied">Not Applied</option>
+                                <option value="applied">Applied</option>
+                                <option value="interview">Interview</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="offer">Offer</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <select class="form-select" id="relevance-filter" onchange="filterJobs()">
+                                <option value="">All Relevance</option>
+                                <option value="relevant">Relevant (Fresher)</option>
+                                <option value="irrelevant">Irrelevant (Experienced)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6 text-end">
+                            <span id="jobs-count" class="badge bg-info">0 jobs</span>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h6><i class="bi bi-collection me-1"></i>Bulk Actions</h6>
+                                <div class="btn-group flex-wrap" role="group">
+                                    <button class="btn btn-sm btn-outline-success"
+                                        onclick="bulkUpdateStatus('applied')">
+                                        <i class="bi bi-check-all me-1"></i>Mark Applied & Archive
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                        onclick="bulkUpdateStatus('rejected')">
+                                        <i class="bi bi-x-octagon me-1"></i>Mark Rejected & Archive
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                        onclick="bulkUpdateStatus('archived')">
+                                        <i class="bi bi-archive me-1"></i>Archive Selected
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small">Archive older than:</span>
+                                <select class="form-select form-select-sm" id="archive-days-select"
+                                    style="width: auto;">
+                                    <option value="1">1 Day</option>
+                                    <option value="2">2 Days</option>
+                                    <option value="3">3 Days</option>
+                                    <option value="5">5 Days</option>
+                                    <option value="7">7 Days</option>
+                                    <option value="10">10 Days</option>
+                                    <option value="14">14 Days</option>
+                                    <option value="30">30 Days</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-dark" onclick="archiveOlderThan()">
+                                    <i class="bi bi-trash me-1"></i>Archive
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="dashboard-jobs-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><input type="checkbox" id="select-all-dashboard-jobs"
+                                            onchange="toggleAllJobs()"></th>
+                                    <th>#</th>
+                                    <th class="sortable" data-sort-by="original_created_at">Date Added</th>
+                                    <th class="sortable" data-sort-by="job_role">Job Role</th>
+                                    <th class="sortable" data-sort-by="company_name">Company</th>
+                                    <th>Salary</th>
+                                    <th class="sortable" data-sort-by="application_link">Source</th>
+                                    <th class="sortable" data-sort-by="application_link">Link</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-jobs-body">
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted">Click "Refresh" to load jobs</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <div class="d-flex justify-content-between align-items-center mt-3" id="pagination-controls"
+                        style="display: none !important;">
+                        <div>
+                            <span class="text-muted small" id="pagination-info">Showing 0-0 of 0 jobs</span>
+                            <select id="page-size-select" class="form-select form-select-sm d-inline-block w-auto ms-2"
+                                onchange="changePageSize()">
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                        <nav aria-label="Job navigation">
+                            <ul class="pagination pagination-sm mb-0" id="pagination-pages">
+                                <!-- Pagination items will be injected here -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue -->
+            <div class="tab-pane fade" id="queue" role="tabpanel">
+                <div class="py-4">
+                    <h4><i class="bi bi-list-ul me-2"></i>Unprocessed Messages Queue</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Message ID</th>
+                                    <th>Sent At</th>
+                                    <th>Message Text</th>
+                                </tr>
+                            </thead>
+                            <tbody id="queue-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending -->
+            <div class="tab-pane fade" id="pending" role="tabpanel">
+                <div class="py-4">
+                    <h4><i class="bi bi-clock me-2"></i>Pending Commands</h4>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Command</th>
+                                    <th>Created At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pending-commands-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="tab-pane fade" id="logs" role="tabpanel">
+                <div class="py-4">
+                    <div class="log-header">
+                        <h4><i class="bi bi-file-text me-2"></i>System Logs</h4>
+                        <div class="log-controls">
+                            <select id="log-lines-selector" class="form-select-sm" onchange="fetchLogs()">
+                                <option value="100">100 lines</option>
+                                <option value="500">500 lines</option>
+                                <option value="1000" selected>1000 lines</option>
+                                <option value="-1">All lines</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-light" onclick="refreshLogs()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" onclick="clearLogs()">
+                                <i class="bi bi-trash me-1"></i>Clear
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" onclick="toggleAutoRefresh()">
+                                <i class="bi bi-play-fill me-1"></i>Auto Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="log-box" id="unified-logs">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Setup -->
+            <div class="tab-pane fade" id="setup" role="tabpanel">
+                <div class="py-4">
+                    <h4><i class="bi bi-gear me-2"></i>Telegram Connection Status</h4>
+                    <div class="alert" id="telegram-status-alert">
+                        Loading...
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 col-md-6">
+                            <h5><i class="bi bi-shield-check me-2"></i>Authentication Setup</h5>
+                            <div id="telegram-setup-section">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6>Step 1: Send Authentication Code</h6>
+                                        <p class="text-muted">Click the button below to receive an OTP code on your
+                                            Telegram account.</p>
+                                        <button class="btn btn-primary" onclick="sendTelegramAuthCode()">
+                                            <i class="bi bi-phone me-1"></i>Send OTP Code
+                                        </button>
+                                        <div id="auth-code-status" class="mt-3" style="display: none;">
+                                            <div class="alert alert-info">
+                                                <i class="bi bi-info-circle me-1"></i>OTP code sent! Please check your
+                                                Telegram app for the code.
+                                            </div>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="otp-code"
+                                                    placeholder="Enter 6-digit code" maxlength="6">
+                                                <button class="btn btn-success" onclick="verifyTelegramAuth()">
+                                                    <i class="bi bi-check-lg me-1"></i>Verify Code
+                                                </button>
+                                            </div>
+                                            <div class="mt-2">
+                                                <input type="password" class="form-control" id="two-factor-password"
+                                                    placeholder="2FA Password (if required)">
+                                            </div>
+                                        </div>
+                                        <div id="auth-error" class="mt-3" style="display: none;">
+                                            <div class="alert alert-danger"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <h5><i class="bi bi-people me-2"></i>Monitored Groups</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Add Telegram Groups to Monitor</h6>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="new-group-username"
+                                            placeholder="Group username (e.g., @jobgroup)">
+                                        <button class="btn btn-success" onclick="addMonitoredGroup()">
+                                            <i class="bi bi-plus-lg me-1"></i>Add
+                                        </button>
+                                    </div>
+                                    <div class="mt-3">
+                                        <h6>Currently Monitoring:</h6>
+                                        <ul id="monitored-groups-list" class="list-group">
+                                            <li class="list-group-item text-muted">Loading groups...</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5><i class="bi bi-key me-2"></i>Session Management</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <button class="btn btn-warning" onclick="clearTelegramSession()">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Clear Session
+                                    </button>
+                                    <span class="text-muted ms-3">Use this if you need to re-authenticate</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5><i class="bi bi-clock-history me-2"></i>Historical Message Recovery</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Recover Missed Messages</h6>
+                                    <p class="text-muted">Fetch messages from the past 12 hours that may have been
+                                        missed due to bot downtime or connection issues.</p>
+                                    <div class="input-group mb-3">
+                                        <label class="input-group-text" for="hours-back">Hours Back</label>
+                                        <select class="form-select" id="hours-back">
+                                            <option value="6">6 hours</option>
+                                            <option value="12" selected>12 hours</option>
+                                            <option value="24">24 hours</option>
+                                            <option value="48">48 hours</option>
+                                            <option value="72">3 days (72 hours)</option>
+                                            <option value="96">4 days (96 hours)</option>
+                                            <option value="120">5 days (120 hours)</option>
+                                        </select>
+                                        <button class="btn btn-info" onclick="fetchHistoricalMessages()">
+                                            <i class="bi bi-download me-1"></i>📥 Fetch Historical Messages
+                                        </button>
+                                    </div>
+                                    <div id="historical-fetch-status"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5><i class="bi bi-cloud-sync me-2"></i>Advanced Sheets Sync</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Sync Historical Jobs</h6>
+                                    <p class="text-muted">Sync jobs from the past N days to Google Sheets. Existing jobs
+                                        in the sheet will be skipped to prevent duplicates.</p>
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text">Days to Sync</span>
+                                        <input type="number" id="syncDaysInput" class="form-control" value="7" min="1"
+                                            max="365">
+                                        <button class="btn btn-primary" type="button" onclick="runAdvancedSync()">
+                                            <i class="bi bi-cloud-upload me-1"></i>Sync Now
+                                        </button>
+                                    </div>
+                                    <div id="advanced-sync-status"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5><i class="bi bi-wrench me-2"></i>Data Maintenance</h5>
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Process Job Backlog</h6>
+                                    <p class="text-muted">Run this to fix older jobs in the database that are missing a
+                                        `sheet_name`. This will allow them to be synced to Google Sheets correctly.</p>
+                                    <button class="btn btn-secondary" onclick="sendCommand('/backfill_sheets')">
+                                        <i class="bi bi-archive me-1"></i>Process Backlog
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // === GLOBAL VARIABLES ===
+        let allDashboardJobs = [];
+        let currentPage = 1;
+        let pageSize = 50;
+        let totalJobs = 0;
+        let currentSortColumn = 'created_at';
+        let currentSortDirection = 'desc';
+        let lastTelegramStatus = null;
+        let autoRefreshEnabled = false;
+        let autoRefreshInterval = null;
+        let searchDebounceTimer = null;
+
+        // === TOAST NOTIFICATION SYSTEM ===
+        function showToast(message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toast-container');
+
+            // Limit the number of toasts to 2
+            const existingToasts = toastContainer.querySelectorAll('.toast');
+            if (existingToasts.length >= 2) {
+                const oldestToast = existingToasts[0];
+                const toastInstance = bootstrap.Toast.getInstance(oldestToast);
+                if (toastInstance) {
+                    toastInstance.hide();
+                } else {
+                    oldestToast.remove();
+                }
+            }
+
+            const toastId = 'toast-' + Date.now();
+
+            const iconMap = {
+                'success': 'bi-check-circle-fill text-success',
+                'error': 'bi-exclamation-triangle-fill text-danger',
+                'info': 'bi-info-circle-fill text-info',
+                'warning': 'bi-exclamation-circle-fill text-warning'
+            };
+
+            // Truncate long messages
+            const displayMessage = message.length > 100 ? message.substring(0, 97) + '...' : message;
+
+            const toastHTML = `
+                        <div class="toast custom-toast toast-${type}" id="${toastId}" role="alert" data-bs-delay="${duration}">
+                            <div class="toast-header">
+                                <i class="bi ${iconMap[type]} me-2"></i>
+                                <strong class="me-auto">${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
+                                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                            <div class="toast-body">
+                                ${displayMessage}
+                            </div>
+                        </div>
+                    `;
+
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+
+            // Auto-remove from DOM after hiding
+            toastElement.addEventListener('hidden.bs.toast', function () {
+                this.remove();
+            });
+        }
+
+        // === HELPER FUNCTIONS ===
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'not_applied': '<span class="badge bg-secondary">Not Applied</span>',
+                'applied': '<span class="badge bg-success">Applied</span>',
+                'interview': '<span class="badge bg-info">Interview</span>',
+                'rejected': '<span class="badge bg-danger">Rejected</span>',
+                'offer': '<span class="badge bg-warning">Offer</span>',
+                'archived': '<span class="badge bg-dark">Archived</span>'
+            };
+            return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+        }
+
+        function getRelevanceBadge(relevance) {
+            if (relevance === 'relevant') {
+                return '<span class="badge bg-success">Relevant</span>';
+            } else if (relevance === 'irrelevant') {
+                return '<span class="badge bg-danger">Irrelevant</span>';
+            }
+            return '<span class="badge bg-secondary">Unknown</span>';
+        }
+
+        function getDomainFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.hostname.replace('www.', '');
+            } catch (e) {
+                return 'Link';
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            // Format as DD-MM-YYYY
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+
+        async function toggleRelevance(jobId) {
+            // Optimistic update
+            const job = allDashboardJobs.find(j => j.id === jobId);
+            if (!job) return;
+
+            const oldRelevance = job.job_relevance;
+            const newRelevance = oldRelevance === 'relevant' ? 'irrelevant' : 'relevant';
+
+            // UI Update
+            const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+            /* Removed relevance toggle functionality */
+        }
+
+        async function editNotes(jobId) {
+            const job = allDashboardJobs.find(j => j.id === jobId);
+            const currentNotes = job ? job.notes : '';
+            const newNotes = prompt('Enter new notes:', currentNotes);
+
+            if (newNotes !== null) {
+                try {
+                    const response = await fetch(`/api/dashboard/jobs/${jobId}/notes`, {
+                        method: 'POST', // Changed to POST /notes endpoint
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ notes: newNotes })
+                    });
+
+                    if (response.ok) {
+                        showToast('Notes updated successfully.', 'success');
+                        if (job) job.notes = newNotes;
+                        const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
+                        if (row) {
+                            const cell = row.querySelector('.notes-cell');
+                            if (cell) {
+                                cell.innerHTML = newNotes ? '📝' : '';
+                                cell.title = newNotes;
+                            }
+                        }
+                    } else {
+                        const data = await response.json();
+                        showToast(`Error: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    showToast(`Failed to update notes: ${error}`, 'error');
+                }
+            }
+        }
+
+        // === LOG MANAGEMENT FUNCTIONS ===
+        function refreshLogs() {
+            fetchLogs();
+            showToast('Logs refreshed', 'info', 2000);
+        }
+
+        function clearLogs() {
+            document.getElementById('unified-logs').textContent = 'Logs cleared...\n\nClick "Refresh" to load fresh logs.';
+            showToast('Logs cleared', 'info', 2000);
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const button = event.target.closest('button');
+
+            if (autoRefreshEnabled) {
+                button.innerHTML = '<i class="bi bi-pause-fill me-1"></i>Stop Auto';
+                button.className = 'btn btn-sm btn-outline-light';
+                autoRefreshInterval = setInterval(fetchLogs, 10000); // Refresh every 10 seconds
+                showToast('Auto-refresh enabled', 'success', 2000);
+            } else {
+                button.innerHTML = '<i class="bi bi-play-fill me-1"></i>Auto Refresh';
+                button.className = 'btn btn-sm btn-outline-light';
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                }
+                showToast('Auto-refresh disabled', 'info', 2000);
+            }
+        }
+
+        // === STATUS FUNCTIONS ===
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const statusCards = document.getElementById('status-cards');
+                const telegramStatus = data.telegram_status || 'unknown';
+
+                const telegramEmoji = {
+                    'connected': '🟢',
+                    'not_authenticated': '🔴',
+                    'session_expired': '🟡',
+                    'connection_failed': '🟠'
+                }[telegramStatus] || '⚫';
+
+                const telegramText = {
+                    'connected': 'Connected',
+                    'not_authenticated': 'Not Logged In',
+                    'session_expired': 'Session Expired',
+                    'connection_failed': 'Connection Failed'
+                }[telegramStatus] || 'Unknown';
+
+                statusCards.innerHTML = `
+                    <div class="col-6 col-md-3">
+                        <div class="card status-card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="bi bi-telegram me-1"></i>Telegram
+                                </h5>
+                                <p class="card-text fs-4">${telegramEmoji} ${telegramText}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card status-card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="bi bi-activity me-1"></i>Monitoring
+                                </h5>
+                                <p class="card-text fs-4">${data.monitoring_status === 'running' ? '🟢 Running' : '🔴 Stopped'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card status-card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="bi bi-inbox me-1"></i>Unprocessed
+                                </h5>
+                                <p class="card-text fs-4 pulse">${data.unprocessed_count || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card status-card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="bi bi-calendar-day me-1"></i>Jobs Today
+                                </h5>
+                                <p class="card-text fs-4">${data.jobs_today?.total || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error("Failed to fetch status:", error);
+                showToast(`Failed to fetch status: ${error}`, 'error');
+            }
+        }
+
+        // === COMMAND FUNCTIONS ===
+        async function sendCommand(command) {
+            try {
+                const response = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: command })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    showToast(`Error: ${errorData.error} - ${errorData.details}`, 'error');
+                } else {
+                    showToast(`Command '${command}' sent successfully.`, 'success');
+                }
+            } catch (error) {
+                showToast(`Failed to send command: ${error}`, 'error');
+            }
+        }
+
+        // === JOBS FUNCTIONS ===
+
+        function filterJobs() {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                currentPage = 1; // Reset to first page on filter change
+                fetchDashboardJobs(1);
+            }, 500); // Debounce for 500ms
+        }
+
+        function changePageSize() {
+            pageSize = document.getElementById('page-size-select').value;
+            currentPage = 1;
+            fetchDashboardJobs(1);
+        }
+
+        async function fetchDashboardJobs(page = 1) {
+            try {
+                currentPage = page;
+                const statusFilter = document.getElementById('status-filter').value;
+                const relevanceFilter = document.getElementById('relevance-filter').value;
+                const searchTerm = document.getElementById('job-search').value.trim();
+
+                showToast('Loading jobs...', 'info', 1000);
+
+                const url = new URL('/api/dashboard/jobs', window.location.origin);
+                url.searchParams.append('page', page);
+                url.searchParams.append('page_size', pageSize);
+
+                if (statusFilter && statusFilter !== 'all') url.searchParams.append('status', statusFilter);
+                if (relevanceFilter) url.searchParams.append('relevance', relevanceFilter);
+                if (searchTerm) url.searchParams.append('job_role', searchTerm);
+
+                // Sorting params
+                let sortCol = currentSortColumn;
+                // Map frontend sort columns to backend columns if needed
+                if (sortCol === 'index') sortCol = 'created_at';
+
+                url.searchParams.append('sort_by', sortCol);
+                url.searchParams.append('sort_order', currentSortDirection.toUpperCase());
+
+                // Handle "archived" logic from filter dropdown (backward compatibility)
+                if (statusFilter === 'archived') {
+                    url.searchParams.append('include_archived', 'true');
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                allDashboardJobs = data.jobs || [];
+                totalJobs = data.total_count || 0;
+
+                displayDashboardJobs(allDashboardJobs);
+                renderPagination();
+                if (typeof updateSortIndicators === 'function') updateSortIndicators();
+
+                document.getElementById('jobs-count').textContent = `${totalJobs} jobs found`;
+
+                // Reset select all checkbox
+                const selectAll = document.getElementById('select-all-dashboard-jobs');
+                if (selectAll) selectAll.checked = false;
+
+            } catch (error) {
+                console.error("Failed to fetch dashboard jobs:", error);
+                showToast(`Failed to fetch jobs: ${error}`, 'error');
+            }
+        }
+
+        async function fetchArchivedJobs() {
+            // Legacy wrapper - redirect to normal fetch with archive filter
+            const select = document.getElementById('status-filter');
+            select.value = 'archived';
+            filterJobs();
+        }
+
+        function displayDashboardJobs(jobs) {
+            const jobsTableBody = document.getElementById('dashboard-jobs-body');
+
+            if (!jobs || jobs.length === 0) {
+                jobsTableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">No jobs found</td></tr>';
+                document.getElementById('pagination-controls').style.setProperty('display', 'none', 'important');
+                return;
+            }
+
+            document.getElementById('pagination-controls').style.display = 'flex';
+
+            jobsTableBody.innerHTML = jobs.map((job, index) => {
+                const serialNumber = (currentPage - 1) * pageSize + (index + 1);
+                const domain = getDomainFromUrl(job.application_link);
+                const dateAdded = formatDate(job.original_created_at || job.created_at);
+
+                return `
+                    <tr data-job-id="${job.id}" onclick="handleRowClick(event, ${job.id})" style="cursor: pointer;">
+                        <td onclick="event.stopPropagation()"><input type="checkbox" class="dashboard-job-checkbox" value="${job.id}"></td>
+                        <td>${serialNumber}</td>
+                        <td><small>${dateAdded}</small></td>
+                        <td><strong>${escapeHtml(job.job_role || 'N/A')}</strong></td>
+                        <td>${escapeHtml(job.company_name || 'N/A')}</td>
+                        <td>${escapeHtml(job.salary || 'N/A')}</td>
+                        <td><span class="badge bg-light text-dark border">${domain}</span></td>
+                        <td onclick="event.stopPropagation()">
+                            ${job.application_link ? `<a href="${job.application_link}" target="_blank" class="btn btn-sm btn-outline-primary" title="${escapeHtml(job.application_link)}"><i class="bi bi-link-45deg"></i> Open Link</a>` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td onclick="event.stopPropagation()">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-info" onclick="toggleJobDescription(${job.id})" title="Details">📄</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="updateJobStatus(${job.id}, 'archived', true)" title="Archive">🗄️</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="job-description-row d-none" id="description-${job.id}">
+                        <td colspan="9">
+                            <div class="p-3 bg-light border rounded" style="max-height: 300px; overflow-y: auto; margin: 0 10px;">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>Full Details:</strong>
+                                    <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleJobDescription(${job.id})">Close</button>
+                                </div>
+                                <div class="job-description-content" id="job-desc-content-${job.id}">
+                                    <p class="text-muted">Loading job description...</p>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // === ROW CLICK HANDLER ===
+        function handleRowClick(event, jobId) {
+            // Don't trigger if clicking on interactive elements
+            const target = event.target;
+            if (target.tagName === 'INPUT' ||
+                target.tagName === 'BUTTON' ||
+                target.tagName === 'A' ||
+                target.closest('button') ||
+                target.closest('a')) {
+                return;
+            }
+            toggleJobDescription(jobId);
+        }
+
+        // === MISSING FUNCTION RESTORED ===
+        async function toggleJobDescription(jobId) {
+            const row = document.getElementById(`description-${jobId}`);
+            if (!row) return;
+
+            if (row.classList.contains('d-none')) {
+                row.classList.remove('d-none');
+
+                // Content loading
+                const contentDiv = document.getElementById(`job-desc-content-${jobId}`);
+                if (contentDiv.innerHTML.includes('Loading')) {
+                    try {
+                        const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
+                        const data = await response.json();
+
+                        if (data.original_job) {
+                            let content = '';
+                            if (data.original_job.jd_text) {
+                                content += `<h6>Job Description:</h6><pre style="white-space: pre-wrap;">${escapeHtml(data.original_job.jd_text)}</pre>`;
+                            }
+                            /*
+                            if (data.raw_message) {
+                                content += `<hr><h6>Original Message:</h6><pre style="white-space: pre-wrap; font-size: 0.85em;" class="text-muted">${escapeHtml(data.raw_message.message_text)}</pre>`;
+                            }
+                            */
+                            contentDiv.innerHTML = content || '<p class="text-muted">No details available.</p>';
+                        } else {
+                            contentDiv.innerHTML = '<p class="text-muted">Job details not found.</p>';
+                        }
+                    } catch (e) {
+                        contentDiv.innerHTML = `<p class="text-danger">Error loading details: ${e.message}</p>`;
+                    }
+                }
+            } else {
+                row.classList.add('d-none');
+            }
+        }
+
+        function renderPagination() {
+            const paginationPages = document.getElementById('pagination-pages');
+            const totalPages = Math.ceil(totalJobs / pageSize);
+            const startItem = (currentPage - 1) * pageSize + 1;
+            const endItem = Math.min(currentPage * pageSize, totalJobs);
+
+            document.getElementById('pagination-info').textContent = `Showing ${startItem}-${endItem} of ${totalJobs} jobs`;
+
+            let html = '';
+
+            // Previous
+            html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Previous</a>
+                    </li>`;
+
+            // Simple logic: Show first, last, and window around current
+            // If many pages, show dots
+
+            const windowSize = 2; // items on each side
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - windowSize && i <= currentPage + windowSize)) {
+                    html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                            </li>`;
+                } else if (i === currentPage - windowSize - 1 || i === currentPage + windowSize + 1) {
+                    html += `<li class="page-item disabled"><a class="page-link" href="#">...</a></li>`;
+                }
+            }
+
+            // Next
+            html += `<li class="page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Next</a>
+                    </li>`;
+
+            paginationPages.innerHTML = html;
+        }
+
+        function changePage(newPage) {
+            const totalPages = Math.ceil(totalJobs / pageSize);
+            if (newPage < 1 || (totalPages > 0 && newPage > totalPages)) return;
+            fetchDashboardJobs(newPage);
+        }
+
+        async function archiveOlderThan() {
+            const days = document.getElementById('archive-days-select').value;
+            if (!confirm(`Are you sure you want to archive all non-hidden jobs older than ${days} days?`)) {
+                return;
+            }
+
+            try {
+                showToast(`Archiving jobs older than ${days} days...`, 'info');
+                const response = await fetch('/api/dashboard/jobs/archive_older_than', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: parseInt(days) })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    fetchDashboardJobs(1); // Refresh list
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to archive jobs: ${error}`, 'error');
+            }
+        }
+
+
+
+
+        async function importJobsFromSheets() {
+            const maxJobs = prompt("How many jobs to import from processed list?", "100");
+            if (!maxJobs) return;
+
+            try {
+                showToast('Importing jobs...', 'info');
+                const response = await fetch('/api/dashboard/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheet_name: 'non-email', max_jobs: parseInt(maxJobs) })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                    fetchDashboardJobs(1);
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to import jobs: ${error}`, 'error');
+            }
+        }
+
+        async function detectDuplicates() {
+            try {
+                showToast('Detecting duplicates...', 'info');
+                const response = await fetch('/api/dashboard/detect_duplicates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Failed to detect duplicates: ${error}`, 'error');
+            }
+        }
+
+        function exportJobs() {
+            window.open('/api/dashboard/jobs/export?format=csv', '_blank');
+        }
+
+        // === OTHER FUNCTIONS ===
+        async function fetchQueue() {
+            try {
+                const response = await fetch('/api/queue');
+                const data = await response.json();
+                const queueTableBody = document.getElementById('queue-table-body');
+                queueTableBody.innerHTML = data.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${item.message_id}</td>
+                        <td>${new Date(item.sent_at).toLocaleString()}</td>
+                        <td><small>${item.message_text.substring(0, 100)}...</small></td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error("Failed to fetch queue:", error);
+            }
+        }
+
+        async function fetchLogs() {
+            const lines = document.getElementById('log-lines-selector').value;
+            try {
+                const response = await fetch(`/api/logs?lines=${lines}`);
+                const data = await response.json();
+
+                let unifiedLog = data.app_logs || 'No logs available.';
+
+                document.getElementById('unified-logs').textContent = unifiedLog;
+
+                // Auto-scroll to bottom if enabled
+                if (autoRefreshEnabled) {
+                    const logBox = document.getElementById('unified-logs');
+                    logBox.scrollTop = logBox.scrollHeight;
+                }
+            } catch (error) {
+                console.error("Failed to fetch logs:", error);
+                document.getElementById('unified-logs').textContent = 'Error loading logs: ' + error.message;
+            }
+        }
+
+        async function fetchPendingCommands() {
+            try {
+                const response = await fetch('/api/pending_commands');
+                const data = await response.json();
+                const body = document.getElementById('pending-commands-body');
+                if (!Array.isArray(data)) {
+                    body.innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td><code>${item.command}</code></td>
+                        <td>${new Date(item.created_at).toLocaleString()}</td>
+                        <td>-</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4">No pending commands</td></tr>';
+            } catch (err) {
+                console.error('Failed to fetch pending commands', err);
+            }
+        }
+
+        async function fetchTelegramStatus() {
+            try {
+                const response = await fetch('/api/telegram/status');
+                const data = await response.json();
+
+                const alert = document.getElementById('telegram-status-alert');
+                const status = data.login_status || 'unknown';
+
+                if (status === 'connected') {
+                    alert.className = 'alert alert-success';
+                    alert.innerHTML = '<strong>🟢 Connected</strong><br>Your Telegram account is successfully authenticated.';
+                } else if (status === 'not_authenticated') {
+                    alert.className = 'alert alert-warning';
+                    alert.innerHTML = '<strong>🔴 Not Authenticated</strong><br>Please complete the Telegram setup below to enable job monitoring.';
+                } else {
+                    alert.className = 'alert alert-secondary';
+                    alert.innerHTML = `<strong>⚫ ${status}</strong><br>Unable to determine Telegram connection status.`;
+                }
+            } catch (error) {
+                console.error("Failed to fetch Telegram status:", error);
+                const alert = document.getElementById('telegram-status-alert');
+                alert.className = 'alert alert-danger';
+                alert.innerHTML = `<strong>❌ Error</strong><br>Unable to fetch Telegram connection status: ${error.message}`;
+            }
+        }
+
+        // === TELEGRAM SETUP FUNCTIONS ===
+        async function sendTelegramAuthCode() {
+            try {
+                const response = await fetch('/api/telegram/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('auth-code-status').style.display = 'block';
+                    showToast('OTP code sent! Check your Telegram app.', 'success');
+                } else {
+                    showAuthError(data.error || 'Failed to send OTP code');
+                }
+            } catch (error) {
+                showAuthError('Failed to send OTP code: ' + error.message);
+            }
+        }
+
+        async function verifyTelegramAuth() {
+            const code = document.getElementById('otp-code').value.trim();
+            const password = document.getElementById('two-factor-password').value.trim();
+
+            if (!code) {
+                showAuthError('Please enter the OTP code');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/telegram/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, password: password || undefined })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('auth-code-status').style.display = 'none';
+                    document.getElementById('otp-code').value = '';
+                    document.getElementById('two-factor-password').value = '';
+                    showToast('Telegram authentication successful!', 'success');
+                    fetchTelegramStatus(); // Refresh status
+                } else {
+                    showAuthError(data.error || 'Failed to verify code');
+                }
+            } catch (error) {
+                showAuthError('Failed to verify code: ' + error.message);
+            }
+        }
+
+        function showAuthError(message) {
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.querySelector('.alert').textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        async function clearTelegramSession() {
+            if (!confirm('Are you sure you want to clear the Telegram session? You will need to re-authenticate.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/telegram/clear_session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Telegram session cleared successfully', 'success');
+                    fetchTelegramStatus();
+                } else {
+                    showToast('Failed to clear session: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showToast('Failed to clear session: ' + error.message, 'error');
+            }
+        }
+
+        async function addMonitoredGroup() {
+            const groupUsername = document.getElementById('new-group-username').value.trim();
+
+            if (!groupUsername) {
+                showToast('Please enter a group username', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/monitored_groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group: groupUsername })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Group added to monitoring list', 'success');
+                    document.getElementById('new-group-username').value = '';
+                    fetchMonitoredGroups();
+                } else {
+                    showToast('Failed to add group: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showToast('Failed to add group: ' + error.message, 'error');
+            }
+        }
+
+        async function removeMonitoredGroup(groupUsername) {
+            if (!confirm(`Remove ${groupUsername} from monitoring?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/monitored_groups', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group: groupUsername })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('Group removed from monitoring', 'success');
+                    fetchMonitoredGroups();
+                } else {
+                    showToast('Failed to remove group: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showToast('Failed to remove group: ' + error.message, 'error');
+            }
+        }
+
+        async function fetchMonitoredGroups() {
+            try {
+                const response = await fetch('/api/monitored_groups');
+                const data = await response.json();
+
+                const list = document.getElementById('monitored-groups-list');
+
+                if (data.groups && data.groups.length > 0) {
+                    list.innerHTML = data.groups.map(group => `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${group}</span>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeMonitoredGroup('${group}')">Remove</button>
+                        </li>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<li class="list-group-item text-muted">No groups being monitored</li>';
+                }
+            } catch (error) {
+                console.error("Failed to fetch monitored groups:", error);
+                const list = document.getElementById('monitored-groups-list');
+                list.innerHTML = '<li class="list-group-item text-danger">Error loading groups</li>';
+            }
+        }
+
+        async function fetchHistoricalMessages() {
+            const hoursBack = document.getElementById('hours-back').value;
+            const statusDiv = document.getElementById('historical-fetch-status');
+
+            try {
+                // Show loading status
+                statusDiv.innerHTML = '<div class="alert alert-info">🔄 Fetching, processing, and deduplicating historical messages... This may take several minutes.</div>';
+
+                const response = await fetch('/api/fetch_historical_messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hours_back: parseInt(hoursBack) })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    statusDiv.innerHTML = `<div class="alert alert-success">
+                        ✅ <strong>Success!</strong>
+                        <br><small>
+                        📥 Fetched ${data.fetched_count} new messages from the past ${data.hours_back} hours.
+                        <br>⚙️ These messages have been added to the queue for processing.
+                        </small>
+                    </div>`;
+
+                    // Refresh multiple tabs to show updated data
+                    setTimeout(() => {
+                        if (document.getElementById('queue-tab').classList.contains('active')) {
+                            fetchQueue();
+                        }
+                        if (document.getElementById('jobs-tab').classList.contains('active')) {
+                            fetchDashboardJobs();
+                        }
+                        if (document.getElementById('dashboard-tab').classList.contains('active')) {
+                            fetchStatus();
+                        }
+                    }, 3000);
+
+                } else if (data.status === 'no_new_messages') {
+                    statusDiv.innerHTML = `<div class="alert alert-info">
+                        ℹ️ <strong>No new messages found</strong>
+                        <br><small>All messages from the past ${data.hours_back} hours have already been processed.</small>
+                    </div>`;
+
+                } else if (data.status === 'connection_failed') {
+                    statusDiv.innerHTML = `<div class="alert alert-warning">
+                        ⚠️ <strong>Connection failed</strong>
+                        <br><small>Unable to connect to Telegram. Please check your authentication and try again.</small>
+                    </div>`;
+
+                } else if (data.status === 'error') {
+                    statusDiv.innerHTML = `<div class="alert alert-danger">
+                        ❌ <strong>Error:</strong> ${data.error || 'An unexpected error occurred'}
+                    </div>`;
+
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger">
+                        ❌ <strong>Failed:</strong> ${data.error || 'Unknown error occurred'}
+                    </div>`;
+                }
+            } catch (error) {
+                console.error("Failed to fetch historical messages:", error);
+                statusDiv.innerHTML = `<div class="alert alert-danger">
+                    ❌ <strong>Error:</strong> ${error.message}
+                </div>`;
+            }
+        }
+
+        async function runAdvancedSync() {
+            const days = document.getElementById('syncDaysInput').value;
+            const statusDiv = document.getElementById('advanced-sync-status');
+
+            if (!days || days < 1) {
+                showToast('Please enter a valid number of days', 'error');
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split me-2"></i>Syncing... This may take a while.</div>';
+
+            try {
+                const response = await fetch('/api/sheets/advanced_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: days })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>${data.message}</div>`;
+                    showToast('Advanced sync complete', 'success');
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Error: ${data.error}</div>`;
+                    showToast('Sync failed', 'error');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Request failed: ${error.message}</div>`;
+                showToast('Request failed', 'error');
+            }
+        }
+
+        // === ACTION FUNCTIONS ===
+
+        async function updateJobStatus(jobId, status, archive = false) {
+            try {
+                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status, archive: archive })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`Job status updated to ${status}.`, 'success');
+                    // Optimistic update
+                    const job = allDashboardJobs.find(j => j.id === jobId);
+                    if (job) {
+                        job.application_status = status;
+                    }
+
+                    // Refresh if archiving to remove from list
+                    if (archive) {
+                        fetchDashboardJobs(currentPage);
+                    }
+                    // No UI update needed since status column is removed
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error("Failed to update job status:", error);
+                showToast(`Failed to update job status: ${error}`, 'error');
+            }
+        }
+
+        async function bulkUpdateStatus(status) {
+            const selectedIds = Array.from(document.querySelectorAll('.dashboard-job-checkbox:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) {
+                showToast('No jobs selected.', 'warning');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to update ${selectedIds.length} jobs to '${status}'? ${status === 'applied' || status === 'rejected' ? 'They will also be archived.' : ''}`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/dashboard/jobs/bulk_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: selectedIds, status: status, archive: true })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showToast(`${data.updated_count} jobs updated.`, 'success');
+                    fetchDashboardJobs(currentPage); // Refresh page
+                    // Reset selection
+                    document.getElementById('select-all-dashboard-jobs').checked = false;
+                } else {
+                    showToast(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error("Failed to bulk update:", error);
+                showToast(`Failed to perform bulk update: ${error}`, 'error');
+            }
+        }
+
+        function toggleAllJobs() {
+            const selectAll = document.getElementById('select-all-dashboard-jobs');
+            const checkboxes = document.querySelectorAll('.dashboard-job-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        }
+
+        // === SORTING FUNCTIONS ===
+        function sortJobs(column) {
+            if (currentSortColumn === column) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+            fetchDashboardJobs(1); // Fetch first page with new sort
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('#dashboard-jobs-table th.sortable').forEach(th => {
+                th.classList.remove('asc', 'desc');
+                if (th.dataset.sortBy === currentSortColumn) {
+                    th.classList.add(currentSortDirection);
+                }
+            });
+        }
+
+        // === EVENT LISTENERS ===
+        document.addEventListener('DOMContentLoaded', function () {
+            try {
+                // Initial data load
+                fetchStatus();
+                fetchDashboardJobs(); // Load dashboard jobs on initial page load
+                setInterval(fetchStatus, 5000); // Refresh status every 5 seconds
+
+                // Event listeners for tabs
+                document.getElementById('queue-tab').addEventListener('click', fetchQueue);
+                document.getElementById('logs-tab').addEventListener('click', fetchLogs);
+                document.getElementById('pending-tab').addEventListener('click', fetchPendingCommands);
+                document.getElementById('setup-tab').addEventListener('click', () => {
+                    fetchTelegramStatus();
+                    fetchMonitoredGroups();
+                });
+                document.getElementById('jobs-tab').addEventListener('click', fetchDashboardJobs);
+
+                // Add click listeners for sortable table headers
+                document.querySelectorAll('#dashboard-jobs-table th.sortable').forEach(header => {
+                    header.addEventListener('click', () => sortJobs(header.dataset.sortBy));
+                });
+
+                showToast('Dashboard loaded successfully!', 'success', 3000);
+            } catch (e) {
+                console.error('Error on page load:', e);
+                showToast('Error on page load: ' + e.message, 'error');
+            }
+        });
+    </script>
+</body>
+
+</html>

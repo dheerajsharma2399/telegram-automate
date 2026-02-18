@@ -769,7 +769,7 @@ def get_dashboard_stats():
                     FROM dashboard_jobs WHERE is_hidden = FALSE
                     GROUP BY application_status
                 """)
-                by_status = {row['application_status']: row['count'] for row in cursor.fetchall()}
+                by_status = {row['application_status'] or 'Unknown': row['count'] for row in cursor.fetchall()}
 
                 # By relevance
                 cursor.execute("""
@@ -777,7 +777,7 @@ def get_dashboard_stats():
                     FROM dashboard_jobs WHERE is_hidden = FALSE
                     GROUP BY job_relevance
                 """)
-                by_relevance = {row['job_relevance']: row['count'] for row in cursor.fetchall()}
+                by_relevance = {row['job_relevance'] or 'Unknown': row['count'] for row in cursor.fetchall()}
 
         return jsonify({
             "total_jobs": total_jobs,
@@ -890,11 +890,15 @@ except Exception:
 def index():
     return render_template("index.html")
 
+@app.route("/old")
+def old():
+    """Legacy dashboard"""
+    return render_template("old.html")
 
 @app.route("/modern")
 def modern():
-    """Modern responsive dashboard"""
-    return render_template("modern.html")
+    """Redirect for legacy modern link"""
+    return render_template("index.html")
 
 
 from telethon.sessions import StringSession
