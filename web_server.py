@@ -69,6 +69,11 @@ def test_endpoint():
     logging.info("Test endpoint was hit!")
     return "OK", 200
 
+@app.route("/logs")
+def logs_page():
+    """Serve the logs viewer page."""
+    return render_template("logs.html")
+
 
 def _werkzeug_shutdown():
     # Werkzeug shutdown helper

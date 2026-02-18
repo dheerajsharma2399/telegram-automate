@@ -178,7 +178,7 @@ def init_database(pool):
                 # Initialize default config
                 cursor.execute("""
             INSERT INTO bot_config (key, value) VALUES
-            ('monitoring_status', 'stopped'),
+            ('monitoring_status', 'running'),
             ('last_processed_message_id', '0'),
             ('total_messages_processed', '0'),
             ('total_jobs_extracted', '0')

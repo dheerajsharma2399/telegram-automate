@@ -8,6 +8,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from logging.handlers import RotatingFileHandler
 
 from config import *
+from datetime import datetime
 from database import Database, init_database
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
@@ -290,8 +291,11 @@ async def scheduled_fetch_and_process(monitor):
 
         logger.info("Fetching messages from last 10 minutes...")
         fetcher = HistoricalMessageFetcher(db, monitor.client)
-        # Fetch last 10 minutes (approx 0.17 hours)
-        fetched_count = await fetcher.fetch_historical_messages(hours_back=0.17)
+        # Fetch last N minutes (configured)
+        hours_back = FETCH_LOOKBACK_MINUTES / 60.0
+        logger.info(f"Fetching messages from last {FETCH_LOOKBACK_MINUTES} minutes ({hours_back:.2f} hours)...")
+        fetcher = HistoricalMessageFetcher(db, monitor.client)
+        fetched_count = await fetcher.fetch_historical_messages(hours_back=hours_back)
         logger.info(f"✅ Scheduled fetch retrieved {fetched_count} messages.")
 
     except Exception as e:
@@ -370,6 +374,10 @@ async def poll_commands_loop():
                         executed_by='worker'
                     )
 
+            # Heartbeat (log every ~30 seconds to show aliveness)
+            if int(asyncio.get_event_loop().time()) % 30 == 0:
+                 logger.debug("💓 Bot heartbeat - waiting for commands...")
+
             await asyncio.sleep(2) # Poll every 2 seconds
 
         except Exception as e:
@@ -397,18 +405,20 @@ async def main():
     )
 
     # Check initial status
+    # FORCE START: Ensure monitoring is set to 'running' on startup to fix "stuck" state
     current_status = db.config.get_config('monitoring_status')
     logger.info(f"Current monitoring status: {current_status}")
-    if not current_status:
-        # Default to stopped if not set
-        db.config.set_config('monitoring_status', 'stopped')
-        logger.info("Initialized monitoring status to 'stopped'")
+    
+    if current_status != 'running':
+        logger.warning(f"⚠️ Status was '{current_status}'. Forcing to 'running' to ensure startup.")
+        db.config.set_config('monitoring_status', 'running')
+        logger.info("✅ Monitoring forced to 'running'")
 
     # Start scheduler
     scheduler.add_job(
         scheduled_fetch_and_process,
         'interval',
-        minutes=5,
+        minutes=FETCH_INTERVAL_MINUTES,
         id='fetch_and_process',
         args=[monitor],
         replace_existing=True
@@ -426,7 +436,7 @@ async def main():
 
     scheduler.start()
     logger.info("✅ Background scheduler started")
-    logger.info("- Fetch & Process: every 5 minutes")
+    logger.info(f"- Fetch & Process: every {FETCH_INTERVAL_MINUTES} minutes")
     logger.info("- Safety Net: every 4 hours")
 
     # Start command poller task

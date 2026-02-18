@@ -499,6 +499,7 @@ class CommandRepository(BaseRepository):
                 UPDATE commands_queue SET status = 'done', executed_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (command_id,))
+            conn.commit()
 
     def update_command_result(self, command_id: int, status: str, result_text: str = None, executed_by: str = None):
         """Update a command's status, result text and who executed it."""
@@ -509,6 +510,7 @@ class CommandRepository(BaseRepository):
                 SET status = %s, executed_at = CURRENT_TIMESTAMP, result_text = %s, executed_by = %s
                 WHERE id = %s
             """, (status, result_text, executed_by, command_id))
+            conn.commit()
 
     def cancel_command(self, command_id: int) -> bool:
         """Cancel (mark done/cancelled) a pending command by id."""
@@ -521,6 +523,7 @@ class CommandRepository(BaseRepository):
                 UPDATE commands_queue SET status = 'cancelled', executed_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (command_id,))
+            conn.commit()
             return cursor.rowcount > 0
 
 class DashboardRepository(BaseRepository):
