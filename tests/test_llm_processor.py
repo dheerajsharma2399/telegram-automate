@@ -10,7 +10,7 @@ import asyncio
 import aiohttp
 
 
-class TestLLMProcessor(unittest.TestCase):
+class TestLLMProcessor(unittest.IsolatedAsyncioTestCase):
     """Test LLM processor functionality"""
 
     def setUp(self):
@@ -59,7 +59,7 @@ class TestLLMProcessor(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch('aiohttp.ClientSession')
-    def test_api_timeout_configuration(self, mock_session_cls):
+    async def test_api_timeout_configuration(self, mock_session_cls):
         """Test that API calls have 60-second timeout"""
         # Mock session object
         mock_session = MagicMock()
@@ -82,21 +82,18 @@ class TestLLMProcessor(unittest.TestCase):
         post_ctx.__aenter__.return_value = mock_response
         mock_session.post.return_value = post_ctx
 
-        # Run async test
-        async def run_test():
-            await self.processor._call_llm(
-                "test message",
-                "test_model",
-                "test_key"
-            )
+        # Run async test directly
+        await self.processor._call_llm(
+            "test message",
+            "test_model",
+            "test_key"
+        )
 
-            # Verify timeout was set
-            call_kwargs = mock_session.post.call_args[1]
-            self.assertIn('timeout', call_kwargs)
-            timeout = call_kwargs['timeout']
-            self.assertEqual(timeout.total, 60)
-
-        asyncio.run(run_test())
+        # Verify timeout was set
+        call_kwargs = mock_session.post.call_args[1]
+        self.assertIn('timeout', call_kwargs)
+        timeout = call_kwargs['timeout']
+        self.assertEqual(timeout.total, 60)
 
     def test_process_job_data_adds_metadata(self):
         """Test that process_job_data adds required metadata"""
@@ -113,7 +110,7 @@ class TestLLMProcessor(unittest.TestCase):
         self.assertEqual(result['raw_message_id'], 123)
 
 
-class TestLLMErrorHandling(unittest.TestCase):
+class TestLLMErrorHandling(unittest.IsolatedAsyncioTestCase):
     """Test LLM error handling and retry logic"""
 
     def setUp(self):
@@ -126,7 +123,7 @@ class TestLLMErrorHandling(unittest.TestCase):
         )
 
     @patch('aiohttp.ClientSession')
-    def test_api_key_rotation_on_rate_limit(self, mock_session_cls):
+    async def test_api_key_rotation_on_rate_limit(self, mock_session_cls):
         """Test that API keys rotate on rate limit errors"""
         # Mock session object
         mock_session = MagicMock()
@@ -146,21 +143,18 @@ class TestLLMErrorHandling(unittest.TestCase):
         post_ctx.__aenter__.return_value = mock_response
         mock_session.post.return_value = post_ctx
 
-        # Run async test
-        async def run_test():
-            # Use _try_pool instead of _call_llm to trigger retry logic
-            await self.processor._try_pool(
-                self.processor.models,
-                "test message",
-                max_retries=2,
-                pool_name="Test"
-            )
+        # Run async test directly
+        # Use _try_pool instead of _call_llm to trigger retry logic
+        await self.processor._try_pool(
+            self.processor.models,
+            "test message",
+            max_retries=2,
+            pool_name="Test"
+        )
 
-            # Verify multiple attempts were made
-            # Since max_retries=2, we expect 2 session creations (since _call_llm creates session)
-            self.assertEqual(mock_session_cls.call_count, 2)
-
-        asyncio.run(run_test())
+        # Verify multiple attempts were made
+        # Since max_retries=2, we expect 2 session creations (since _call_llm creates session)
+        self.assertEqual(mock_session_cls.call_count, 2)
 
 
 if __name__ == '__main__':

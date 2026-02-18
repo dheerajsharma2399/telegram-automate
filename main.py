@@ -262,6 +262,12 @@ async def scheduled_fetch_and_process(monitor):
     Scheduled task to fetch recent messages and process them.
     Replaces continuous monitoring with robust polling.
     """
+    # Check if monitoring is enabled
+    status = db.config.get_config('monitoring_status')
+    if status != 'running':
+        logger.info(f"⏸️ Monitoring is paused (Status: {status}). Skipping scheduled fetch.")
+        return
+
     logger.info("🕒 Starting scheduled fetch and process cycle...")
 
     # 1. Fetch recent messages (last 10 minutes to be safe)
@@ -326,9 +332,16 @@ async def poll_commands_loop():
                             await sync_sheets_automatically()
                             executed_ok = True
                             result_text = "Sync triggered successfully"
-                        elif text.startswith('/start') or text.startswith('/stop'):
+                        elif text.startswith('/start'):
+                             db.config.set_config('monitoring_status', 'running')
                              executed_ok = True
-                             result_text = "Command acknowledged (polling mode)"
+                             result_text = "Monitoring started"
+                             logger.info("▶️ Received /start command. Monitoring enabled.")
+                        elif text.startswith('/stop'):
+                             db.config.set_config('monitoring_status', 'stopped')
+                             executed_ok = True
+                             result_text = "Monitoring stopped"
+                             logger.info("⏸️ Received /stop command. Monitoring disabled.")
                         elif text.startswith('/export'):
                              executed_ok = True
                              result_text = "Export handled via API"
@@ -382,6 +395,14 @@ async def main():
         TELEGRAM_GROUP_USERNAMES,
         db
     )
+
+    # Check initial status
+    current_status = db.config.get_config('monitoring_status')
+    logger.info(f"Current monitoring status: {current_status}")
+    if not current_status:
+        # Default to stopped if not set
+        db.config.set_config('monitoring_status', 'stopped')
+        logger.info("Initialized monitoring status to 'stopped'")
 
     # Start scheduler
     scheduler.add_job(
