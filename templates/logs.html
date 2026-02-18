@@ -34,12 +34,22 @@
             --transition-normal: 250ms ease;
         }
 
+        /* Dark Theme (Default for Logs) */
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border-color: #334155;
+        }
+
         /* Dark Theme Default for Logs Page for better contrast */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            /* Force dark background */
-            color: #f8fafc;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             margin: 0;
             display: flex;
             height: 100vh;
@@ -49,8 +59,8 @@
         /* Sidebar (Simplified for this view) */
         .sidebar {
             width: 260px;
-            background: #1e293b;
-            border-right: 1px solid #334155;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
             padding: 1.5rem;
             display: flex;
             flex-direction: column;

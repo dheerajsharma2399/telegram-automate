@@ -1177,11 +1177,199 @@
             <div id="view-settings" style="display: none;">
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Settings</h3>
+                        <h3 class="card-title">Settings & Configuration</h3>
                     </div>
                     <div class="card-body">
-                        <p style="color: var(--text-muted);">Settings panel coming soon. Use the classic view for full
-                            configuration.</p>
+
+                        <!-- Telegram Connection Status -->
+                        <div class="mb-4">
+                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Telegram
+                                Connection
+                            </h5>
+                            <div id="telegram-status-alert" class="p-3 rounded-lg mb-3"
+                                style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+                                <div class="flex items-center gap-2">
+                                    <div class="loading spinner" style="width: 20px; height: 20px;"></div>
+                                    <span>Checking status...</span>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" onclick="startTelegramSetup()">
+                                    <i class="bi bi-shield-lock"></i> Configure / Re-authenticate
+                                </button>
+                                <button class="btn btn-secondary" onclick="clearTelegramSession()">
+                                    <i class="bi bi-trash"></i> Clear Session
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
+
+                        <!-- Historical Message Recovery -->
+                        <div class="mb-4">
+                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Historical
+                                Message
+                                Recovery</h5>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+                                Fetch missed messages from past downtime. Use "12 Minutes" to test the automated
+                                scheduler's
+                                logic.
+                            </p>
+
+                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                <select id="hours-back" class="btn btn-secondary"
+                                    style="min-width: 200px; text-align: left;">
+                                    <option value="0.2">12 Minutes (Scheduled Default)</option>
+                                    <option value="6">6 Hours</option>
+                                    <option value="12" selected>12 Hours</option>
+                                    <option value="24">24 Hours</option>
+                                    <option value="48">48 Hours</option>
+                                    <option value="168">7 Days</option>
+                                </select>
+                                <button class="btn btn-primary" onclick="fetchHistoricalMessages()">
+                                    <i class="bi bi-clock-history"></i> Fetch Messages
+                                </button>
+                            </div>
+                            <div id="historical-fetch-status" class="mt-3"></div>
+                        </div>
+
+                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
+
+                        <!-- Google Sheets Sync -->
+                        <div class="mb-4">
+                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Advanced Google
+                                Sheets Sync</h5>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+                                Sync older jobs to Sheets. Ignores duplicates.
+                            </p>
+
+                            <div class="d-flex gap-2 align-items-center flex-wrap">
+                                <span style="color: var(--text-secondary); font-size: 0.875rem;">Sync past</span>
+                                <input type="number" id="syncDaysInput" value="7" min="1" max="365"
+                                    class="btn btn-secondary" style="width: 80px; text-align: center;">
+                                <span style="color: var(--text-secondary); font-size: 0.875rem;">days</span>
+                                <button class="btn btn-primary" onclick="runAdvancedSync()">
+                                    <i class="bi bi-cloud-upload"></i> Sync Now
+                                </button>
+                            </div>
+                            <div id="advanced-sync-status" class="mt-3"></div>
+                        </div>
+
+                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
+
+                        <!-- Monitored Groups -->
+                        <div class="mb-4">
+                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Monitored
+                                Groups
+                            </h5>
+                            <div class="d-flex gap-2 mb-3">
+                                <input type="text" id="new-group-username" placeholder="@groupname or link"
+                                    class="btn btn-secondary"
+                                    style="text-align: left; flex: 1; max-width: 300px; cursor: text;">
+                                <button class="btn btn-success" onclick="addMonitoredGroup()">
+                                    <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                            </div>
+                            <div id="monitored-groups-list" class="d-flex flex-column gap-2">
+                                <!-- Group list items will go here -->
+                                <div class="p-3 rounded"
+                                    style="background: var(--bg-tertiary); color: var(--text-muted);">
+                                    Loading groups...</div>
+                            </div>
+                        </div>
+
+                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
+
+                        <!-- Data Maintenance -->
+                        <div>
+                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Maintenance &
+                                System</h5>
+                            <div class="d-flex gap-2 flex-wrap mb-4">
+                                <button class="btn btn-secondary" onclick="detectDuplicates()">
+                                    <i class="bi bi-search"></i> Detect Duplicates
+                                </button>
+                                <button class="btn btn-secondary" onclick="importJobsFromSheets()">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i> Import form Sheets
+                                </button>
+                                <div class="d-flex align-items-center gap-2">
+                                    <select id="archive-days-select" class="btn btn-secondary" style="width: auto;">
+                                        <option value="30">Older than 30 days</option>
+                                        <option value="60">Older than 60 days</option>
+                                        <option value="90">Older than 90 days</option>
+                                    </select>
+                                    <button class="btn btn-danger" onclick="archiveOlderThan()">
+                                        <i class="bi bi-archive"></i> Archive Jobs
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Pending Commands -->
+                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Pending
+                                Commands
+                            </h5>
+                            <div class="card"
+                                style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+                                <div class="card-body p-0">
+                                    <table class="table" style="margin: 0; font-size: 0.875rem;">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Command</th>
+                                                <th>Created At</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="pending-commands-body">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="card-footer p-2 text-end">
+                                    <button class="btn btn-sm btn-secondary"
+                                        onclick="fetchPendingCommands()">Refresh</button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telegram Setup Modal (Hidden by default) -->
+            <div id="telegram-modal" class="sidebar-overlay"
+                style="z-index: 200; display: none; align-items: center; justify-content: center;">
+                <div class="card" style="width: 100%; max-width: 500px; margin: 1rem;">
+                    <div class="card-header">
+                        <h3 class="card-title">Telegram Authentication</h3>
+                        <button class="action-btn" onclick="closeTelegramModal()"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                    <div class="card-body">
+                        <div id="setup-step-1">
+                            <p class="mb-4" style="color: var(--text-secondary);">Click below to send an OTP code to
+                                your Telegram account.</p>
+                            <button class="btn btn-primary w-100" onclick="sendTelegramAuthCode()">Send OTP
+                                Code</button>
+                        </div>
+
+                        <div id="setup-step-2" style="display: none;">
+                            <div class="alert alert-info mb-3"
+                                style="background: rgba(14, 165, 233, 0.15); color: var(--info); padding: 0.75rem; border-radius: var(--radius-md);">
+                                OTP Sent! Check your Telegram app.
+                            </div>
+                            <div class="d-flex flex-column gap-3">
+                                <input type="text" id="otp-code" placeholder="Enter 6-digit code"
+                                    class="btn btn-secondary" style="text-align: left; cursor: text;">
+                                <input type="password" id="two-factor-password" placeholder="2FA Password (if enabled)"
+                                    class="btn btn-secondary" style="text-align: left; cursor: text;">
+                                <button class="btn btn-success w-100" onclick="verifyTelegramAuth()">Verify &
+                                    Connect</button>
+                            </div>
+                        </div>
+                        <div id="auth-error" class="mt-3 text-sm" style="color: var(--danger); display: none;">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1280,6 +1468,11 @@
             if (view === 'jobs') loadJobsData();
             if (view === 'queue') loadQueueData();
             if (view === 'analytics') loadAnalyticsData();
+            if (view === 'settings') {
+                fetchTelegramStatus();
+                fetchMonitoredGroups();
+                fetchPendingCommands();
+            }
 
             // Close mobile sidebar
             sidebar.classList.remove('open');
@@ -1705,8 +1898,281 @@
             }, 3000);
         }
 
+        // === SETTINGS & MAINTENANCE FUNCTIONS ===
+
+        // Telegram Setup
+        function startTelegramSetup() {
+            document.getElementById('telegram-modal').style.display = 'flex';
+            document.getElementById('setup-step-1').style.display = 'block';
+            document.getElementById('setup-step-2').style.display = 'none';
+        }
+
+        function closeTelegramModal() {
+            document.getElementById('telegram-modal').style.display = 'none';
+        }
+
+        async function sendTelegramAuthCode() {
+            try {
+                const response = await fetch('/api/telegram/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('setup-step-1').style.display = 'none';
+                    document.getElementById('setup-step-2').style.display = 'block';
+                    showToast('OTP code sent! Check your Telegram app.', 'success');
+                } else {
+                    showAuthError(data.error || 'Failed to send OTP code');
+                }
+            } catch (error) {
+                showAuthError('Failed to send OTP code: ' + error.message);
+            }
+        }
+
+        async function verifyTelegramAuth() {
+            const code = document.getElementById('otp-code').value.trim();
+            const password = document.getElementById('two-factor-password').value.trim();
+
+            if (!code) {
+                showAuthError('Please enter the OTP code');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/telegram/signin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, password: password || undefined })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    closeTelegramModal();
+                    document.getElementById('otp-code').value = '';
+                    document.getElementById('two-factor-password').value = '';
+                    showToast('Telegram authentication successful!', 'success');
+                    fetchTelegramStatus();
+                } else {
+                    showAuthError(data.error || 'Failed to verify code');
+                }
+            } catch (error) {
+                showAuthError('Failed to verify code: ' + error.message);
+            }
+        }
+
+        function showAuthError(message) {
+            const errorDiv = document.getElementById('auth-error');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                setTimeout(() => errorDiv.style.display = 'none', 5000);
+            } else {
+                showToast(message, 'error');
+            }
+        }
+
+        async function clearTelegramSession() {
+            if (!confirm('Are you sure you want to clear the Telegram session? You will need to re-authenticate.')) {
+                return;
+            }
+            try {
+                const response = await fetch('/api/telegram/clear_session', { method: 'POST' });
+                if (response.ok) {
+                    showToast('Telegram session cleared', 'success');
+                    fetchTelegramStatus();
+                } else {
+                    showToast('Failed to clear session', 'error');
+                }
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function fetchTelegramStatus() {
+            try {
+                const response = await fetch('/api/telegram/status');
+                const data = await response.json();
+                const alert = document.getElementById('telegram-status-alert');
+                const status = data.login_status || 'unknown';
+
+                if (status === 'connected') {
+                    alert.className = 'p-3 rounded-lg mb-3 bg-green-900 border border-green-700 text-green-100'; // Tailwind-ish
+                    // Manually setting styles for compatibility
+                    alert.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                    alert.style.borderColor = '#10b981';
+                    alert.style.color = '#10b981';
+                    alert.innerHTML = '<div class="flex items-center gap-2"><i class="bi bi-check-circle-fill"></i> <strong>Connected</strong></div>';
+                } else if (status === 'not_authenticated') {
+                    alert.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                    alert.style.borderColor = '#ef4444';
+                    alert.style.color = '#ef4444';
+                    alert.innerHTML = '<div class="flex items-center gap-2"><i class="bi bi-x-circle-fill"></i> <strong>Not Authenticated</strong></div>';
+                } else {
+                    alert.innerHTML = `Status: ${status}`;
+                }
+            } catch (error) {
+                console.error("Telegram status error:", error);
+            }
+        }
+
+        // Monitored Groups
+        async function fetchMonitoredGroups() {
+            try {
+                const response = await fetch('/api/monitored_groups');
+                const data = await response.json();
+                const list = document.getElementById('monitored-groups-list');
+                if (data.groups && data.groups.length > 0) {
+                    list.innerHTML = data.groups.map(group => `
+                        <div class="p-2 rounded d-flex justify-content-between align-items-center" style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
+                            <span>${group}</span>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeMonitoredGroup('${group}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<div class="p-3 text-muted">No groups monitored</div>';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function addMonitoredGroup() {
+            const group = document.getElementById('new-group-username').value.trim();
+            if (!group) return showToast('Enter group name', 'error');
+            try {
+                const res = await fetch('/api/monitored_groups', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group })
+                });
+                if (res.ok) {
+                    showToast('Group added', 'success');
+                    document.getElementById('new-group-username').value = '';
+                    fetchMonitoredGroups();
+                } else {
+                    showToast('Failed to add group', 'error');
+                }
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function removeMonitoredGroup(group) {
+            if (!confirm(`Remove ${group}?`)) return;
+            try {
+                const res = await fetch('/api/monitored_groups', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ group })
+                });
+                if (res.ok) {
+                    showToast('Group removed', 'success');
+                    fetchMonitoredGroups();
+                } else {
+                    showToast('Failed to remove', 'error');
+                }
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        // Historical Fetch & Sync
+        async function fetchHistoricalMessages() {
+            const hoursBack = document.getElementById('hours-back').value;
+            const statusDiv = document.getElementById('historical-fetch-status');
+            statusDiv.innerHTML = '<div class="text-info"><div class="spinner inline-block mr-2"></div> Fetching...</div>';
+
+            try {
+                const res = await fetch('/api/fetch_historical_messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hours_back: parseFloat(hoursBack) })
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    statusDiv.innerHTML = `<div class="text-success">Fetched ${data.fetched_count} messages.</div>`;
+                    showToast(`Fetched ${data.fetched_count} new messages`, 'success');
+                } else {
+                    statusDiv.innerHTML = `<div class="text-danger">${data.error || data.status}</div>`;
+                }
+            } catch (e) {
+                statusDiv.innerHTML = `<div class="text-danger">${e.message}</div>`;
+            }
+        }
+
+        async function runAdvancedSync() {
+            const days = document.getElementById('syncDaysInput').value;
+            try {
+                const res = await fetch('/api/sheets/advanced_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days })
+                });
+                const data = await res.json();
+                if (res.ok) showToast(data.message, 'success');
+                else showToast(data.error, 'error');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        // Maintenance
+        async function detectDuplicates() {
+            showToast('Detecting duplicates...', 'info');
+            try {
+                const res = await fetch('/api/dashboard/detect_duplicates', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message || data.error, res.ok ? 'success' : 'error');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function archiveOlderThan() {
+            const days = document.getElementById('archive-days-select').value;
+            if (!confirm(`Archive jobs older than ${days} days?`)) return;
+            try {
+                const res = await fetch('/api/dashboard/jobs/archive_older_than', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: parseInt(days) })
+                });
+                const data = await res.json();
+                showToast(data.message || data.error, res.ok ? 'success' : 'error');
+                if (res.ok) loadJobsData();
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function importJobsFromSheets() {
+            const max = prompt("Max jobs to import?", "100");
+            if (!max) return;
+            try {
+                const res = await fetch('/api/dashboard/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sheet_name: 'non-email', max_jobs: parseInt(max) })
+                });
+                const data = await res.json();
+                showToast(data.message || data.error, res.ok ? 'success' : 'error');
+                if (res.ok) loadJobsData();
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function fetchPendingCommands() {
+            try {
+                const res = await fetch('/api/pending_commands');
+                const data = await res.json();
+                const tbody = document.getElementById('pending-commands-body');
+                if (Array.isArray(data) && data.length > 0) {
+                    tbody.innerHTML = data.map(cmd => `
+                        <tr>
+                            <td>${cmd.id}</td>
+                            <td><code>${cmd.command}</code></td>
+                            <td>${new Date(cmd.created_at).toLocaleString()}</td>
+                            <td>${cmd.status || 'pending'}</td>
+                        </tr>
+                     `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No pending commands</td></tr>';
+                }
+            } catch (e) { console.error(e); }
+        }
+
         // Initial Load
-        loadDashboardData();
 
         // Auto-refresh every 30 seconds
         setInterval(() => {
