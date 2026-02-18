@@ -11,8 +11,7 @@ import tempfile
 import functools
 import time
 from typing import Optional, Any, Callable
-import aiohttp
-from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID
+from config import ADMIN_USER_ID
 
 logger = logging.getLogger(__name__)
 

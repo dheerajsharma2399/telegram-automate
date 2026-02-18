@@ -98,7 +98,6 @@ if not exist "%ENV_FILE%" (
             echo TELEGRAM_API_ID=your_api_id
             echo TELEGRAM_API_HASH=your_api_hash
             echo TELEGRAM_PHONE=your_phone
-            echo TELEGRAM_BOT_TOKEN=your_bot_token
             echo TELEGRAM_GROUP_USERNAME=job_group
             echo AUTHORIZED_USER_IDS=your_user_id
             echo ADMIN_USER_ID=your_admin_id

@@ -13,10 +13,11 @@ def read_latest_logs(filename, num_lines=50):
         return [f"Error reading {filename}: {e}"]
 
 def main():
-    print("📋 LATEST MONITOR.LOG CONTENT (Last 50 lines)")
+    log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs', 'app.log')
+    print(f"📋 LATEST LOGS ({log_path})")
     print("=" * 60)
-    
-    logs = read_latest_logs('monitor.log', 50)
+
+    logs = read_latest_logs(log_path, 50)
     
     if logs:
         for i, line in enumerate(logs, 1):

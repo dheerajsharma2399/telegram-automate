@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 
 # Ensure paths are correct for imports
 import sys
-sys.path.append('/app')
+# Add project root to sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import (
     DATABASE_URL,
@@ -29,17 +30,8 @@ logger = logging.getLogger(__name__)
 async def run_diagnostics():
     logger.info("--- Starting Diagnostic Script ---")
 
-    # 1. Test Environment Variable Reading
-    logger.info("\n--- Test 1: Environment Variable Reading ---")
-    bot_run_mode = os.getenv('BOT_RUN_MODE', 'NOT_SET').lower()
-    logger.info(f"BOT_RUN_MODE as seen by application: '{bot_run_mode}'")
-    if bot_run_mode == 'polling':
-        logger.info("BOT_RUN_MODE is correctly set to 'polling'.")
-    else:
-        logger.error(f"BOT_RUN_MODE is NOT 'polling'. It is '{bot_run_mode}'. This is a critical issue.")
-
-    # 2. Test Database Connection
-    logger.info("\n--- Test 2: Database Connection ---")
+    # 1. Test Database Connection
+    logger.info("\n--- Test 1: Database Connection ---")
     db = None
     try:
         db = Database(DATABASE_URL)
@@ -48,8 +40,8 @@ async def run_diagnostics():
         logger.error(f"Failed to connect to database: {e}")
         return # Cannot proceed without DB
 
-    # 3. Test Telegram Session and Client Connection
-    logger.info("\n--- Test 3: Telegram Session and Client Connection ---")
+    # 2. Test Telegram Session and Client Connection
+    logger.info("\n--- Test 2: Telegram Session and Client Connection ---")
     telegram_status = db.auth.get_telegram_login_status()
     session_string = db.auth.get_telegram_session()
     logger.info(f"Telegram login status from DB: '{telegram_status}'")
@@ -73,8 +65,8 @@ async def run_diagnostics():
     else:
         logger.warning("No Telegram session string found in database. Bot cannot monitor.")
 
-    # 4. Test Command Enqueueing
-    logger.info("\n--- Test 4: Command Enqueueing ---")
+    # 3. Test Command Enqueueing
+    logger.info("\n--- Test 3: Command Enqueueing ---")
     test_command = "/diagnostic_test_command"
     try:
         cmd_id = db.commands.enqueue_command(test_command)
@@ -92,8 +84,8 @@ async def run_diagnostics():
     except Exception as e:
         logger.error(f"Error during command enqueueing test: {e}")
 
-    # 5. Test Command Polling (simulated)
-    logger.info("\n--- Test 5: Command Polling (Simulated) ---")
+    # 4. Test Command Polling (simulated)
+    logger.info("\n--- Test 4: Command Polling (Simulated) ---")
     try:
         # Enqueue a command for the poller to find
         poller_test_command = "/poller_test"
@@ -114,15 +106,9 @@ async def run_diagnostics():
     except Exception as e:
         logger.error(f"Error during command polling test: {e}")
 
-    # 6. Test Telegram Monitor Event Handler (requires manual interaction)
-    logger.info("\n--- Test 6: Telegram Monitor Event Handler ---")
-    logger.info("This test requires manual interaction.")
-    logger.info("Please send a message to your Telegram bot. If the monitor is working, you should see 'DEBUG: Command handler received message...' in the worker logs.")
-    logger.info("Ensure the monitor.py has the debug logging enabled and filters removed as per previous steps for this test to be effective.")
-
     if client and client.is_connected():
         await client.disconnect()
-    
+
     logger.info("\n--- Diagnostic Script Finished ---")
 
 if __name__ == "__main__":

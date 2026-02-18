@@ -242,7 +242,7 @@ class JobRepository(BaseRepository):
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                        UPDATE processed_jobs 
+                        UPDATE processed_jobs
                         SET synced_to_sheets = TRUE
                         WHERE job_id = %s
                     """, (job_id,))
@@ -252,32 +252,12 @@ class JobRepository(BaseRepository):
                 self.logger.error(f"Failed to mark job as synced: {e}")
                 raise
 
-    def get_processed_jobs_by_email_status(self, has_email: bool) -> List[Dict]:
-        """Get processed jobs based on whether they have an email."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            if has_email:
-                cursor.execute('SELECT * FROM processed_jobs WHERE email IS NOT NULL AND email != "" ORDER BY created_at DESC')
-            else:
-                cursor.execute('SELECT * FROM processed_jobs WHERE email IS NULL OR email = "" ORDER BY created_at DESC')
-            return [dict(row) for row in cursor.fetchall()]
-
     def get_unsynced_jobs(self) -> List[Dict]:
         """Get all processed jobs that have not been synced to Google Sheets."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM processed_jobs WHERE synced_to_sheets = FALSE ORDER BY created_at ASC')
             return [dict(row) for row in cursor.fetchall()]
-
-    def update_job_email_body(self, job_id: str, email_body: str):
-        """Update the email_body for an existing processed job."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE processed_jobs
-                SET email_body = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE job_id = %s
-            """, (email_body, job_id))
 
     def get_processed_job_by_id(self, job_id: str) -> Optional[Dict]:
         """Get a single processed job by job_id for sheets sync"""
@@ -286,18 +266,6 @@ class JobRepository(BaseRepository):
             cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (job_id,))
             result = cursor.fetchone()
             return dict(result) if result else None
-
-    def get_email_jobs_needing_generation(self) -> List[Dict]:
-        """Get email sheet jobs that need email body generation."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM processed_jobs
-                WHERE email IS NOT NULL AND email != ''
-                AND (email_body IS NULL OR TRIM(email_body) = '')
-                ORDER BY created_at ASC
-            """)
-            return [dict(row) for row in cursor.fetchall()]
 
     def get_all_processed_jobs(self) -> List[Dict]:
         """Get all processed jobs that are not hidden."""

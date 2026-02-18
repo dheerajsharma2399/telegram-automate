@@ -69,7 +69,6 @@ A comprehensive Telegram automation project that monitors job postings in Telegr
 TELEGRAM_API_ID=your_api_id
 TELEGRAM_API_HASH=your_api_hash
 TELEGRAM_PHONE=your_phone_number
-TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_GROUP_USERNAMES=jobgroup1,jobgroup2
 AUTHORIZED_USER_IDS=123456789
 ADMIN_USER_ID=123456789
@@ -371,7 +370,6 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # ... other environment variables
 ```
@@ -436,7 +434,6 @@ netstat -tulpn | grep :9501
 **Problem**: `Telegram API returned error`
 
 **Solutions**:
-- Verify TELEGRAM_BOT_TOKEN is correct
 - Check TELEGRAM_API_ID and TELEGRAM_API_HASH
 - Use web dashboard to set up Telegram session
 - Verify authorized users are configured

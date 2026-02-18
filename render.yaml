@@ -6,8 +6,6 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python web_server.py"
     envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        fromSecret: true
       - key: ADMIN_USER_ID
         fromSecret: true
       - key: DATABASE_URL
@@ -41,8 +39,6 @@ services:
       - key: TELEGRAM_API_HASH
         fromSecret: true
       - key: TELEGRAM_PHONE
-        fromSecret: true
-      - key: TELEGRAM_BOT_TOKEN
         fromSecret: true
       - key: TELEGRAM_GROUP_USERNAMES
         fromSecret: true

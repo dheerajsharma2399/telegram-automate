@@ -96,7 +96,6 @@ setup_environment() {
 TELEGRAM_API_ID=your_api_id
 TELEGRAM_API_HASH=your_api_hash
 TELEGRAM_PHONE=your_phone
-TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_GROUP_USERNAME=job_group
 AUTHORIZED_USER_IDS=your_user_id
 ADMIN_USER_ID=your_admin_id

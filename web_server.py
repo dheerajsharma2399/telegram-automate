@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_ID, DATABASE_URL
+from config import ADMIN_USER_ID, DATABASE_URL
 import signal
 import socket
 import threading
@@ -18,7 +18,6 @@ import tempfile
 import json
 from urllib.parse import urljoin
 from llm_processor import LLMProcessor
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from sheets_sync import GoogleSheetsSync
 from config import (
     OPENROUTER_API_KEY, OPENROUTER_API_KEYS, OPENROUTER_MODEL, OPENROUTER_MODELS,
@@ -49,13 +48,6 @@ def get_sheets_sync():
     return sheets_sync
 
 # --- Helper Functions ---
-
-def send_telegram_command(command):
-    """Sends a command to the Telegram bot as the admin user."""
-    # Notifications disabled
-    logging.info(f"Command '{command}' processed (Telegram notifications disabled).")
-    return True, {"ok": True, "result": "Notifications disabled"}
-
 
 @app.route("/health")
 def health():
@@ -261,12 +253,7 @@ def api_command():
             cmd_id = db.commands.enqueue_command(command)
             return jsonify({"message": f"Command '{command}' enqueued.", "command_id": cmd_id})
         else:
-            logging.error("Database object missing 'enqueue_command' method, falling back to Telegram send.")
-            ok, resp = send_telegram_command(command)
-            if ok:
-                return jsonify({"message": f"Command '{command}' sent via Telegram as fallback.", "telegram_response": resp})
-            else:
-                return jsonify({"error": "Failed to enqueue command and Telegram fallback failed.", "details": resp}), 500
+            return jsonify({"error": "Database command queue not available"}), 500
     except Exception as e:
         logging.error(f"Failed to enqueue command: {e}")
         return jsonify({"error": "Failed to enqueue command", "details": str(e)}), 500
@@ -837,128 +824,9 @@ def get_dashboard_job_message(job_id: int):
         return jsonify({"error": str(e)}), 500
 
 
-# --- Telegram Webhook Endpoint ---
-
-async def process_webhook_async(update_data):
-    """Process webhook update in an async context"""
-    try:
-        # Get the Application instance for this worker
-        bot_application = await _get_or_create_webhook_application()
-        if bot_application is None:
-            logging.error("Failed to get webhook Application instance.")
-            return False
-        
-        # _get_or_create_webhook_application already initializes it.
-        # No need for an additional initialize() call here.
-        
-        from telegram import Update
-        update = Update.de_json(update_data, bot_application.bot)
-        
-        await bot_application.process_update(update)
-        logging.info(f"Processed webhook update: {update.update_id}")
-        return True
-            
-    except Exception as e:
-        logging.error(f"Error processing webhook: {e}")
-        return False
-
 # --- Webhook Logger Setup ---
 webhook_logger = logging.getLogger('webhook')
 webhook_logger.setLevel(logging.INFO)
-
-
-@app.route("/webhook", methods=["POST"])
-def telegram_webhook():
-    """Handle incoming Telegram webhook updates"""
-    webhook_logger.info("--- WEBHOOK ENDPOINT HIT ---")
-    try:
-        webhook_logger.info(f"Request Headers: {request.headers}")
-        raw_body = request.get_data(as_text=True)
-        webhook_logger.info(f"Raw Request Body: {raw_body}")
-        
-        # Get the update data from the raw body
-        update_data = json.loads(raw_body)
-        if not update_data:
-            return jsonify({"error": "No update data"}), 400
-        
-        # Process the update in a separate thread with its own event loop
-        def run_in_thread(data):
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(process_webhook_async(data))
-            loop.close()
-
-        import threading
-        thread = threading.Thread(target=run_in_thread, args=(update_data,))
-        thread.start()
-        
-        webhook_logger.info(f"Webhook update queued for processing: {update_data.get('update_id', 'unknown')}")
-        return jsonify({"status": "queued"})
-            
-    except Exception as e:
-        webhook_logger.error(f"Error processing webhook: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/setup_webhook", methods=["POST"])
-def setup_webhook():
-    """Setup webhook URL for the bot"""
-    # This endpoint needs to set the webhook for the *main bot's* Application instance.
-    # If main.py is running as a separate worker, it should be responsible for setting its own webhook.
-    # For now, let's create a temporary Application instance to set the webhook.
-    if not TELEGRAM_BOT_TOKEN:
-        return jsonify({"error": "TELEGRAM_BOT_TOKEN not configured"}), 500
-
-    try:
-        data = request.get_json(force=True) or {}
-        webhook_url = data.get('webhook_url')
-        
-        if not webhook_url:
-            service_url = os.getenv('RENDER_SERVICE_URL') or os.getenv('SERVICE_URL') or os.getenv('DEPLOYMENT_URL')
-            if service_url:
-                webhook_url = f"{service_url}/webhook"
-            else:
-                return jsonify({"error": "No webhook URL provided and unable to construct it"}), 400
-        
-        temp_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-        async def do_set_webhook():
-            await temp_app.bot.set_webhook(
-                url=webhook_url,
-                allowed_updates=['message', 'callback_query', 'edited_message']
-            )
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(do_set_webhook())
-        
-        logging.info(f"Webhook set to: {webhook_url}")
-        return jsonify({"message": f"Webhook set to {webhook_url}"})
-        
-    except Exception as e:
-        logging.error(f"Failed to setup webhook: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/remove_webhook", methods=["POST"])
-def remove_webhook():
-    """Remove webhook and switch to polling"""
-    if not TELEGRAM_BOT_TOKEN:
-        return jsonify({"error": "TELEGRAM_BOT_TOKEN not configured"}), 500
-
-    try:
-        # Create a temporary Application instance just for deleting webhook
-        temp_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-        async def do_delete_webhook():
-            await temp_app.bot.delete_webhook()
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(do_delete_webhook())
-
-        logging.info("Webhook removed")
-        return jsonify({"message": "Webhook removed successfully"})
-        
-    except Exception as e:
-        logging.error(f"Failed to remove webhook: {e}")
-        return jsonify({"error": str(e)}), 500
 
 def _signal_handler(signum, frame):
     """On SIGTERM/SIGINT, attempt graceful shutdown by calling the shutdown endpoint."""
