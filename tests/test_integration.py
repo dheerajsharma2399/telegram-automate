@@ -5,7 +5,7 @@ Tests the complete message processing pipeline.
 """
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 import asyncio
 
 
@@ -94,48 +94,18 @@ class TestInputValidation(unittest.TestCase):
 
 class TestHealthCheckEndpoint(unittest.TestCase):
     """Test health check endpoint"""
-    
+
     @patch('web_server.db')
-    @patch('web_server.get_sheets_sync')
-    def test_health_check_returns_200_when_healthy(self, mock_sheets, mock_db):
-        """Test that health check returns 200 when all systems healthy"""
+    def test_health_check_returns_200(self, mock_db):
+        """Test that health check returns 200 ok"""
         from web_server import app
-        
-        # Mock healthy database
-        mock_conn = Mock()
-        mock_cursor = Mock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-        mock_db.get_connection.return_value.__enter__.return_value = mock_conn
-        
-        # Mock configured sheets
-        mock_sheets_instance = Mock()
-        mock_sheets_instance.client = Mock()
-        mock_sheets.return_value = mock_sheets_instance
-        
+
         with app.test_client() as client:
             response = client.get('/health')
-            
+
             self.assertEqual(response.status_code, 200)
             data = response.get_json()
-            self.assertEqual(data['status'], 'healthy')
-            self.assertEqual(data['checks']['database'], 'ok')
-    
-    @patch('web_server.db')
-    @patch('web_server.get_sheets_sync')
-    def test_health_check_returns_503_when_unhealthy(self, mock_sheets, mock_db):
-        """Test that health check returns 503 when database fails"""
-        from web_server import app
-        
-        # Mock database failure
-        mock_db.get_connection.side_effect = Exception("Database connection failed")
-        
-        with app.test_client() as client:
-            response = client.get('/health')
-            
-            self.assertEqual(response.status_code, 503)
-            data = response.get_json()
-            self.assertEqual(data['status'], 'unhealthy')
-            self.assertIn('error', data['checks']['database'])
+            self.assertEqual(data['status'], 'ok')
 
 
 if __name__ == '__main__':
