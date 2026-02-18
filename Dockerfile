@@ -28,7 +28,6 @@ RUN mkdir -p /app/data /app/logs
 ENV PORT=9501
 ENV FLASK_ENV=production
 ENV CONTAINER_TYPE=all
-ENV BOT_RUN_MODE=webhook
 ENV DATABASE_TYPE=postgresql
 
 # Expose port
