@@ -336,16 +336,6 @@ async def poll_commands_loop():
                             await sync_sheets_automatically()
                             executed_ok = True
                             result_text = "Sync triggered successfully"
-                        elif text.startswith('/start'):
-                             db.config.set_config('monitoring_status', 'running')
-                             executed_ok = True
-                             result_text = "Monitoring started"
-                             logger.info("▶️ Received /start command. Monitoring enabled.")
-                        elif text.startswith('/stop'):
-                             db.config.set_config('monitoring_status', 'stopped')
-                             executed_ok = True
-                             result_text = "Monitoring stopped"
-                             logger.info("⏸️ Received /stop command. Monitoring disabled.")
                         elif text.startswith('/export'):
                              executed_ok = True
                              result_text = "Export handled via API"
