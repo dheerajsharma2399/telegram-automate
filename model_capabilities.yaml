@@ -1,0 +1,10 @@
+model_capabilities:
+  default:
+    max_tokens: 8000
+    reasoning: high
+  kilo:
+    role: db_specialist
+    strengths: [sql, migrations, schema_design]
+  claude:
+    role: full_stack
+    strengths: [python, javascript, flask, api_design]

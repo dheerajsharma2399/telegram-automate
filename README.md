@@ -521,7 +521,10 @@ telegram-automate/
 ├── render.yaml             # Render.com config
 ├── docker-compose.yaml     # Docker deployment
 ├── Dockerfile              # Docker image
-├── templates/              # HTML templates
+├── templates/                # HTML templates
+│   ├── index.html            # Main Dashboard (Modern UI)
+│   ├── old.html              # Legacy Dashboard (Backup)
+│   └── logs.html             # System Logs View
 ├── deployment/             # Deployment guides
 ├── docker/                 # Docker configurations
 ├── scripts/                # Deployment scripts
