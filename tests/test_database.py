@@ -78,56 +78,59 @@ class TestDatabaseOperations(unittest.TestCase):
 class TestDatabaseRepositories(unittest.TestCase):
     """Test database repository methods"""
     
-    @patch('database_repositories.Database')
-    def test_add_raw_message_with_rollback(self, mock_db):
+    def test_add_raw_message_with_rollback(self):
         """Test that add_raw_message rolls back on error"""
         from database_repositories import MessageRepository
-        
-        mock_conn = Mock()
-        mock_cursor = Mock()
+
+        mock_pool = MagicMock()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        # Setup context manager for cursor
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.execute.side_effect = Exception("Database error")
-        
-        repo = MessageRepository(mock_db)
-        
+
+        repo = MessageRepository(mock_pool)
+
         with patch.object(repo, 'get_connection') as mock_get_conn:
             mock_get_conn.return_value.__enter__.return_value = mock_conn
-            
+
             # Should handle error gracefully
             try:
                 repo.add_raw_message(
                     group_id=123,
                     message_id=456,
                     message_text="Test",
-                    sender_id=789
+                    sender_id=789,
+                    sent_at=None
                 )
             except Exception:
                 pass
-            
+
             # Verify rollback was called
             mock_conn.rollback.assert_called()
-    
-    @patch('database_repositories.Database')
-    def test_mark_job_synced_with_rollback(self, mock_db):
+
+    def test_mark_job_synced_with_rollback(self):
         """Test that mark_job_synced rolls back on error"""
         from database_repositories import JobRepository
-        
-        mock_conn = Mock()
-        mock_cursor = Mock()
+
+        mock_pool = MagicMock()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        # Setup context manager for cursor
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.execute.side_effect = Exception("Database error")
-        
-        repo = JobRepository(mock_db)
-        
+
+        repo = JobRepository(mock_pool)
+
         with patch.object(repo, 'get_connection') as mock_get_conn:
             mock_get_conn.return_value.__enter__.return_value = mock_conn
-            
+
             # Should handle error gracefully
             try:
-                repo.mark_job_synced(job_id=123)
+                repo.mark_job_synced(job_id="123")
             except Exception:
                 pass
-            
+
             # Verify rollback was called
             mock_conn.rollback.assert_called()
 

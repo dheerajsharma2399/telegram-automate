@@ -16,9 +16,14 @@ class TestConfigValidation(unittest.TestCase):
         """Set up test environment"""
         # Store original env vars
         self.original_env = os.environ.copy()
-    
+
+        # Patch load_dotenv to prevent reading actual .env file
+        self.patcher = patch('dotenv.load_dotenv')
+        self.mock_load_dotenv = self.patcher.start()
+
     def tearDown(self):
         """Restore original environment"""
+        self.patcher.stop()
         os.environ.clear()
         os.environ.update(self.original_env)
     
@@ -111,12 +116,21 @@ class TestConfigValidation(unittest.TestCase):
     
     def test_log_level_configuration(self):
         """Test that LOG_LEVEL is configurable"""
+        # Set required variables to pass validation
+        os.environ['DATABASE_URL'] = 'postgresql://user:pass@localhost/db'
+        os.environ['TELEGRAM_API_ID'] = '12345'
+        os.environ['TELEGRAM_API_HASH'] = 'abcdef1234567890'
+        os.environ['OPENROUTER_API_KEY'] = 'sk-test-key'
+        os.environ['GOOGLE_CREDENTIALS_JSON'] = './test_credentials.json'
+        os.environ['SPREADSHEET_ID'] = '1234567890abcdef'
+
+        # Set target variable
         os.environ['LOG_LEVEL'] = 'DEBUG'
-        
+
         import importlib
         import config
         importlib.reload(config)
-        
+
         self.assertEqual(config.LOG_LEVEL, 'DEBUG')
 
 

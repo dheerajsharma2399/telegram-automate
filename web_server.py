@@ -774,6 +774,12 @@ def get_dashboard_stats():
             "total_jobs": total_jobs,
             "by_status": by_status,
             "by_relevance": by_relevance,
+            "relevant": {
+                "total": by_relevance.get('relevant', 0)
+            },
+            "irrelevant": {
+                "total": by_relevance.get('irrelevant', 0)
+            }
         })
         
     except Exception as e:
