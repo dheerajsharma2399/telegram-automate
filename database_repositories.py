@@ -301,6 +301,7 @@ class JobRepository(BaseRepository):
                 SET is_hidden = TRUE
                 WHERE job_id IN %s
             """, (tuple(job_ids),))
+            conn.commit()
             return cursor.rowcount
             
     def get_jobs_today_stats(self) -> Dict:
@@ -450,6 +451,7 @@ class ConfigRepository(BaseRepository):
                 value = EXCLUDED.value, 
                 updated_at = EXCLUDED.updated_at
             """, (key, value))
+            conn.commit()
 
 class CommandRepository(BaseRepository):
     def get_pending_commands(self, limit: int = 10) -> List[Dict]:

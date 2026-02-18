@@ -107,6 +107,10 @@ def shutdown():
 
 def read_log_file(log_file, lines=1000):
     """Reads the last N lines of a log file."""
+    # Fix: Ensure we look in the 'logs' directory if not specified
+    if not os.path.isabs(log_file) and not log_file.startswith('logs'):
+        log_file = os.path.join('logs', log_file)
+        
     try:
         with open(log_file, "r") as f:
             if lines == -1: # Read all lines
@@ -240,7 +244,7 @@ def api_logs():
     logging.info(f"API logs endpoint was hit! Fetching last {lines} lines.")
     try:
         logs = {
-            "app_logs": read_log_file(log_file_path, lines=lines),
+            "app_logs": read_log_file("app.log", lines=lines),
         }
         return jsonify(logs)
     except Exception as e:
