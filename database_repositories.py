@@ -603,6 +603,34 @@ class UnifiedJobRepository(BaseRepository):
                 """, (days,))
                 return [dict(row) for row in cursor.fetchall()]
 
+    def get_job_details_with_message(self, job_id: int) -> Optional[Dict]:
+        """
+        Get job details along with the original raw message.
+        """
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                # 1. Get Job
+                cursor.execute("SELECT * FROM jobs WHERE id = %s", (job_id,))
+                job = cursor.fetchone()
+                
+                if not job:
+                    return None
+                
+                job_dict = dict(job)
+                
+                # 2. Get Raw Message if available
+                raw_message = None
+                if job_dict.get('raw_message_id'):
+                    cursor.execute("SELECT * FROM raw_messages WHERE message_id = %s", (job_dict['raw_message_id'],))
+                    msg = cursor.fetchone()
+                    if msg:
+                        raw_message = dict(msg)
+                
+                return {
+                    "job": job_dict,
+                    "raw_message": raw_message
+                }
+
 class ConfigRepository(BaseRepository):
     def get_config(self, key: str) -> Optional[str]:
         """Get config value"""
