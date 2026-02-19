@@ -1062,19 +1062,26 @@
             <!-- Jobs View -->
             <div id="view-jobs" style="display: none;">
                 <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">All Jobs</h3>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
+                        <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                            <h3 class="card-title">All Jobs</h3>
                             <select class="btn btn-secondary" id="filter-relevance" style="padding: 0.5rem 1rem;">
                                 <option value="">All Relevance</option>
                                 <option value="relevant">Relevant</option>
                                 <option value="irrelevant">Irrelevant</option>
                             </select>
-                            <select class="btn btn-secondary" id="filter-email" style="padding: 0.5rem 1rem;">
-                                <option value="">All Types</option>
-                                <option value="true">With Email</option>
-                                <option value="false">Without Email</option>
-                            </select>
+                        </div>
+
+                        <!-- Job Type Tabs -->
+                        <div class="d-flex gap-2" style="border-bottom: 1px solid var(--border-color); width: 100%;">
+                            <button class="btn btn-tab active" data-job-tab="links"
+                                style="border-bottom: 2px solid var(--accent-primary); border-radius: 0; padding-bottom: 0.75rem; color: var(--accent-primary);">
+                                <i class="bi bi-link-45deg"></i> Job Links
+                            </button>
+                            <button class="btn btn-tab" data-job-tab="email"
+                                style="border-bottom: 2px solid transparent; border-radius: 0; padding-bottom: 0.75rem; color: var(--text-muted);">
+                                <i class="bi bi-envelope"></i> Email Jobs
+                            </button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -1087,7 +1094,8 @@
                                         <th class="sortable" data-sort-by="job_role">Job Role</th>
                                         <th class="sortable" data-sort-by="company_name">Company</th>
                                         <th>Salary</th>
-                                        <th class="sortable" data-sort-by="application_link">Application Link</th>
+                                        <th class="sortable" id="th-link-email" data-sort-by="application_link">
+                                            Application Link</th>
                                         <th style="width: 80px;">Actions</th>
                                     </tr>
                                 </thead>
@@ -1433,6 +1441,7 @@
         let queueData = [];
         let currentSortColumn = 'created_at';
         let currentSortDirection = 'desc'; // Default newest first
+        let currentJobTab = 'links'; // 'links' or 'email'
 
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -1479,6 +1488,38 @@
             item.addEventListener('click', () => {
                 const view = item.dataset.view;
                 loadView(view);
+            });
+        });
+
+        // Job Tab Navigation
+        document.querySelectorAll('.btn-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active state
+                document.querySelectorAll('.btn-tab').forEach(b => {
+                    b.classList.remove('active');
+                    b.style.borderBottomColor = 'transparent';
+                    b.style.color = 'var(--text-muted)';
+                });
+                btn.classList.add('active');
+                btn.style.borderBottomColor = 'var(--accent-primary)';
+                btn.style.color = 'var(--accent-primary)';
+
+                // Update state
+                currentJobTab = btn.dataset.jobTab;
+                currentPage = 1;
+
+                // Update Table Header
+                const th = document.getElementById('th-link-email');
+                if (currentJobTab === 'email') {
+                    th.textContent = 'Email';
+                    th.dataset.sortBy = 'email';
+                } else {
+                    th.textContent = 'Application Link';
+                    th.dataset.sortBy = 'application_link';
+                }
+
+                // Reload data
+                loadJobsData();
             });
         });
 
@@ -1601,6 +1642,17 @@
             url.searchParams.append('page', currentPage);
             url.searchParams.append('page_size', pageSize);
 
+            // Filter by job type (link vs email)
+            if (currentJobTab === 'email') {
+                url.searchParams.append('has_email', 'true');
+            } else {
+                url.searchParams.append('has_email', 'false');
+            }
+
+            // Add other filters if present
+            const relevance = document.getElementById('filter-relevance').value;
+            if (relevance) url.searchParams.append('relevance', relevance);
+
             const response = await fetch(url);
             const data = await response.json();
             const jobs = data.jobs || [];
@@ -1643,6 +1695,12 @@
                 if (column === 'application_link') {
                     valA = getDomainFromUrl(valA).toLowerCase();
                     valB = getDomainFromUrl(valB).toLowerCase();
+                }
+
+                // Handle email sorting
+                if (column === 'email') {
+                    valA = (valA || '').toLowerCase();
+                    valB = (valB || '').toLowerCase();
                 }
 
                 if (valA < valB) return direction === 'asc' ? -1 : 1;
@@ -1709,17 +1767,28 @@
 
                 const domain = getDomainFromUrl(job.application_link);
 
+                let linkOrEmailContent = '';
+                if (currentJobTab === 'email') {
+                    if (job.email) {
+                        linkOrEmailContent = `<a href="mailto:${job.email}" onclick="event.stopPropagation()" class="domain-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--success);"><i class="bi bi-envelope"></i> ${job.email}</a>`;
+                    } else {
+                        linkOrEmailContent = '<span style="color: var(--text-muted);">-</span>';
+                    }
+                } else {
+                    if (job.application_link) {
+                        linkOrEmailContent = `<a href="${job.application_link}" target="_blank" onclick="event.stopPropagation()" class="domain-badge" title="${escapeHtml(job.application_link)}">${domain}</a>`;
+                    } else {
+                        linkOrEmailContent = '<span style="color: var(--text-muted);">-</span>';
+                    }
+                }
+
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td>${formatDate(job.original_created_at || job.created_at)}</td>
                     <td><strong>${job.job_role || 'N/A'}</strong></td>
                     <td>${job.company_name || 'N/A'}</td>
                     <td>${job.salary || '-'}</td>
-                    <td>
-                        ${job.application_link ?
-                        `<a href="${job.application_link}" target="_blank" class="domain-badge" title="${escapeHtml(job.application_link)}">${domain}</a>` :
-                        '<span style="color: var(--text-muted);">-</span>'}
-                    </td>
+                    <td>${linkOrEmailContent}</td>
                     <td onclick="event.stopPropagation()">
                         <button class="action-btn" title="View Details" onclick="event.stopPropagation(); toggleJobDetails(${job.id});"><i class="bi bi-eye"></i></button>
                         <button class="action-btn danger" title="Hide Job" onclick="event.stopPropagation(); hideJob(${job.id}, event);"><i class="bi bi-eye-slash"></i></button>

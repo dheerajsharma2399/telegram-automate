@@ -522,12 +522,16 @@ class UnifiedJobRepository(BaseRepository):
         relevance_filter = kwargs.get('relevance_filter') or kwargs.get('relevance')
         job_role_filter = kwargs.get('job_role_filter') or kwargs.get('job_role')
         include_archived = kwargs.get('include_archived', False)
+        
+        # New: Support filtering by email presence
+        has_email = kwargs.get('has_email')
 
         return self.get_jobs(
             status=status_filter,
             relevance=relevance_filter,
             job_role=job_role_filter,
             include_hidden=include_archived,
+            has_email=has_email,
             page=kwargs.get('page', 1),
             page_size=kwargs.get('page_size', 50),
             sort_by=kwargs.get('sort_by', 'created_at'),

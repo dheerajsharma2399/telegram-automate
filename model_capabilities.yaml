@@ -5,6 +5,6 @@ model_capabilities:
   kilo:
     role: db_specialist
     strengths: [sql, migrations, schema_design]
-  claude:
+  gemini:
     role: full_stack
-    strengths: [python, javascript, flask, api_design]
+    strengths: [python, javascript, flask, api_design, reasoning]

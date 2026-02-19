@@ -458,12 +458,20 @@ def get_dashboard_jobs():
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'DESC')
         
+        # New: Support filtering by email presence
+        has_email_ag = request.args.get('has_email')
+        has_email = None
+        if has_email_ag:
+             has_email = has_email_ag.lower() == 'true'
+
+        
         # Correctly call the repository method
         result = db.jobs.get_dashboard_jobs(
             status_filter=status_filter,
             relevance_filter=relevance_filter,
             job_role_filter=job_role_filter,
             include_archived=include_archived,
+            has_email=has_email,
             page=page,
             page_size=page_size,
             sort_by=sort_by,

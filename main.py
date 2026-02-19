@@ -119,6 +119,30 @@ async def safety_net_fetch(monitor, context):
         logger.warning(f"⚠️ Safety net caught {result} missed messages!")
 
 @log_execution
+async def daily_deep_fetch(monitor, context):
+    """
+    Daily deep fetch to cover potential downtime.
+    Fetches messages from the last 3 days (72 hours).
+    Any duplicates will be handled by the database constraint (ON CONFLICT DO NOTHING),
+    so this is safe to run repeatedly.
+    """
+    
+    logger.info("🕵️ Starting daily downtime recovery fetch (Last 72 hours)...")
+    
+    # Your monitor's client
+    fetcher = HistoricalMessageFetcher(db, monitor.client)
+    
+    # 72 hours = 3 days coverage
+    result = await fetcher.fetch_historical_messages(hours_back=72)
+
+    logger.info(f"✅ Daily recovery fetch complete. Retrieved {result} messages.")
+    
+    # Trigger processing if we found anything (though scheduler usually handles it next cycle, immediate is better)
+    if result > 0:
+        logger.info("Triggering immediate processing for recovered messages...")
+        await process_jobs()
+
+@log_execution
 async def sync_sheets_automatically():
     """
     Automatically finds all unsynced jobs and syncs them to Google Sheets.
@@ -428,6 +452,18 @@ async def main():
     logger.info("✅ Background scheduler started")
     logger.info(f"- Fetch & Process: every {FETCH_INTERVAL_MINUTES} minutes")
     logger.info("- Safety Net: every 4 hours")
+
+    # Deep Fetch for Downtime Recovery (Daily at 3 AM)
+    scheduler.add_job(
+        daily_deep_fetch,
+        'cron',
+        hour=3,
+        minute=0,
+        id='daily_deep_fetch',
+        args=[monitor, None],
+        replace_existing=True
+    )
+    logger.info("- Downtime Recovery: Daily at 03:00 AM (Last 3 Days)")
 
     # Start command poller task
     asyncio.create_task(poll_commands_loop())
