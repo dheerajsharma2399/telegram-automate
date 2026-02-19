@@ -137,16 +137,14 @@ CONTAINER_TYPE=all
 ┌─────────────────────────────────────────────────────────────┐
 │                    DATABASE LAYER                             │
 ├─────────────────────────────────────────────────────────────┤
-│  RAW DATA LAYER (Original Scraping)                         │
+│  RAW DATA LAYER                                             │
 │  ├── raw_messages      - Raw Telegram messages               │
-│  ├── processed_jobs    - Extracted job data                 │
 │  ├── bot_config        - System configuration               │
 │  ├── commands_queue    - Dashboard-to-bot communication     │
 │  └── telegram_auth     - Telegram session storage           │
 ├─────────────────────────────────────────────────────────────┤
-│  DASHBOARD LAYER (Application Management)                   │
-│  ├── dashboard_jobs    - User application tracking         │
-│  └── job_duplicate_groups - Duplicate job management       │
+│  UNIFIED JOB LAYER                                          │
+│  └── jobs              - Unified job data and management    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -157,9 +155,7 @@ CONTAINER_TYPE=all
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
 | `raw_messages` | Store Telegram messages | message_id, message_text, status |
-| `processed_jobs` | Parsed job data | job_id, company_name, job_role, email |
-| `dashboard_jobs` | Application management | job_id, application_status, job_relevance |
-| `job_duplicate_groups` | Duplicate handling | job_id, duplicate_of_id, confidence_score |
+| `jobs` | Unified job data & management | job_id, company_name, status, source |
 | `bot_config` | Configuration storage | key, value |
 | `commands_queue` | Dashboard-to-bot communication | command, status, executed_at |
 | `telegram_auth` | Telegram session storage | session_string, login_status |

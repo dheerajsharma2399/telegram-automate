@@ -22,15 +22,23 @@ def main():
     print("\n1. Total Jobs in Database:")
     with db.get_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT COUNT(*) as count FROM processed_jobs")
+            cursor.execute("SELECT COUNT(*) as count FROM jobs")
             total = cursor.fetchone()['count']
-            print(f"   Total processed jobs: {total}")
-            
-            cursor.execute("SELECT COUNT(*) as count FROM processed_jobs WHERE synced_to_sheets = TRUE")
+            print(f"   Total jobs in unified table: {total}")
+
+            cursor.execute("SELECT COUNT(*) as count FROM jobs WHERE source = 'telegram'")
+            telegram_jobs = cursor.fetchone()['count']
+            print(f"   Telegram jobs: {telegram_jobs}")
+
+            cursor.execute("SELECT COUNT(*) as count FROM jobs WHERE source = 'manual'")
+            manual_jobs = cursor.fetchone()['count']
+            print(f"   Manual jobs: {manual_jobs}")
+
+            cursor.execute("SELECT COUNT(*) as count FROM jobs WHERE synced_to_sheets = TRUE")
             synced = cursor.fetchone()['count']
             print(f"   Jobs marked as synced: {synced}")
-            
-            cursor.execute("SELECT COUNT(*) as count FROM processed_jobs WHERE synced_to_sheets = FALSE")
+
+            cursor.execute("SELECT COUNT(*) as count FROM jobs WHERE synced_to_sheets = FALSE")
             unsynced = cursor.fetchone()['count']
             print(f"   Jobs NOT synced: {unsynced}")
     
@@ -39,14 +47,14 @@ def main():
     with db.get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT COUNT(*) as count FROM processed_jobs 
+                SELECT COUNT(*) as count FROM jobs
                 WHERE created_at >= NOW() - INTERVAL '7 days'
             """)
             recent = cursor.fetchone()['count']
             print(f"   Jobs created in last 7 days: {recent}")
-            
+
             cursor.execute("""
-                SELECT COUNT(*) as count FROM processed_jobs 
+                SELECT COUNT(*) as count FROM jobs
                 WHERE created_at >= NOW() - INTERVAL '7 days'
                 AND synced_to_sheets = FALSE
             """)
@@ -58,16 +66,17 @@ def main():
     with db.get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT job_id, company_name, job_role, synced_to_sheets, created_at, sheet_name
-                FROM processed_jobs 
-                ORDER BY created_at DESC 
+                SELECT job_id, company_name, job_role, synced_to_sheets, created_at, metadata, source
+                FROM jobs
+                ORDER BY created_at DESC
                 LIMIT 10
             """)
             jobs = cursor.fetchall()
             if jobs:
                 for job in jobs:
                     sync_status = "✓ SYNCED" if job['synced_to_sheets'] else "✗ NOT SYNCED"
-                    print(f"   {sync_status} | {job['created_at']} | {job['company_name']} | {job['job_role']} | Sheet: {job.get('sheet_name', 'N/A')}")
+                    sheet_name = job.get('metadata', {}).get('original_sheet', 'N/A')
+                    print(f"   {sync_status} | {job['created_at']} | {job['company_name']} | {job['job_role']} | Source: {job['source']} | Sheet: {sheet_name}")
             else:
                 print("   No jobs found")
     
@@ -76,9 +85,9 @@ def main():
     with db.get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT job_id, company_name, job_role, created_at, synced_to_sheets, sheet_name
-                FROM processed_jobs 
-                WHERE synced_to_sheets = FALSE
+                SELECT job_id, company_name, job_role, created_at, synced_to_sheets, metadata
+                FROM jobs
+                WHERE synced_to_sheets = FALSE AND is_hidden = FALSE
                 ORDER BY created_at ASC
                 LIMIT 5
             """)

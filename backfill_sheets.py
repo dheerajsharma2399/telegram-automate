@@ -37,7 +37,7 @@ def backfill_jobs(days=7):
             with conn.cursor() as cursor:
                 # Use psycopg2 directly for query
                 query = """
-                    SELECT * FROM processed_jobs
+                    SELECT * FROM jobs
                     WHERE created_at >= NOW() - INTERVAL '%s days'
                     ORDER BY created_at DESC
                 """
@@ -65,9 +65,9 @@ def backfill_jobs(days=7):
     
     for i, job in enumerate(jobs):
         job_id = job.get('job_id')
-        
+
         # Determine target sheet name (mimic logic from web_server.py)
-        sheet_name = job.get('sheet_name')
+        sheet_name = job.get('metadata', {}).get('original_sheet')
         if not sheet_name:
             has_email = bool(job.get('email'))
             sheet_name = 'email' if has_email else 'non-email'

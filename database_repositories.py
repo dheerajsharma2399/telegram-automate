@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Database Repository Classes for the Telegram Job Scraper
-FIXED: Added cursor parameter support for transaction handling
+Refactored to use UnifiedJobRepository for the unified 'jobs' table.
 """
 import logging
+import json
 from contextlib import contextmanager
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json
 from psycopg2.pool import ThreadedConnectionPool
 
 class BaseRepository:
@@ -42,8 +43,8 @@ class TelegramAuthRepository(BaseRepository):
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                    UPDATE telegram_auth 
-                    SET session_string = %s, updated_at = CURRENT_TIMESTAMP 
+                    UPDATE telegram_auth
+                    SET session_string = %s, updated_at = CURRENT_TIMESTAMP
                     WHERE id = 1
                     """, (session_string,))
                     self.logger.info("Telegram session updated in Supabase")
@@ -67,8 +68,8 @@ class TelegramAuthRepository(BaseRepository):
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                    UPDATE telegram_auth 
-                    SET login_status = %s, updated_at = CURRENT_TIMESTAMP 
+                    UPDATE telegram_auth
+                    SET login_status = %s, updated_at = CURRENT_TIMESTAMP
                     WHERE id = 1
                     """, (status,))
                     self.logger.info(f"Telegram login status updated: {status}")
@@ -79,14 +80,14 @@ class TelegramAuthRepository(BaseRepository):
                 raise
 
 class MessageRepository(BaseRepository):
-    def add_raw_message(self, message_id: int, message_text: str, 
+    def add_raw_message(self, message_id: int, message_text: str,
                        sender_id: int, sent_at, group_id: int) -> Optional[int]:
         """Add a new raw message"""
         with self.get_connection() as conn:
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                        INSERT INTO raw_messages 
+                        INSERT INTO raw_messages
                         (message_id, message_text, sender_id, sent_at, status, group_id)
                         VALUES (%s, %s, %s, %s, 'unprocessed', %s)
                         ON CONFLICT (group_id, message_id) DO NOTHING
@@ -105,21 +106,21 @@ class MessageRepository(BaseRepository):
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT * FROM raw_messages 
+                    SELECT * FROM raw_messages
                     WHERE status = 'unprocessed'
                     ORDER BY created_at ASC
                     LIMIT %s
                 """, (limit,))
                 return [dict(row) for row in cursor.fetchall()]
 
-    def update_message_status(self, message_id: int, status: str, 
+    def update_message_status(self, message_id: int, status: str,
                             error_message: str = None):
         """Update message processing status"""
         with self.get_connection() as conn:
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("""
-                    UPDATE raw_messages 
+                    UPDATE raw_messages
                     SET status = %s, error_message = %s
                     WHERE id = %s
                     """, (status, error_message, message_id))
@@ -148,7 +149,7 @@ class MessageRepository(BaseRepository):
             """, (group_id,))
             result = cursor.fetchone()
             return result['last_id'] if result and result['last_id'] is not None else 0
-            
+
     def get_raw_message_by_id(self, message_id: int) -> Optional[Dict]:
         """Get raw message by ID"""
         with self.get_connection() as conn:
@@ -157,279 +158,446 @@ class MessageRepository(BaseRepository):
             result = cursor.fetchone()
             return dict(result) if result else None
 
-class JobRepository(BaseRepository):
-    def add_processed_job(self, job_data: Dict, cursor=None) -> Optional[int]:
+class UnifiedJobRepository(BaseRepository):
+    """
+    Unified Job Repository that manages the 'jobs' table.
+    Replaces both JobRepository and DashboardRepository.
+    """
+    def add_job(self, job_data: Dict, source: str = 'telegram', cursor=None) -> Optional[int]:
         """
-        Add a processed job
-        
+        Add a job to the unified jobs table
+
         Args:
             job_data: Dictionary containing job information
-            cursor: Optional cursor for transaction handling. If provided, 
-                   the caller is responsible for committing.
-        
-        Returns:
-            Job ID if successful, None otherwise
+            source: 'telegram' or 'manual'
+            cursor: Optional cursor for transaction handling
         """
-        # If cursor is provided, use it (transaction mode)
+        sql = """
+            INSERT INTO jobs (
+                job_id, source, status, company_name, job_role, location, eligibility, salary,
+                jd_text, raw_message_id, email, phone, application_link, notes,
+                is_hidden, is_duplicate, duplicate_of_id, job_relevance, metadata, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (job_id) DO UPDATE SET
+                status = EXCLUDED.status,
+                company_name = COALESCE(EXCLUDED.company_name, jobs.company_name),
+                job_role = COALESCE(EXCLUDED.job_role, jobs.job_role),
+                location = COALESCE(EXCLUDED.location, jobs.location),
+                eligibility = COALESCE(EXCLUDED.eligibility, jobs.eligibility),
+                salary = COALESCE(EXCLUDED.salary, jobs.salary),
+                jd_text = COALESCE(EXCLUDED.jd_text, jobs.jd_text),
+                email = COALESCE(EXCLUDED.email, jobs.email),
+                phone = COALESCE(EXCLUDED.phone, jobs.phone),
+                application_link = COALESCE(EXCLUDED.application_link, jobs.application_link),
+                notes = COALESCE(EXCLUDED.notes, jobs.notes),
+                job_relevance = COALESCE(EXCLUDED.job_relevance, jobs.job_relevance),
+                metadata = jobs.metadata || EXCLUDED.metadata,
+                updated_at = NOW()
+            RETURNING id
+        """
+
+        # Prepare metadata
+        metadata = job_data.get('metadata', {})
+        if 'sheet_name' in job_data:
+            metadata['original_sheet'] = job_data['sheet_name']
+
+        values = (
+            job_data.get('job_id'),
+            source,
+            job_data.get('status', 'not_applied' if source == 'manual' else 'pending'),
+            job_data.get('company_name'),
+            job_data.get('job_role'),
+            job_data.get('location'),
+            job_data.get('eligibility'),
+            job_data.get('salary'),
+            job_data.get('jd_text'),
+            job_data.get('raw_message_id'),
+            job_data.get('email'),
+            job_data.get('phone'),
+            job_data.get('application_link'),
+            job_data.get('notes'),
+            job_data.get('is_hidden', False),
+            job_data.get('is_duplicate', False),
+            job_data.get('duplicate_of_id'),
+            job_data.get('job_relevance', 'relevant'),
+            Json(metadata)
+        )
+
         if cursor:
-            cursor.execute("""
-                INSERT INTO processed_jobs (
-                    raw_message_id, job_id, first_name, last_name, email,
-                    company_name, job_role, location, eligibility, application_link,
-                    application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
-                job_data.get('raw_message_id'),
-                job_data.get('job_id'),
-                job_data.get('first_name'),
-                job_data.get('last_name'),
-                job_data.get('email'),
-                job_data.get('company_name'),
-                job_data.get('job_role'),
-                job_data.get('location'),
-                job_data.get('eligibility'),
-                job_data.get('application_link'),
-                job_data.get('application_method'),
-                job_data.get('jd_text'),
-                job_data.get('email_subject'),
-                job_data.get('email_body'),
-                job_data.get('status'),
-                job_data.get('updated_at'),
-                job_data.get('is_hidden', False),
-                job_data.get('sheet_name')
-            ))
+            cursor.execute(sql, values)
             result = cursor.fetchone()
             return result['id'] if result else None
         else:
-            # Standalone mode - manage connection ourselves
             with self.get_connection() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("""
-                        INSERT INTO processed_jobs (
-                            raw_message_id, job_id, first_name, last_name, email,
-                            company_name, job_role, location, eligibility, application_link,
-                            application_method, jd_text, email_subject, email_body, status, updated_at, is_hidden, sheet_name
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id
-                    """, (
-                        job_data.get('raw_message_id'),
-                        job_data.get('job_id'),
-                        job_data.get('first_name'),
-                        job_data.get('last_name'),
-                        job_data.get('email'),
-                        job_data.get('company_name'),
-                        job_data.get('job_role'),
-                        job_data.get('location'),
-                        job_data.get('eligibility'),
-                        job_data.get('application_link'),
-                        job_data.get('application_method'),
-                        job_data.get('jd_text'),
-                        job_data.get('email_subject'),
-                        job_data.get('email_body'),
-                        job_data.get('status'),
-                        job_data.get('updated_at'),
-                        job_data.get('is_hidden', False),
-                        job_data.get('sheet_name')
-                    ))
-                    result = cursor.fetchone()
+                with conn.cursor() as cur:
+                    cur.execute(sql, values)
+                    result = cur.fetchone()
                 conn.commit()
                 return result['id'] if result else None
 
-    def mark_job_synced(self, job_id: str):
+    def get_jobs(self, source: Optional[str] = None,
+                 status: Optional[str] = None,
+                 relevance: Optional[str] = None,
+                 job_role: Optional[str] = None,
+                 include_hidden: bool = False,
+                 has_email: Optional[bool] = None,
+                 page: int = 1, page_size: int = 50,
+                 sort_by: str = 'created_at', sort_order: str = 'DESC') -> Dict:
+        """Unified method to fetch jobs with filtering and pagination"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                base_query = "FROM jobs WHERE 1=1"
+                params = []
+
+                if source:
+                    base_query += " AND source = %s"
+                    params.append(source)
+
+                if status:
+                    base_query += " AND status = %s"
+                    params.append(status)
+
+                if relevance:
+                    base_query += " AND job_relevance = %s"
+                    params.append(relevance)
+
+                if job_role:
+                    base_query += " AND job_role ILIKE %s"
+                    params.append(f"%{job_role}%")
+
+                if not include_hidden:
+                    base_query += " AND is_hidden = FALSE"
+
+                if has_email is not None:
+                    if has_email:
+                        base_query += " AND email IS NOT NULL AND email != ''"
+                    else:
+                        base_query += " AND (email IS NULL OR email = '')"
+
+                # Get total count
+                count_query = f"SELECT COUNT(*) {base_query}"
+                cursor.execute(count_query, tuple(params))
+                total_count = cursor.fetchone()['count']
+
+                # Sort mapping for safety
+                allowed_sort_cols = ['created_at', 'updated_at', 'job_role', 'company_name', 'status', 'job_relevance', 'id']
+                if sort_by not in allowed_sort_cols:
+                    sort_by = 'created_at'
+                if sort_order.upper() not in ['ASC', 'DESC']:
+                    sort_order = 'DESC'
+
+                # Get paginated results
+                data_query = f"SELECT * {base_query} ORDER BY {sort_by} {sort_order} LIMIT %s OFFSET %s"
+                offset = (page - 1) * page_size
+                params.extend([page_size, offset])
+                cursor.execute(data_query, tuple(params))
+
+                return {
+                    "jobs": [dict(row) for row in cursor.fetchall()],
+                    "total_count": total_count,
+                    "page": page,
+                    "page_size": page_size
+                }
+
+    def bulk_update_status(self, job_ids: Union[List[int], List[str]], status: str,
+                           archive: bool = False, notes: Optional[str] = None) -> int:
+        """Update status for multiple jobs at once"""
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    should_hide = archive or (status in ['rejected', 'archived'])
+
+                    sql = """
+                        UPDATE jobs
+                        SET status = %s,
+                            updated_at = NOW(),
+                            is_hidden = CASE WHEN %s THEN TRUE ELSE is_hidden END
+                    """
+                    params = [status, should_hide]
+
+                    if notes:
+                        sql += ", notes = %s"
+                        params.append(notes)
+
+                    # Handle both integer IDs and string job_ids
+                    if all(isinstance(x, int) for x in job_ids):
+                        sql += " WHERE id = ANY(%s)"
+                    else:
+                        sql += " WHERE job_id = ANY(%s)"
+
+                    params.append(list(job_ids))
+
+                    cursor.execute(sql, tuple(params))
+                    conn.commit()
+                    return cursor.rowcount
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Bulk update failed: {e}")
+                raise
+
+    def mark_job_synced(self, job_id: str, sheet_name: Optional[str] = None):
         """Mark job as synced to Google Sheets"""
         with self.get_connection() as conn:
             try:
                 with conn.cursor() as cursor:
-                    cursor.execute("""
-                        UPDATE processed_jobs
-                        SET synced_to_sheets = TRUE
-                        WHERE job_id = %s
-                    """, (job_id,))
-                conn.commit()
+                    if sheet_name:
+                        cursor.execute("""
+                            UPDATE jobs
+                            SET synced_to_sheets = TRUE,
+                                metadata = metadata || jsonb_build_object('last_sheet', %s),
+                                updated_at = NOW()
+                            WHERE job_id = %s
+                        """, (sheet_name, job_id))
+                    else:
+                        cursor.execute("""
+                            UPDATE jobs
+                            SET synced_to_sheets = TRUE, updated_at = NOW()
+                            WHERE job_id = %s
+                        """, (job_id,))
+                    conn.commit()
             except Exception as e:
                 conn.rollback()
                 self.logger.error(f"Failed to mark job as synced: {e}")
                 raise
 
-    def get_unsynced_jobs(self) -> List[Dict]:
-        """Get all processed jobs that have not been synced to Google Sheets."""
+    def get_unsynced_jobs(self, limit: int = 100) -> List[Dict]:
+        """Get all jobs that have not been synced to Google Sheets."""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM processed_jobs WHERE synced_to_sheets = FALSE ORDER BY created_at ASC')
-            return [dict(row) for row in cursor.fetchall()]
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM jobs
+                    WHERE synced_to_sheets = FALSE AND is_hidden = FALSE
+                    ORDER BY created_at ASC
+                    LIMIT %s
+                """, (limit,))
+                return [dict(row) for row in cursor.fetchall()]
 
-    def get_processed_job_by_id(self, job_id: str) -> Optional[Dict]:
-        """Get a single processed job by job_id for sheets sync"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (job_id,))
-            result = cursor.fetchone()
-            return dict(result) if result else None
-
-    def get_all_processed_jobs(self) -> List[Dict]:
-        """Get all processed jobs that are not hidden."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM processed_jobs WHERE is_hidden = FALSE ORDER BY created_at DESC')
-            return [dict(row) for row in cursor.fetchall()]
-
-    def get_jobs_by_sheet_name(self, sheet_name: str) -> List[Dict]:
-        """Get all processed jobs for a given sheet name that are not hidden."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM processed_jobs WHERE sheet_name = %s AND is_hidden = FALSE ORDER BY created_at DESC', (sheet_name,))
-            return [dict(row) for row in cursor.fetchall()]
-
-    def get_jobs_created_since(self, days: int) -> List[Dict]:
-        """Get jobs created in the last N days"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM processed_jobs 
-                WHERE created_at >= CURRENT_DATE - make_interval(days => %s)
-                ORDER BY created_at ASC
-            """, (days,))
-            return [dict(row) for row in cursor.fetchall()]
-
-    def hide_jobs(self, job_ids: List[str]) -> int:
+    def hide_jobs(self, job_ids: Union[List[int], List[str]]) -> int:
         """Mark a list of jobs as hidden."""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE processed_jobs
-                SET is_hidden = TRUE
-                WHERE job_id IN %s
-            """, (tuple(job_ids),))
-            conn.commit()
-            return cursor.rowcount
-            
+            try:
+                with conn.cursor() as cursor:
+                    if all(isinstance(x, int) for x in job_ids):
+                        cursor.execute("UPDATE jobs SET is_hidden = TRUE, updated_at = NOW() WHERE id = ANY(%s)", (list(job_ids),))
+                    else:
+                        cursor.execute("UPDATE jobs SET is_hidden = TRUE, updated_at = NOW() WHERE job_id = ANY(%s)", (list(job_ids),))
+                    conn.commit()
+                    return cursor.rowcount
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Hide jobs failed: {e}")
+                raise
+
     def get_jobs_today_stats(self) -> Dict:
         """Get statistics of jobs processed today"""
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT
-                    COUNT(id) as total,
-                    SUM(CASE WHEN application_method = 'email' THEN 1 ELSE 0 END) as with_email,
-                    SUM(CASE WHEN application_method != 'email' THEN 1 ELSE 0 END) as without_email
-                FROM processed_jobs
-                WHERE created_at::date = CURRENT_DATE
-            """)
-            stats = cursor.fetchone()
-            return {
-                "total": stats["total"] or 0,
-                "with_email": stats["with_email"] or 0,
-                "without_email": stats["without_email"] or 0,
-            }
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT
+                        COUNT(id) as total,
+                        SUM(CASE WHEN source = 'telegram' THEN 1 ELSE 0 END) as telegram,
+                        SUM(CASE WHEN source = 'manual' THEN 1 ELSE 0 END) as manual,
+                        SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email
+                    FROM jobs
+                    WHERE created_at::date = CURRENT_DATE
+                """)
+                stats = cursor.fetchone()
+                return {
+                    "total": stats["total"] or 0,
+                    "telegram": stats["telegram"] or 0,
+                    "manual": stats["manual"] or 0,
+                    "with_email": stats["with_email"] or 0,
+                }
 
-    def get_stats(self, days: int = 7) -> Dict:
-        """Get job statistics for the last N days."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT
-                    application_method, 
-                    COUNT(id) as count
-                FROM processed_jobs
-                WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
-                GROUP BY application_method
-            """, (days,))
-            by_method = {row['application_method']: row['count'] for row in cursor.fetchall()}
-
-            cursor.execute("""
-                SELECT
-                    company_name,
-                    COUNT(id) as count
-                FROM processed_jobs
-                WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
-                GROUP BY company_name
-                ORDER BY count DESC
-                LIMIT 5
-            """, (days,))
-            top_companies = {row['company_name']: row['count'] for row in cursor.fetchall()}
-
-            return {
-                "by_method": by_method,
-                "top_companies": top_companies,
-            }
-
-    def get_relevant_jobs(self, has_email: Optional[bool] = None) -> List[Dict]:
-        """Get relevant jobs (fresher-friendly) - NEW METHOD"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            if has_email is None:
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' ORDER BY created_at DESC")
-            elif has_email:
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' AND email IS NOT NULL AND email != '' ORDER BY created_at DESC")
-            else:
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'relevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC")
-            return [dict(row) for row in cursor.fetchall()]
-
-    def get_irrelevant_jobs(self, has_email: Optional[bool] = None) -> List[Dict]:
-        """Get irrelevant jobs (experienced required) - NEW METHOD"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            if has_email is None:
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' ORDER BY created_at DESC")
-            elif has_email:
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND email IS NOT NULL AND email != '' ORDER BY created_at DESC")
-            else:
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '') ORDER BY created_at DESC")
-            return [dict(row) for row in cursor.fetchall()]
-
-    def find_duplicate_processed_job(self, company_name: str, job_role: str, email: Optional[str]) -> Optional[Dict]:
-        """
-        Finds a duplicate job in the processed_jobs table.
-        A duplicate is found if (company_name and job_role match) OR (email matches).
-        """
-        if not company_name or not job_role:
-            # Not enough info for name/role check, can only check email if present
-            if not email:
-                return None
-        
+    def get_stats(self) -> Dict:
+        """Get comprehensive job statistics"""
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
-                # Check by company name and job role (case-insensitive)
-                if company_name and job_role:
-                    cursor.execute(
-                        """
-                        SELECT * FROM processed_jobs
-                        WHERE lower(company_name) = lower(%s) AND lower(job_role) = lower(%s)
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                        """,
-                        (company_name, job_role)
-                    )
-                    duplicate = cursor.fetchone()
-                    if duplicate:
-                        self.logger.info(f"Duplicate found by company/role: {company_name}/{job_role}")
-                        return dict(duplicate)
+                # By status
+                cursor.execute("SELECT status, COUNT(*) FROM jobs WHERE is_hidden = FALSE GROUP BY status")
+                by_status = {row['status'] or 'Unknown': row['count'] for row in cursor.fetchall()}
 
-                # Check by email if present (case-insensitive)
-                if email:
-                    cursor.execute(
-                        """
-                        SELECT * FROM processed_jobs
-                        WHERE lower(email) = lower(%s)
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                        """,
-                        (email,)
-                    )
-                    duplicate = cursor.fetchone()
-                    if duplicate:
-                        self.logger.info(f"Duplicate found by email: {email}")
-                        return dict(duplicate)
-        return None
-            
-    def get_original_job_data(self, source_job_id: str) -> Optional[Dict]:
-        """Get original processed job data by source job ID"""
+                # By relevance
+                cursor.execute("SELECT job_relevance, COUNT(*) FROM jobs WHERE is_hidden = FALSE GROUP BY job_relevance")
+                by_relevance = {row['job_relevance'] or 'Unknown': row['count'] for row in cursor.fetchall()}
+
+                # Total
+                cursor.execute("SELECT COUNT(*) FROM jobs WHERE is_hidden = FALSE")
+                total = cursor.fetchone()['count']
+
+                return {
+                    "total_jobs": total,
+                    "by_status": by_status,
+                    "by_relevance": by_relevance
+                }
+
+    def find_duplicate_job(self, company_name: str, job_role: str, email: Optional[str]) -> Optional[Dict]:
+        """Find duplicate jobs by company/role or email"""
+        if not company_name or not job_role:
+            if not email: return None
+
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (source_job_id,))
-            result = cursor.fetchone()
-            return dict(result) if result else None
+            with conn.cursor() as cursor:
+                if company_name and job_role:
+                    cursor.execute("""
+                        SELECT * FROM jobs
+                        WHERE lower(company_name) = lower(%s) AND lower(job_role) = lower(%s)
+                        ORDER BY created_at DESC LIMIT 1
+                    """, (company_name, job_role))
+                    dup = cursor.fetchone()
+                    if dup: return dict(dup)
+
+                if email:
+                    cursor.execute("""
+                        SELECT * FROM jobs
+                        WHERE lower(email) = lower(%s)
+                        ORDER BY created_at DESC LIMIT 1
+                    """, (email,))
+                    dup = cursor.fetchone()
+                    if dup: return dict(dup)
+        return None
+
+    def get_job_by_id(self, job_id: Union[int, str]) -> Optional[Dict]:
+        """Get job by internal ID or job_id string"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                if isinstance(job_id, int):
+                    cursor.execute("SELECT * FROM jobs WHERE id = %s", (job_id,))
+                else:
+                    cursor.execute("SELECT * FROM jobs WHERE job_id = %s", (job_id,))
+                result = cursor.fetchone()
+                return dict(result) if result else None
+
+    def archive_jobs_older_than(self, days: int) -> int:
+        """Archive old jobs"""
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE jobs
+                        SET is_hidden = TRUE, status = 'archived', updated_at = NOW()
+                        WHERE created_at < NOW() - make_interval(days => %s)
+                        AND is_hidden = FALSE
+                    """, (days,))
+                    conn.commit()
+                    return cursor.rowcount
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Archive failed: {e}")
+                raise
+
+    def get_relevant_jobs(self, has_email: Optional[bool] = None) -> List[Dict]:
+        """Get relevant jobs (fresher-friendly) - Compatibility wrapper"""
+        result = self.get_jobs(relevance='relevant', has_email=has_email, page_size=1000)
+        return result['jobs']
+
+    def get_irrelevant_jobs(self, has_email: Optional[bool] = None) -> List[Dict]:
+        """Get irrelevant jobs (experienced required) - Compatibility wrapper"""
+        result = self.get_jobs(relevance='irrelevant', has_email=has_email, page_size=1000)
+        return result['jobs']
+
+    def get_jobs_by_sheet_name(self, sheet_name: str) -> List[Dict]:
+        """Get jobs by original sheet name stored in metadata"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM jobs
+                    WHERE metadata->>'original_sheet' = %s AND is_hidden = FALSE
+                    ORDER BY created_at DESC
+                """, (sheet_name,))
+                return [dict(row) for row in cursor.fetchall()]
+
+    def add_processed_job(self, job_data: Dict, cursor=None) -> Optional[int]:
+        """Compatibility wrapper for telegram jobs"""
+        return self.add_job(job_data, source='telegram', cursor=cursor)
+
+    def add_dashboard_job(self, job_data: Dict, cursor=None) -> Optional[int]:
+        """Compatibility wrapper for manual/dashboard jobs"""
+        return self.add_job(job_data, source='manual', cursor=cursor)
+
+    def get_dashboard_jobs(self, **kwargs) -> Dict:
+        """Compatibility wrapper for dashboard job list"""
+        # Map old parameter names if necessary
+        status_filter = kwargs.get('status_filter') or kwargs.get('status')
+        relevance_filter = kwargs.get('relevance_filter') or kwargs.get('relevance')
+        job_role_filter = kwargs.get('job_role_filter') or kwargs.get('job_role')
+        include_archived = kwargs.get('include_archived', False)
+
+        return self.get_jobs(
+            status=status_filter,
+            relevance=relevance_filter,
+            job_role=job_role_filter,
+            include_hidden=include_archived,
+            page=kwargs.get('page', 1),
+            page_size=kwargs.get('page_size', 50),
+            sort_by=kwargs.get('sort_by', 'created_at'),
+            sort_order=kwargs.get('sort_order', 'DESC')
+        )
+
+    def add_job_notes(self, job_id: int, notes: str) -> bool:
+        """Add or update notes for a job"""
+        return self.bulk_update_status([job_id], status=None, notes=notes) > 0
+
+    def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
+        """
+        In the unified model, 'importing' means making sure jobs from a specific
+        Telegram 'sheet' are visible (not hidden) in the dashboard.
+        """
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE jobs
+                        SET is_hidden = FALSE, updated_at = NOW()
+                        WHERE metadata->>'original_sheet' = %s AND source = 'telegram'
+                        AND is_hidden = TRUE
+                    """, (sheet_name,))
+                    conn.commit()
+                    return cursor.rowcount
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Import from processed failed: {e}")
+                raise
+
+    def find_duplicate_processed_job(self, company_name: str, job_role: str, email: Optional[str]) -> Optional[Dict]:
+        """Compatibility wrapper"""
+        return self.find_duplicate_job(company_name, job_role, email)
+
+    def get_relevance_stats(self) -> Dict:
+        """Get relevance breakdown stats (formerly in web_server.py)"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                query = """
+                    SELECT
+                        COUNT(*) FILTER (WHERE job_relevance = 'relevant' AND email IS NOT NULL AND email != '') as relevant_with_email,
+                        COUNT(*) FILTER (WHERE job_relevance = 'relevant' AND (email IS NULL OR email = '')) as relevant_without_email,
+                        COUNT(*) FILTER (WHERE job_relevance = 'irrelevant' AND email IS NOT NULL AND email != '') as irrelevant_with_email,
+                        COUNT(*) FILTER (WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '')) as irrelevant_without_email
+                    FROM jobs
+                    WHERE is_hidden = FALSE
+                """
+                cursor.execute(query)
+                stats = cursor.fetchone()
+
+        relevant_total = stats['relevant_with_email'] + stats['relevant_without_email']
+        irrelevant_total = stats['irrelevant_with_email'] + stats['irrelevant_without_email']
+
+        return {
+            "relevant": {"total": relevant_total, "with_email": stats['relevant_with_email'], "without_email": stats['relevant_without_email']},
+            "irrelevant": {"total": irrelevant_total, "with_email": stats['irrelevant_with_email'], "without_email": stats['irrelevant_without_email']},
+            "total_jobs": relevant_total + irrelevant_total
+        }
+
+    def get_jobs_in_range(self, days: int) -> List[Dict]:
+        """Get jobs created in the last N days (for sync)"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM jobs
+                    WHERE created_at >= NOW() - make_interval(days => %s)
+                    ORDER BY created_at DESC
+                """, (days,))
+                return [dict(row) for row in cursor.fetchall()]
 
 class ConfigRepository(BaseRepository):
     def get_config(self, key: str) -> Optional[str]:
@@ -447,8 +615,8 @@ class ConfigRepository(BaseRepository):
             cursor.execute("""
                 INSERT INTO bot_config (key, value, updated_at)
                 VALUES (%s, %s, CURRENT_TIMESTAMP)
-                ON CONFLICT (key) DO UPDATE SET 
-                value = EXCLUDED.value, 
+                ON CONFLICT (key) DO UPDATE SET
+                value = EXCLUDED.value,
                 updated_at = EXCLUDED.updated_at
             """, (key, value))
             conn.commit()
@@ -464,11 +632,8 @@ class CommandRepository(BaseRepository):
                 ORDER BY created_at ASC
                 LIMIT %s
             """
-            self.logger.debug(f"Executing query: {query.strip()} with limit={limit}")
             cursor.execute(query, (limit,))
-            results = [dict(row) for row in cursor.fetchall()]
-            self.logger.debug(f"Query results: {results}")
-            return results
+            return [dict(row) for row in cursor.fetchall()]
 
     def list_all_pending_commands(self) -> List[Dict]:
         """Return all pending commands (no limit)."""
@@ -527,285 +692,3 @@ class CommandRepository(BaseRepository):
             """, (command_id,))
             conn.commit()
             return cursor.rowcount > 0
-
-class DashboardRepository(BaseRepository):
-    def add_dashboard_job(self, job_data: Dict, cursor=None) -> Optional[int]:
-        """
-        Add a job to the dashboard_jobs table
-        
-        Args:
-            job_data: Dictionary containing job information
-            cursor: Optional cursor for transaction handling
-        """
-        sql = """
-            INSERT INTO dashboard_jobs (
-                source_job_id, original_sheet, company_name, job_role, location,
-                application_link, phone, recruiter_name, job_relevance, original_created_at,
-                application_status, application_date, notes, is_duplicate, duplicate_of_id, conflict_status, salary
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """
-        values = (
-            job_data.get('source_job_id'),
-            job_data.get('original_sheet'),
-            job_data.get('company_name'),
-            job_data.get('job_role'),
-            job_data.get('location'),
-            job_data.get('application_link'),
-            job_data.get('phone'),
-            job_data.get('recruiter_name'),
-            job_data.get('job_relevance'),
-            job_data.get('original_created_at'),
-            job_data.get('application_status', 'not_applied'),
-            job_data.get('application_date'),
-            job_data.get('notes'),
-            job_data.get('is_duplicate', False),
-            job_data.get('duplicate_of_id'),
-            job_data.get('conflict_status', 'none'),
-            job_data.get('salary')
-        )
-        
-        if cursor:
-            cursor.execute(sql, values)
-            result = cursor.fetchone()
-            return result['id'] if result else None
-        else:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, values)
-                    result = cur.fetchone()
-                conn.commit()
-                return result['id'] if result else None
-
-    def get_dashboard_jobs(self, status_filter: Optional[str] = None,
-                          relevance_filter: Optional[str] = None,
-                          job_role_filter: Optional[str] = None,
-                          include_archived: bool = False,
-                          page: int = 1, page_size: int = 50,
-                          sort_by: str = 'created_at', sort_order: str = 'DESC') -> Dict:
-        """Get dashboard jobs with optional filtering and sorting"""
-        with self.get_connection() as conn:
-            with conn.cursor() as cursor:
-                base_query = "FROM dashboard_jobs WHERE 1=1"
-                params = []
-                
-                if status_filter:
-                    base_query += " AND application_status = %s"
-                    params.append(status_filter)
-                
-                if relevance_filter:
-                    base_query += " AND job_relevance = %s"
-                    params.append(relevance_filter)
-                
-                if job_role_filter:
-                    base_query += " AND job_role ILIKE %s"
-                    params.append(f"%{job_role_filter}%")
-                
-                if not include_archived:
-                    base_query += " AND is_hidden = FALSE"
-                
-                # Get total count for pagination
-                count_query = f"SELECT COUNT(*) {base_query}"
-                cursor.execute(count_query, tuple(params))
-                total_count = cursor.fetchone()['count']
-                
-                # Validate sort columns to prevent SQL injection
-                allowed_sort_cols = ['created_at', 'job_role', 'company_name', 'application_status', 'job_relevance', 'application_link', 'original_created_at']
-                if sort_by not in allowed_sort_cols:
-                    sort_by = 'created_at'
-                if sort_order.upper() not in ['ASC', 'DESC']:
-                    sort_order = 'DESC'
-
-                # Get paginated results
-                data_query = f"SELECT * {base_query} ORDER BY {sort_by} {sort_order} LIMIT %s OFFSET %s"
-                offset = (page - 1) * page_size
-                params.extend([page_size, offset])
-                cursor.execute(data_query, tuple(params))
-                
-                return {
-                    "jobs": [dict(row) for row in cursor.fetchall()],
-                    "total_count": total_count,
-                    "page": page,
-                    "page_size": page_size
-                }
-
-    def archive_jobs_older_than(self, days: int) -> int:
-        """Archive jobs older than N days that are not already archived/hidden"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE dashboard_jobs
-                SET is_hidden = TRUE, application_status = 'archived', updated_at = CURRENT_TIMESTAMP
-                WHERE created_at < CURRENT_DATE - INTERVAL '%s days'
-                AND is_hidden = FALSE
-            """, (days,))
-            conn.commit()
-            return cursor.rowcount
-
-    def add_job_notes(self, job_id: int, notes: str) -> bool:
-        """Add or update notes for a job"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE dashboard_jobs
-                SET notes = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-            """, (notes, job_id))
-            conn.commit()
-            return cursor.rowcount > 0
-
-    def mark_as_duplicate(self, job_id: int, duplicate_of_id: int, confidence_score: float = 0.8) -> bool:
-        """Mark a job as duplicate of another job"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Update the job record
-            cursor.execute("""
-                UPDATE dashboard_jobs
-                SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-            """, (duplicate_of_id, job_id))
-            
-            # Add to duplicate groups table (cast array to JSON)
-            cursor.execute("""
-                INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
-                VALUES (%s, %s::jsonb, %s)
-            """, (duplicate_of_id, f'["{job_id}"]', confidence_score))
-            
-            conn.commit()
-            return cursor.rowcount > 0
-
-    def bulk_update_status(self, job_ids: List[int], status: str,
-                          application_date: Optional[str] = None, archive: bool = False) -> int:
-        """Update status for multiple jobs at once"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            final_status = status
-            should_hide = archive or (status in ['applied', 'rejected', 'archived'])
-
-            cursor.execute("""
-                UPDATE dashboard_jobs
-                SET application_status = %s, application_date = %s, updated_at = CURRENT_TIMESTAMP, is_hidden = %s
-                WHERE id = ANY(%s)
-            """, (final_status, application_date, should_hide, job_ids))
-            conn.commit()
-            return cursor.rowcount
-
-    def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
-        """Import non-email jobs from processed_jobs to dashboard_jobs"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = """
-                SELECT pj.* FROM processed_jobs pj
-                LEFT JOIN dashboard_jobs dj ON pj.job_id = dj.source_job_id
-                WHERE dj.id IS NULL
-                AND pj.sheet_name = %s
-                AND pj.is_hidden = FALSE
-                ORDER BY pj.created_at DESC
-                LIMIT %s
-            """
-            params = (sheet_name, max_jobs)
-
-            cursor.execute(query, params)
-            jobs = [dict(row) for row in cursor.fetchall()]
-            
-            imported_count = 0
-            for job in jobs:
-                dashboard_job = {
-                    'source_job_id': job['job_id'],
-                    'original_sheet': sheet_name,
-                    'company_name': job['company_name'],
-                    'job_role': job['job_role'],
-                    'location': job['location'],
-                    'application_link': job['application_link'],
-                    'phone': job.get('phone'),
-                    'recruiter_name': job.get('recruiter_name'),
-                    'job_relevance': job.get('job_relevance', 'relevant'),
-                    'original_created_at': job['created_at'],
-                    'application_status': 'not_applied',
-                    'salary': job.get('salary')
-                }
-                
-                job_id = self.add_dashboard_job(dashboard_job, cursor=cursor)
-                if job_id:
-                    imported_count += 1
-            
-            conn.commit()
-            return imported_count
-
-    def detect_duplicate_jobs(self) -> int:
-        """Detect duplicate jobs in dashboard_jobs table"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = """
-                WITH potential_duplicates AS (
-                    SELECT
-                        id, company_name, job_role,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY LOWER(TRIM(company_name)), LOWER(TRIM(job_role))
-                            ORDER BY created_at
-                        ) as rn
-                    FROM dashboard_jobs
-                    WHERE is_duplicate = FALSE
-                )
-                SELECT id, company_name, job_role, rn
-                FROM potential_duplicates
-                WHERE rn > 1
-            """
-            
-            cursor.execute(query)
-            duplicates = cursor.fetchall()
-            
-            detected_count = 0
-            for duplicate in duplicates:
-                if duplicate['rn'] > 1:
-                    try:
-                        cursor.execute("""
-                            INSERT INTO job_duplicate_groups (primary_job_id, duplicate_jobs, confidence_score)
-                            VALUES (%s, %s::jsonb, %s)
-                        """, (None, f'["{duplicate["id"]}"]', 0.9))
-                        
-                        cursor.execute("""
-                            UPDATE dashboard_jobs
-                            SET is_duplicate = TRUE, duplicate_of_id = %s, updated_at = CURRENT_TIMESTAMP
-                            WHERE id = %s
-                        """, (None, duplicate['id']))
-                        
-                        detected_count += 1
-                    except Exception as e:
-                        self.logger.error(f"Error marking duplicate job {duplicate['id']}: {e}")
-            
-            conn.commit()
-            return detected_count
-
-    def export_dashboard_jobs(self, format_type: str = 'csv') -> Dict:
-        """Export dashboard jobs to CSV format"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT
-                    company_name, job_role, location, application_link, phone,
-                    job_relevance, application_status, application_date, notes, created_at, salary
-                FROM dashboard_jobs
-                ORDER BY created_at DESC
-            """)
-            jobs = [dict(row) for row in cursor.fetchall()]
-            
-            return {
-                'format': format_type,
-                'count': len(jobs),
-                'data': jobs,
-                'columns': ['company_name', 'job_role', 'location', 'application_link', 'phone',
-                           'job_relevance', 'application_status', 'application_date', 'notes', 'created_at', 'salary']
-            }
-
-    def get_dashboard_job_by_id(self, job_id: int) -> Optional[Dict]:
-        """Get a specific dashboard job by ID"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM dashboard_jobs WHERE id = %s", (job_id,))
-            result = cursor.fetchone()
-            return dict(result) if result else None

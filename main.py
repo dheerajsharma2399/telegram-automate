@@ -201,11 +201,11 @@ async def process_jobs(context=None):
                         logger.info(f"Duplicate job found for '{processed_data.get('company_name')}' - '{processed_data.get('job_role')}'. Original job ID: {duplicate_job['job_id']}. Skipping.")
                         continue
 
-                    # Add to processed_jobs table
+                    # Add to jobs table
                     job_id = db.jobs.add_processed_job(processed_data)
 
                     if not job_id:
-                        logger.error(f"Failed to add job to processed_jobs table")
+                        logger.error(f"Failed to add job to database")
                         continue
 
                     logger.info(f"✅ Job saved successfully: {processed_data.get('company_name')} (ID: {job_id})")
@@ -231,11 +231,11 @@ async def process_jobs(context=None):
                             with db.get_connection() as conn:
                                 with conn.cursor() as cursor:
                                     cursor.execute(
-                                        "SELECT id FROM dashboard_jobs WHERE source_job_id = %s",
+                                        "SELECT id FROM jobs WHERE job_id = %s",
                                         (processed_data.get('job_id'),)
                                     )
                                     if not cursor.fetchone():
-                                        dashboard_id = db.dashboard.add_dashboard_job(dashboard_job_data)
+                                        dashboard_id = db.jobs.add_dashboard_job(dashboard_job_data)
                                         if dashboard_id:
                                             logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
                         except Exception as e:

@@ -111,7 +111,7 @@ class TestDatabaseRepositories(unittest.TestCase):
 
     def test_mark_job_synced_with_rollback(self):
         """Test that mark_job_synced rolls back on error"""
-        from database_repositories import JobRepository
+        from database_repositories import UnifiedJobRepository
 
         mock_pool = MagicMock()
         mock_conn = MagicMock()
@@ -120,7 +120,7 @@ class TestDatabaseRepositories(unittest.TestCase):
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.execute.side_effect = Exception("Database error")
 
-        repo = JobRepository(mock_pool)
+        repo = UnifiedJobRepository(mock_pool)
 
         with patch.object(repo, 'get_connection') as mock_get_conn:
             mock_get_conn.return_value.__enter__.return_value = mock_conn

@@ -316,28 +316,8 @@ def api_irrelevant_jobs():
 def api_jobs_stats():
     """Get job statistics including relevance breakdown"""
     try:
-        with db.get_connection() as conn:
-            with conn.cursor() as cursor:
-                # Use COUNT for efficiency
-                query = """
-                    SELECT
-                        COUNT(*) FILTER (WHERE job_relevance = 'relevant' AND email IS NOT NULL AND email != '') as relevant_with_email,
-                        COUNT(*) FILTER (WHERE job_relevance = 'relevant' AND (email IS NULL OR email = '')) as relevant_without_email,
-                        COUNT(*) FILTER (WHERE job_relevance = 'irrelevant' AND email IS NOT NULL AND email != '') as irrelevant_with_email,
-                        COUNT(*) FILTER (WHERE job_relevance = 'irrelevant' AND (email IS NULL OR email = '')) as irrelevant_without_email
-                    FROM processed_jobs
-                """
-                cursor.execute(query)
-                stats = cursor.fetchone()
-
-        relevant_total = stats['relevant_with_email'] + stats['relevant_without_email']
-        irrelevant_total = stats['irrelevant_with_email'] + stats['irrelevant_without_email']
-
-        return jsonify({
-            "relevant": {"total": relevant_total, "with_email": stats['relevant_with_email'], "without_email": stats['relevant_without_email']},
-            "irrelevant": {"total": irrelevant_total, "with_email": stats['irrelevant_with_email'], "without_email": stats['irrelevant_without_email']},
-            "total_jobs": relevant_total + irrelevant_total
-        })
+        stats = db.jobs.get_relevance_stats()
+        return jsonify(stats)
     except Exception as e:
         logging.error(f"Failed to fetch job stats: {e}")
         return jsonify({"error": str(e)}), 500
@@ -385,15 +365,8 @@ def api_advanced_sheets_sync():
             return jsonify({"error": "Google Sheets not configured"}), 500
 
         # 1. Fetch ALL jobs from DB in the time range (ignore sync status)
-        with db.get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT * FROM processed_jobs
-                    WHERE created_at >= NOW() - make_interval(days => %s)
-                    ORDER BY created_at DESC
-                """, (days,))
-                jobs = [dict(row) for row in cursor.fetchall()]
-        
+        jobs = db.jobs.get_jobs_in_range(days)
+
         if not jobs:
             return jsonify({"message": "No jobs found in the specified period", "synced_count": 0})
 
@@ -435,19 +408,8 @@ def api_advanced_sheets_sync():
             try:
                 if sheets_sync.sync_job(job):
                     # Mark as synced in database
-                    with db.get_connection() as conn:
-                        try:
-                            with conn.cursor() as cursor:
-                                cursor.execute("""
-                                    UPDATE processed_jobs 
-                                    SET synced_to_sheets = TRUE, sheet_name = %s 
-                                    WHERE job_id = %s
-                                """, (sheet_name, job_id))
-                            conn.commit()
-                        except Exception as e:
-                            conn.rollback()
-                            logging.error(f"Failed to mark job {job_id} as synced: {e}")
-                    
+                    db.jobs.mark_job_synced(job_id, sheet_name=sheet_name)
+
                     # Add to existing IDs to avoid duplicate checks
                     if sheet_name in existing_ids:
                         existing_ids[sheet_name].add(job_id)
@@ -497,7 +459,7 @@ def get_dashboard_jobs():
         sort_order = request.args.get('sort_order', 'DESC')
         
         # Correctly call the repository method
-        result = db.dashboard.get_dashboard_jobs(
+        result = db.jobs.get_dashboard_jobs(
             status_filter=status_filter,
             relevance_filter=relevance_filter,
             job_role_filter=job_role_filter,
@@ -530,7 +492,7 @@ def archive_jobs_older_than():
         except ValueError:
             return jsonify({"error": "days must be a non-negative integer"}), 400
             
-        archived_count = db.dashboard.archive_jobs_older_than(days)
+        archived_count = db.jobs.archive_jobs_older_than(days)
         
         return jsonify({
             "message": f"Archived {archived_count} jobs older than {days} days",
@@ -559,7 +521,7 @@ def add_job_to_dashboard():
         data.setdefault('conflict_status', 'none')
         data.setdefault('is_duplicate', False)
         
-        job_id = db.dashboard.add_dashboard_job(data)
+        job_id = db.jobs.add_dashboard_job(data)
         if job_id:
             return jsonify({
                 "message": "Job added to dashboard successfully",
@@ -589,7 +551,7 @@ def update_job_status(job_id):
             return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
         
         # Use bulk_update_status for consistency, treating a single update as a bulk update of one
-        updated_count = db.dashboard.bulk_update_status([job_id], status, application_date, archive=archive)
+        updated_count = db.jobs.bulk_update_status([job_id], status, archive=archive)
 
         if updated_count > 0:
             return jsonify({"message": f"Job status updated to {status}"})
@@ -610,7 +572,7 @@ def add_job_notes(job_id):
         if not notes:
             return jsonify({"error": "Notes cannot be empty"}), 400
         
-        success = db.dashboard.add_job_notes(job_id, notes)
+        success = db.jobs.add_job_notes(job_id, notes)
         if success:
             return jsonify({"message": "Notes added successfully"})
         else:
@@ -646,7 +608,7 @@ def bulk_update_status():
         if status not in valid_statuses:
             return jsonify({"error": f"Invalid status. Must be one of: {valid_statuses}"}), 400
         
-        updated_count = db.dashboard.bulk_update_status(job_ids, status, application_date, archive=archive)
+        updated_count = db.jobs.bulk_update_status(job_ids, status, archive=archive)
         return jsonify({
             "message": f"Updated {updated_count} jobs to {status}",
             "updated_count": updated_count
@@ -667,7 +629,7 @@ def import_jobs_from_sheets():
         if sheet_name != 'non-email':
             return jsonify({"error": "Currently only 'non-email' sheet is supported"}), 400
         
-        imported_count = db.dashboard.import_jobs_from_processed(sheet_name, max_jobs)
+        imported_count = db.jobs.import_jobs_from_processed(sheet_name, max_jobs)
         
         return jsonify({
             "message": f"Imported {imported_count} jobs from {sheet_name} sheet",
@@ -683,15 +645,9 @@ def get_detected_duplicates():
     """Get detected duplicate jobs"""
     try:
         # Simple query to get duplicate jobs
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM dashboard_jobs
-                WHERE is_duplicate = TRUE
-                ORDER BY created_at DESC
-            """)
-            duplicates = [dict(row) for row in cursor.fetchall()]
-        
+        result = db.jobs.get_jobs(include_hidden=True, page_size=1000)
+        duplicates = [j for j in result['jobs'] if j.get('is_duplicate')]
+
         return jsonify({
             "duplicates": duplicates,
             "count": len(duplicates)
@@ -712,7 +668,7 @@ def mark_as_duplicate_endpoint(job_id):
         if not duplicate_of_id:
             return jsonify({"error": "duplicate_of_id is required"}), 400
         
-        success = db.dashboard.mark_as_duplicate(job_id, duplicate_of_id, confidence_score)
+        success = db.jobs.mark_as_duplicate(job_id, duplicate_of_id, confidence_score)
         if success:
             return jsonify({"message": "Job marked as duplicate"})
         else:
@@ -726,7 +682,7 @@ def mark_as_duplicate_endpoint(job_id):
 def detect_duplicates_endpoint():
     """Detect duplicate jobs in dashboard"""
     try:
-        detected_count = db.dashboard.detect_duplicate_jobs()
+        detected_count = db.jobs.detect_duplicate_jobs()
         return jsonify({
             "message": f"Detected {detected_count} potential duplicates",
             "detected_count": detected_count
@@ -741,7 +697,7 @@ def export_dashboard_jobs():
     """Export dashboard jobs to CSV format"""
     try:
         format_type = request.args.get('format', 'csv')
-        export_data = db.dashboard.export_dashboard_jobs(format_type)
+        export_data = db.jobs.export_jobs()
         
         if format_type == 'csv':
             # For now, return JSON with CSV data
@@ -757,39 +713,8 @@ def export_dashboard_jobs():
 def get_dashboard_stats():
     """Get dashboard job statistics"""
     try:
-        with db.get_connection() as conn:
-            with conn.cursor() as cursor:
-                # Total jobs
-                cursor.execute("SELECT COUNT(*) as total FROM dashboard_jobs WHERE is_hidden = FALSE")
-                total_jobs = cursor.fetchone()['total']
-
-                # By status
-                cursor.execute("""
-                    SELECT application_status, COUNT(*) as count
-                    FROM dashboard_jobs WHERE is_hidden = FALSE
-                    GROUP BY application_status
-                """)
-                by_status = {row['application_status'] or 'Unknown': row['count'] for row in cursor.fetchall()}
-
-                # By relevance
-                cursor.execute("""
-                    SELECT job_relevance, COUNT(*) as count
-                    FROM dashboard_jobs WHERE is_hidden = FALSE
-                    GROUP BY job_relevance
-                """)
-                by_relevance = {row['job_relevance'] or 'Unknown': row['count'] for row in cursor.fetchall()}
-
-        return jsonify({
-            "total_jobs": total_jobs,
-            "by_status": by_status,
-            "by_relevance": by_relevance,
-            "relevant": {
-                "total": by_relevance.get('relevant', 0)
-            },
-            "irrelevant": {
-                "total": by_relevance.get('irrelevant', 0)
-            }
-        })
+        stats = db.jobs.get_stats()
+        return jsonify(stats)
         
     except Exception as e:
         logging.error(f"Failed to get dashboard stats: {e}")
@@ -799,41 +724,16 @@ def get_dashboard_stats():
 def get_dashboard_job_message(job_id: int):
     """Get the original raw message and job description for a dashboard job"""
     try:
-        # Get the dashboard job
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM dashboard_jobs WHERE id = %s", (job_id,))
-            job = cursor.fetchone()
-            
-            if not job:
-                return jsonify({"error": "Job not found"}), 404
-            
-            job = dict(job)
-            
-            # Get the original processed job if source_job_id exists
-            original_job = None
-            raw_message = None
-            
-            if job.get('source_job_id'):
-                # Get original processed job
-                cursor.execute("SELECT * FROM processed_jobs WHERE job_id = %s", (job['source_job_id'],))
-                original_job = cursor.fetchone()
-                if original_job:
-                    original_job = dict(original_job)
-                
-                # Get raw message if raw_message_id exists in processed job
-                if original_job and original_job.get('raw_message_id'):
-                    cursor.execute("SELECT * FROM raw_messages WHERE id = %s", (original_job['raw_message_id'],))
-                    raw_message = cursor.fetchone()
-                    if raw_message:
-                        raw_message = dict(raw_message)
-            
-            return jsonify({
-                "dashboard_job": job,
-                "original_job": original_job,
-                "raw_message": raw_message
-            })
-            
+        # Get the job details using unified repo
+        details = db.jobs.get_job_details_with_message(job_id)
+        if not details:
+            return jsonify({"error": "Job not found"}), 404
+
+        return jsonify({
+            "dashboard_job": details.get('job'),
+            "original_job": details.get('job'), # In unified model, they are the same
+            "raw_message": details.get('raw_message')
+        })
     except Exception as e:
         logging.error(f"Failed to get job message for job {job_id}: {e}")
         return jsonify({"error": str(e)}), 500
