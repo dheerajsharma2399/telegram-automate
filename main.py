@@ -300,6 +300,14 @@ async def scheduled_fetch_and_process(monitor):
         session_string = db.auth.get_telegram_session()
         if not session_string:
             logger.warning("No Telegram session found. Skipping fetch.")
+            # Ensure DB reflects reality
+            db.config.set_config('monitoring_status', 'stopped')
+            db.auth.set_telegram_login_status('not_authenticated')
+            
+            # Still process backlog
+            logger.info("Triggering process_jobs() for remaining queue before exit...")
+            await process_jobs()
+            await sync_sheets_automatically()
             return
 
         if not monitor.client or not monitor.client.is_connected():
@@ -310,7 +318,15 @@ async def scheduled_fetch_and_process(monitor):
             await monitor.client.connect()
 
         if not await monitor.client.is_user_authorized():
-            logger.error("Telegram session invalid/expired.")
+            logger.error("Telegram session invalid/expired. Updating database to reflect dropped auth.")
+            db.config.set_config('monitoring_status', 'stopped')
+            db.auth.set_telegram_login_status('not_authenticated')
+            db.auth.set_telegram_session('')
+            
+            # Process any remaining backlog
+            logger.info("Triggering process_jobs() for remaining queue before exit...")
+            await process_jobs()
+            await sync_sheets_automatically()
             return
 
         logger.info("Fetching messages from last 10 minutes...")
