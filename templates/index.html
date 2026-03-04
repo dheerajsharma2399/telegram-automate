@@ -1542,7 +1542,8 @@
                 jobs: 'Jobs',
                 queue: 'Message Queue',
                 analytics: 'Analytics',
-                settings: 'Settings'
+                settings: 'Settings',
+                logs: 'Logs'
             };
             pageTitle.textContent = titles[view] || 'Dashboard';
 
@@ -1994,6 +1995,30 @@
         document.getElementById('refresh-btn').addEventListener('click', () => {
             loadView(currentView);
             showToast('Data refreshed', 'success');
+        });
+
+        // Process Queue Button
+        document.getElementById('process-queue-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('process-queue-btn');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: 'process' })
+                });
+                const data = await res.json();
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                if (res.ok) showToast('Processing triggered', 'success');
+                else showToast(data.error || 'Failed to trigger processing', 'error');
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                showToast(e.message, 'error');
+            }
         });
 
         // Search
