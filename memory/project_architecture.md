@@ -201,6 +201,68 @@ This classification drives Google Sheets routing (historically) and dashboard fi
 
 ---
 
+## Security
+
+### API Key Authentication
+
+Sensitive API endpoints are protected with the `@require_api_key` decorator. This decorator:
+- Checks for `X-API-Key` header in incoming requests
+- Compares against `API_KEY` environment variable
+- Returns 401 Unauthorized if key is missing or invalid
+- Is optional — if `API_KEY` is not set in environment, authentication is bypassed (backward compatible)
+
+**Protected endpoints** (14 total):
+- All `/api/dashboard/*` endpoints (except `/api/dashboard/jobs` GET)
+- `/api/restart`
+- `/api/command`
+- `/api/sheets/sync`
+- `/api/telegram/signin`
+- `/api/telegram/fetch-historical`
+- `/api/dashboard/archive`
+- `/api/dashboard/import`
+- `/api/dashboard/export`
+
+### XSS Protection
+
+The web dashboard uses `escapeHtml()` function to sanitize all user-generated content before rendering:
+- All job data from database
+- All message text from Telegram
+- All API responses rendered via innerHTML
+- Company names, roles, locations, notes, etc.
+
+The function is applied in 28+ locations throughout the JavaScript code.
+
+### PID Lock
+
+The worker process uses atomic file locking (`fcntl.flock()`) to prevent multiple instances from running simultaneously. This prevents duplicate job processing and resource exhaustion.
+
+---
+
+## Accessibility
+
+The dashboard implements WCAG-compliant accessibility features:
+
+### Touch Targets
+- Minimum touch target size: 44px (increased from 32px)
+- All buttons, links, and interactive elements meet the requirement
+
+### Visual Contrast
+- Text contrast ratio: `#64748b` (improved from `#94a3b8`)
+- All interactive elements have sufficient contrast
+- High contrast mode support via CSS media query
+
+### Motion
+- Respects `prefers-reduced-motion` media query
+- Animations are disabled for users who prefer reduced motion
+- Loading states use minimal animation
+
+### Focus States
+- All interactive elements have `:focus-visible` styling
+- Keyboard navigation is fully supported
+- Focus order is logical and intuitive
+
+---
+
 ## Startup Sequence
 
 ```
