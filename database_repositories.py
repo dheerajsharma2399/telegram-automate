@@ -152,7 +152,7 @@ class MessageRepository(BaseRepository):
                         UPDATE raw_messages
                         SET status = 'unprocessed', error_message = 'Reset from stuck processing state'
                         WHERE status = 'processing'
-                          AND updated_at < NOW() - INTERVAL '%s minutes'
+                          AND created_at < NOW() - INTERVAL '%s minutes'
                     """, (stuck_minutes,))
                     count = cursor.rowcount
                 conn.commit()

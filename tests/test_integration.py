@@ -14,7 +14,8 @@ class TestMessageProcessingPipeline(unittest.TestCase):
     
     @patch('main.db')
     @patch('main.llm_processor')
-    def test_process_jobs_workflow(self, mock_llm, mock_db):
+    @patch('main.get_sheets_sync', return_value=None)
+    def test_process_jobs_workflow(self, mock_sheets, mock_llm, mock_db):
         """Test complete job processing workflow"""
         # Setup mocks
         mock_db.messages.get_unprocessed_messages.return_value = [

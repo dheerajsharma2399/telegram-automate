@@ -20,6 +20,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+playwright = pytest.importorskip("playwright", reason="playwright not installed; skipping browser tests")
+
 # ---------------------------------------------------------------------------
 # Mock missing optional packages before any import of web_server
 # ---------------------------------------------------------------------------
