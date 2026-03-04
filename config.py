@@ -14,7 +14,21 @@ TELEGRAM_GROUP_USERNAMES = [s.strip() for s in os.getenv('TELEGRAM_GROUP_USERNAM
 if not TELEGRAM_GROUP_USERNAMES and TELEGRAM_GROUP_USERNAME:
 	TELEGRAM_GROUP_USERNAMES = [TELEGRAM_GROUP_USERNAME]
 
-AUTHORIZED_USER_IDS = [int(x) for x in os.getenv('AUTHORIZED_USER_IDS', '').split(',') if x]
+# Parse AUTHORIZED_USER_IDS with error handling for invalid values
+def _parse_user_ids():
+    raw = os.getenv('AUTHORIZED_USER_IDS', '')
+    user_ids = []
+    for x in raw.split(','):
+        x = x.strip()
+        if x:
+            try:
+                user_ids.append(int(x))
+            except ValueError:
+                import logging
+                logging.getLogger(__name__).warning(f"Invalid user ID in AUTHORIZED_USER_IDS: {x!r}")
+    return user_ids
+
+AUTHORIZED_USER_IDS = _parse_user_ids()
 ADMIN_USER_ID = os.getenv('ADMIN_USER_ID')
 
 # OpenRouter Configuration

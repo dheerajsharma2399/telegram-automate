@@ -1,4 +1,5 @@
 import asyncio
+import fcntl
 import logging
 import os
 import sys
@@ -63,46 +64,35 @@ def get_sheets_sync():
 
 # --- Lock Management ---
 
+_lock_fd = None
+
 def check_bot_instance():
-    """Check if another bot instance is already running"""
+    """Check if another bot instance is already running using atomic file locking"""
+    global _lock_fd
     lock_file = os.path.join(tempfile.gettempdir(), 'telegram_bot.lock')
-
+    
     try:
-        if os.path.exists(lock_file):
-            with open(lock_file, 'r') as f:
-                old_pid = f.read().strip()
-            logger.warning(f"Bot lock file exists. Old PID: {old_pid}")
-            # Try to verify if the old process is still running
-            try:
-                if os.name == 'posix':
-                    os.kill(int(old_pid), 0)  # Signal 0 just checks if process exists
-                    logger.error("Old bot instance still running. Aborting.")
-                    return False
-                else:
-                    logger.warning("Removing stale lock file on Windows")
-                    os.remove(lock_file)
-            except (OSError, ProcessLookupError, ValueError):
-                os.remove(lock_file)
-                logger.info("Removed stale lock file")
-
-        with open(lock_file, 'w') as f:
-            f.write(str(os.getpid()))
+        _lock_fd = open(lock_file, 'w')
+        # Try to acquire exclusive lock (non-blocking)
+        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_fd.write(str(os.getpid()))
+        _lock_fd.flush()
         logger.info(f"Created bot lock file with PID: {os.getpid()}")
         return True
-
-    except Exception as e:
-        logger.error(f"Could not manage bot lock file: {e}")
+    except (IOError, OSError) as e:
+        logger.error(f"Another bot instance is running (lock held): {e}")
         return False
 
 def cleanup_bot_instance():
     """Clean up bot instance lock"""
-    lock_file = os.path.join(tempfile.gettempdir(), 'telegram_bot.lock')
-    try:
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
-            logger.info("Cleaned up bot lock file")
-    except Exception as e:
-        logger.error(f"Could not remove lock file: {e}")
+    global _lock_fd
+    if _lock_fd:
+        try:
+            fcntl.flock(_lock_fd, fcntl.LOCK_UN)
+            _lock_fd.close()
+            logger.info("Released bot lock file")
+        except Exception as e:
+            logger.error(f"Could not release lock: {e}")
 
 # --- Core Logic ---
 

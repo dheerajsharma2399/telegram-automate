@@ -35,16 +35,18 @@ app = Flask(__name__)
 db = Database(DATABASE_URL) if DATABASE_URL else None
 llm_processor = LLMProcessor(OPENROUTER_API_KEYS, OPENROUTER_MODELS, OPENROUTER_FALLBACK_MODELS) if OPENROUTER_API_KEYS else None
 sheets_sync = None
+_sheets_lock = threading.Lock()
 
 def get_sheets_sync():
     global sheets_sync
     if sheets_sync is None and GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID:
-        try:
-            # Use MultiSheetSync to support additional sheets
-            sheets_sync = MultiSheetSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, ADDITIONAL_SPREADSHEET_IDS)
-        except Exception as e:
-            logging.error(f"Failed to initialize Sheets Sync: {e}")
-            pass
+        with _sheets_lock:
+            if sheets_sync is None:  # Double-checked locking
+                try:
+                    # Use MultiSheetSync to support additional sheets
+                    sheets_sync = MultiSheetSync(GOOGLE_CREDENTIALS_JSON, SPREADSHEET_ID, ADDITIONAL_SPREADSHEET_IDS)
+                except Exception as e:
+                    logging.error(f"Failed to initialize Sheets Sync: {e}")
     return sheets_sync
 
 # --- Helper Functions ---

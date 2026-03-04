@@ -38,7 +38,7 @@ def backfill_jobs(days=7):
                 # Use psycopg2 directly for query
                 query = """
                     SELECT * FROM jobs
-                    WHERE created_at >= NOW() - INTERVAL '%s days'
+                    WHERE created_at >= NOW() - INTERVAL '1 day' * %s
                     ORDER BY created_at DESC
                 """
                 cursor.execute(query, (days,))

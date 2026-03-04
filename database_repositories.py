@@ -152,7 +152,7 @@ class MessageRepository(BaseRepository):
                         UPDATE raw_messages
                         SET status = 'unprocessed', error_message = 'Reset from stuck processing state'
                         WHERE status = 'processing'
-                          AND created_at < NOW() - INTERVAL '%s minutes'
+                          AND created_at < NOW() - INTERVAL '1 minute' * %s
                     """, (stuck_minutes,))
                     count = cursor.rowcount
                 conn.commit()
@@ -644,7 +644,7 @@ class UnifiedJobRepository(BaseRepository):
                 # 2. Get Raw Message if available
                 raw_message = None
                 if job_dict.get('raw_message_id'):
-                    cursor.execute("SELECT * FROM raw_messages WHERE message_id = %s", (job_dict['raw_message_id'],))
+                    cursor.execute("SELECT * FROM raw_messages WHERE id = %s", (job_dict['raw_message_id'],))
                     msg = cursor.fetchone()
                     if msg:
                         raw_message = dict(msg)
