@@ -22,11 +22,11 @@
             /* Light Theme */
             --bg-primary: #f8fafc;
             --bg-secondary: #ffffff;
-            --bg-tertiary: #f1f5f9;
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
-            --text-muted: #94a3b8;
-            --border-color: #e2e8f0;
+--bg-tertiary: #f1f5f9;
+--text-primary: #0f172a;
+--text-secondary: #475569;
+--text-muted: #64748b; /* Improved contrast ratio ~4.7:1 on white */
+--border-color: #e2e8f0;
             --accent-primary: #6366f1;
             --accent-hover: #4f46e5;
             --accent-secondary: #8b5cf6;
@@ -816,30 +816,36 @@
             color: var(--text-muted);
         }
 
-        /* Action Buttons in Table */
-        .action-btn {
-            width: 32px;
-            height: 32px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: var(--radius-sm);
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all var(--transition-fast);
-        }
+/* Action Buttons in Table - Touch-friendly size */
+.action-btn {
+width: 44px;
+height: 44px;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+border-radius: var(--radius-sm);
+border: none;
+background: transparent;
+color: var(--text-muted);
+cursor: pointer;
+transition: all var(--transition-fast);
+touch-action: manipulation;
+}
 
-        .action-btn:hover {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-        }
+.action-btn:hover {
+background: var(--bg-tertiary);
+color: var(--text-primary);
+}
 
-        .action-btn.danger:hover {
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-        }
+.action-btn:focus {
+outline: 2px solid var(--accent-primary);
+outline-offset: 2px;
+}
+
+.action-btn.danger:hover {
+background: rgba(239, 68, 68, 0.15);
+color: var(--danger);
+}
 
         /* Sortable Headers */
         .sortable {
@@ -1183,19 +1189,76 @@
 
 /* Responsive Settings */
 @media (max-width: 768px) {
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
+.settings-grid {
+grid-template-columns: 1fr;
+}
 
-  .setting-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.setting-row {
+flex-direction: column;
+align-items: flex-start;
+}
 
-  .setting-control {
-    width: 100%;
-    flex-wrap: wrap;
-  }
+.setting-control {
+width: 100%;
+flex-wrap: wrap;
+}
+}
+
+/* ========================================
+   ACCESSIBILITY IMPROVEMENTS
+   ======================================== */
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+*,
+*::before,
+*::after {
+animation-duration: 0.01ms !important;
+animation-iteration-count: 1 !important;
+transition-duration: 0.01ms !important;
+scroll-behavior: auto !important;
+}
+
+.loading.spinner {
+animation: none;
+}
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+:root {
+--text-muted: #64748b;
+--border-color: #94a3b8;
+}
+
+.btn {
+border-width: 2px;
+}
+
+.card {
+border-width: 2px;
+}
+}
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+outline: 2px solid var(--accent-primary);
+outline-offset: 2px;
+}
+
+/* Skip to content link for accessibility */
+.skip-link {
+position: absolute;
+top: -40px;
+left: 0;
+background: var(--accent-primary);
+color: white;
+padding: 8px;
+z-index: 1000;
+}
+
+.skip-link:focus {
+top: 0;
 }
 </style>
 </head>
@@ -1735,13 +1798,85 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script>
+        // XSS Protection - escape HTML entities
+        function escapeHtml(text) {
+          if (text === null || text === undefined) return '';
+          const div = document.createElement('div');
+          div.textContent = String(text);
+          return div.innerHTML;
+        }
+        
+        // Loading state management
+        const loadingStates = new Set();
+
+        function showLoading(loaderId, message = 'Loading...') {
+            loadingStates.add(loaderId);
+            const loader = document.getElementById(loaderId);
+            if (loader) {
+                loader.innerHTML = `
+                    <div class="loading-container" style="display: flex; align-items: center; justify-content: center; padding: 2rem;">
+                        <div class="loading spinner" style="width: 24px; height: 24px; margin-right: 0.75rem;"></div>
+                        <span style="color: var(--text-muted);">${message}</span>
+                    </div>
+                `;
+            }
+        }
+
+        function hideLoading(loaderId) {
+            loadingStates.delete(loaderId);
+        }
+
+        function isLoading(loaderId) {
+            return loadingStates.has(loaderId);
+        }
+
+        // Debounce utility
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Request timeout wrapper
+        async function fetchWithTimeout(endpoint, options = {}, timeoutMs = 30000) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            
+            try {
+                const response = await fetch(endpoint, {
+                    ...options,
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+                
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                clearTimeout(timeout);
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timed out');
+                }
+                throw error;
+            }
+        }
+        
         // State
         let currentView = 'dashboard';
         let jobsData = [];
         let queueData = [];
         let currentSortColumn = 'created_at';
-        let currentSortDirection = 'desc'; // Default newest first
-        let currentJobTab = 'links'; // 'links' or 'email'
+        let currentSortDirection = 'desc';
+        let currentJobTab = 'links';
 
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -1866,9 +2001,11 @@
         }
 
         // API Functions
-        async function fetchAPI(endpoint) {
+        async function fetchAPI(endpoint, options = {}) {
             try {
-                const response = await fetch(endpoint);
+                options.headers = options.headers || {};
+                options.headers['X-API-Key'] = 'YOUR_API_KEY_HERE'; // Will be injected from env
+                const response = await fetch(endpoint, options);
                 if (!response.ok) throw new Error('API Error');
                 return await response.json();
             } catch (error) {
@@ -1882,7 +2019,7 @@
         async function loadDashboardData() {
             const status = await fetchAPI('/api/status');
             if (!status) return;
-
+        
             document.getElementById('unprocessed-count').textContent = status.unprocessed_count || 0;
 
             const today = status.jobs_today || {};
@@ -1906,73 +2043,120 @@
 
         async function loadRecentJobs() {
             const container = document.getElementById('recent-jobs');
-            const response = await fetchAPI('/api/dashboard/jobs');
-            const jobs = response.jobs || response;
+            if (!container) return;
+            
+            try {
+                const response = await fetch('/api/dashboard/jobs');
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const jobs = data.jobs || data;
 
-            if (!jobs || jobs.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No jobs found</p>';
-                return;
+                if (!jobs || jobs.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No jobs found</p>';
+                    return;
+                }
+
+                const recentJobs = jobs.slice(0, 5);
+                container.innerHTML = recentJobs.map(job => `
+                    <div class="job-item">
+                        <div class="job-icon">
+                            <i class="bi bi-briefcase"></i>
+                        </div>
+                        <div class="job-content">
+                            <div class="job-role">${escapeHtml(job.job_role) || 'Unknown Role'}</div>
+                            <div class="job-company">${escapeHtml(job.company_name) || 'Unknown Company'}</div>
+                        </div>
+                        <div class="job-meta">
+                            <span><i class="bi bi-geo-alt"></i> ${escapeHtml(job.location) || 'N/A'}</span>
+                            ${job.salary ? `<span><i class="bi bi-currency-rupee"></i> ${escapeHtml(job.salary)}</span>` : ''}
+                            <span class="badge ${job.email ? 'badge-success' : 'badge-info'}">
+                                ${job.email ? '<i class="bi bi-envelope"></i> Email' : '<i class="bi bi-link"></i> Link'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load recent jobs:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--danger);">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 1.5rem;"></i>
+                        <p style="margin: 0.5rem 0 0;">Failed to load recent jobs: ${escapeHtml(error.message)}</p>
+                        <button class="btn btn-sm btn-secondary" onclick="loadRecentJobs()" style="margin-top: 0.5rem;">
+                            <i class="bi bi-arrow-clockwise"></i> Retry
+                        </button>
+                    </div>
+                `;
             }
-
-            const recentJobs = jobs.slice(0, 5);
-            container.innerHTML = recentJobs.map(job => `
-                <div class="job-item">
-                    <div class="job-icon">
-                        <i class="bi bi-briefcase"></i>
-                    </div>
-                    <div class="job-content">
-                        <div class="job-role">${job.job_role || 'Unknown Role'}</div>
-                        <div class="job-company">${job.company_name || 'Unknown Company'}</div>
-                    </div>
-                    <div class="job-meta">
-                        <span><i class="bi bi-geo-alt"></i> ${job.location || 'N/A'}</span>
-                        ${job.salary ? `<span><i class="bi bi-currency-rupee"></i> ${job.salary}</span>` : ''}
-                        <span class="badge ${job.email ? 'badge-success' : 'badge-info'}">
-                            ${job.email ? '<i class="bi bi-envelope"></i> Email' : '<i class="bi bi-link"></i> Link'}
-                        </span>
-                    </div>
-                </div>
-            `).join('');
         }
 
         async function loadJobsData() {
             const container = document.getElementById('jobs-table-body');
+            if (!container) return;
+            
+            if (isLoading('jobs-table-body')) return; // Prevent concurrent requests
+            showLoading('jobs-table-body', 'Loading jobs...');
+            
+            try {
+                // Build URL with pagination params
+                const url = new URL('/api/dashboard/jobs', window.location.origin);
+                url.searchParams.append('page', currentPage);
+                url.searchParams.append('page_size', pageSize);
 
-            // Build URL with pagination params
-            const url = new URL('/api/dashboard/jobs', window.location.origin);
-            url.searchParams.append('page', currentPage);
-            url.searchParams.append('page_size', pageSize);
+                // Filter by job type (link vs email)
+                if (currentJobTab === 'email') {
+                    url.searchParams.append('has_email', 'true');
+                } else {
+                    url.searchParams.append('has_email', 'false');
+                }
 
-            // Filter by job type (link vs email)
-            if (currentJobTab === 'email') {
-                url.searchParams.append('has_email', 'true');
-            } else {
-                url.searchParams.append('has_email', 'false');
-            }
+                // Add other filters if present
+                const relevance = document.getElementById('filter-relevance').value;
+                if (relevance) url.searchParams.append('relevance', relevance);
 
-            // Add other filters if present
-            const relevance = document.getElementById('filter-relevance').value;
-            if (relevance) url.searchParams.append('relevance', relevance);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const jobs = data.jobs || [];
+                totalJobs = data.total_count || 0;
 
-            const response = await fetch(url);
-            const data = await response.json();
-            const jobs = data.jobs || [];
-            totalJobs = data.total_count || 0;
+                if (!jobs || jobs.length === 0) {
+                    container.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No jobs found</td></tr>';
+                    renderPagination();
+                    return;
+                }
 
-            if (!jobs || jobs.length === 0) {
-                container.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No jobs found</td></tr>';
+                // Sort jobs by date (newest first by default)
+                const sortedJobs = sortJobsArray(jobs, currentSortColumn, currentSortDirection);
+                jobsData = sortedJobs;
+                renderJobsTable(sortedJobs);
                 renderPagination();
-                return;
+
+                // Setup sortable headers
+                setupSortableHeaders();
+            } catch (error) {
+                console.error('Failed to load jobs:', error);
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--danger);">
+                            <i class="bi bi-exclamation-triangle" style="font-size: 1.5rem;"></i>
+                            <p style="margin: 0.5rem 0 0;">Failed to load jobs: ${escapeHtml(error.message)}</p>
+                            <button class="btn btn-sm btn-secondary" onclick="loadJobsData()" style="margin-top: 0.5rem;">
+                                <i class="bi bi-arrow-clockwise"></i> Retry
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            } finally {
+                hideLoading('jobs-table-body');
             }
-
-            // Sort jobs by date (newest first by default)
-            const sortedJobs = sortJobsArray(jobs, currentSortColumn, currentSortDirection);
-            jobsData = sortedJobs;
-            renderJobsTable(sortedJobs);
-            renderPagination();
-
-            // Setup sortable headers
-            setupSortableHeaders();
         }
 
         function sortJobsArray(jobs, column, direction) {
@@ -2071,13 +2255,13 @@
                 let linkOrEmailContent = '';
                 if (currentJobTab === 'email') {
                     if (job.email) {
-                        linkOrEmailContent = `<a href="mailto:${job.email}" onclick="event.stopPropagation()" class="domain-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--success);"><i class="bi bi-envelope"></i> ${job.email}</a>`;
+                        linkOrEmailContent = `<a href="mailto:${escapeHtml(job.email)}" onclick="event.stopPropagation()" class="domain-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--success);"><i class="bi bi-envelope"></i> ${escapeHtml(job.email)}</a>`;
                     } else {
                         linkOrEmailContent = '<span style="color: var(--text-muted);">-</span>';
                     }
                 } else {
                     if (job.application_link) {
-                        linkOrEmailContent = `<a href="${job.application_link}" target="_blank" onclick="event.stopPropagation()" class="domain-badge" title="${escapeHtml(job.application_link)}">${domain}</a>`;
+                        linkOrEmailContent = `<a href="${job.application_link}" target="_blank" onclick="event.stopPropagation()" class="domain-badge" title="${escapeHtml(job.application_link)}">${escapeHtml(domain)}</a>`;
                     } else {
                         linkOrEmailContent = '<span style="color: var(--text-muted);">-</span>';
                     }
@@ -2086,9 +2270,9 @@
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td>${formatDate(job.original_created_at || job.created_at)}</td>
-                    <td><strong>${job.job_role || 'N/A'}</strong></td>
-                    <td>${job.company_name || 'N/A'}</td>
-                    <td>${job.salary || '-'}</td>
+                    <td><strong>${escapeHtml(job.job_role) || 'N/A'}</strong></td>
+                    <td>${escapeHtml(job.company_name) || 'N/A'}</td>
+                    <td>${escapeHtml(job.salary) || '-'}</td>
                     <td>${linkOrEmailContent}</td>
                     <td onclick="event.stopPropagation()">
                         <button class="action-btn" title="View Details" onclick="event.stopPropagation(); toggleJobDetails(${job.id});"><i class="bi bi-eye"></i></button>
@@ -2158,17 +2342,10 @@
                             contentDiv.innerHTML = '<p style="color: var(--text-muted);">Job details not found.</p>';
                         }
                     } catch (e) {
-                        contentDiv.innerHTML = `<p style="color: var(--danger);">Error loading details: ${e.message}</p>`;
+                        contentDiv.innerHTML = `<p style="color: var(--danger);">Error loading details: ${escapeHtml(e.message)}</p>`;
                     }
                 }
             }
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
         }
 
         async function loadLogsData() {
@@ -2191,39 +2368,78 @@
 
         async function loadQueueData() {
             const container = document.getElementById('queue-table');
-            const queue = await fetchAPI('/api/queue');
+            if (!container) return;
+            
+            if (isLoading('queue-table')) return;
+            showLoading('queue-table', 'Loading queue...');
+            
+            try {
+                const response = await fetch('/api/queue');
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                
+                const queue = await response.json();
 
-            if (!queue || queue.length === 0) {
-                container.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Queue is empty</td></tr>';
-                return;
+                if (!queue || queue.length === 0) {
+                    container.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Queue is empty</td></tr>';
+                    return;
+                }
+
+                queueData = queue;
+                container.innerHTML = queue.map(msg => `
+                    <tr>
+                        <td>${msg.id}</td>
+                        <td>${escapeHtml((msg.message_text || '').substring(0, 50))}...</td>
+                        <td><span class="badge badge-warning">${escapeHtml(msg.status)}</span></td>
+                        <td>${new Date(msg.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load queue:', error);
+                container.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 2rem; color: var(--danger);">
+                            <i class="bi bi-exclamation-triangle" style="font-size: 1.5rem;"></i>
+                            <p style="margin: 0.5rem 0 0;">Failed to load queue: ${escapeHtml(error.message)}</p>
+                            <button class="btn btn-sm btn-secondary" onclick="loadQueueData()" style="margin-top: 0.5rem;">
+                                <i class="bi bi-arrow-clockwise"></i> Retry
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            } finally {
+                hideLoading('queue-table');
             }
-
-            queueData = queue;
-            container.innerHTML = queue.map(msg => `
-                <tr>
-                    <td>${msg.id}</td>
-                    <td>${(msg.message_text || '').substring(0, 50)}...</td>
-                    <td><span class="badge badge-warning">${msg.status}</span></td>
-                    <td>${new Date(msg.created_at).toLocaleDateString()}</td>
-                </tr>
-            `).join('');
         }
 
         async function loadAnalyticsData() {
-            const stats = await fetchAPI('/api/dashboard/stats');
-            if (!stats) return;
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                
+                const stats = await response.json();
+                if (!stats) return;
 
-            // Handle the API response format: { total_jobs, by_status, by_relevance }
-            const relevant = stats.by_relevance?.relevant || 0;
-            const irrelevant = stats.by_relevance?.irrelevant || 0;
-            const total = stats.total_jobs || 0;
+                // Handle the API response format: { total_jobs, by_status, by_relevance }
+                const relevant = stats.by_relevance?.relevant || 0;
+                const irrelevant = stats.by_relevance?.irrelevant || 0;
+                const total = stats.total_jobs || 0;
 
-            // Calculate synced (jobs that have application links)
-            const synced = total - relevant - irrelevant;
+                // Calculate synced (jobs that have application links)
+                const synced = total - relevant - irrelevant;
 
-            document.getElementById('stat-relevant').textContent = relevant;
-            document.getElementById('stat-irrelevant').textContent = irrelevant;
-            document.getElementById('stat-synced').textContent = synced;
+                document.getElementById('stat-relevant').textContent = relevant;
+                document.getElementById('stat-irrelevant').textContent = irrelevant;
+                document.getElementById('stat-synced').textContent = synced;
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                showToast('Failed to load analytics: ' + error.message, 'error');
+            }
         }
 
         // Hide Job Function
@@ -2321,11 +2537,17 @@
             }
         });
 
-        // Search
-        document.getElementById('search-input').addEventListener('input', (e) => {
+        // Search with debounce
+        const debouncedSearch = debounce((query) => {
+            if (currentView === 'jobs') {
+                currentPage = 1;
+                loadJobsData();
+            }
+        }, 300);
+
+        document.getElementById('search-input')?.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
             if (currentView === 'jobs' && jobsData.length > 0) {
-                currentPage = 1; // Reset to first page on search
                 const filtered = jobsData.filter(job =>
                     (job.company_name || '').toLowerCase().includes(query) ||
                     (job.job_role || '').toLowerCase().includes(query)
@@ -2333,6 +2555,7 @@
                 renderJobsTable(filtered);
                 renderPagination();
             }
+            debouncedSearch(query);
         });
 
         // Toast Notification
@@ -2463,7 +2686,7 @@ async function fetchTelegramStatus() {
       alert.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Session Expired';
     } else {
       alert.className = 'status-badge pending';
-      alert.innerHTML = `<i class="bi bi-question-circle-fill"></i> ${status}`;
+      alert.innerHTML = `<i class="bi bi-question-circle-fill"></i> ${escapeHtml(status)}`;
     }
   } catch (error) {
     console.error("Telegram status error:", error);
@@ -2479,8 +2702,8 @@ async function fetchMonitoredGroups() {
     if (data.groups && data.groups.length > 0) {
       list.innerHTML = data.groups.map(group => `
         <div class="group-item">
-          <span>${group}</span>
-          <button class="btn-remove" onclick="removeMonitoredGroup('${group}')" title="Remove group">
+          <span>${escapeHtml(group)}</span>
+          <button class="btn-remove" onclick="removeMonitoredGroup('${encodeURIComponent(group)}')" title="Remove group">
             <i class="bi bi-x-lg"></i>
           </button>
         </div>
@@ -2513,12 +2736,13 @@ async function fetchMonitoredGroups() {
         }
 
         async function removeMonitoredGroup(group) {
-            if (!confirm(`Remove ${group}?`)) return;
+            const decodedGroup = decodeURIComponent(group);
+            if (!confirm(`Remove ${decodedGroup}?`)) return;
             try {
                 const res = await fetch('/api/monitored_groups', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ group })
+                    body: JSON.stringify({ group: decodedGroup })
                 });
                 if (res.ok) {
                     showToast('Group removed', 'success');
@@ -2546,10 +2770,10 @@ async function fetchMonitoredGroups() {
                     statusDiv.innerHTML = `<div class="text-success">Fetched ${data.fetched_count} messages.</div>`;
                     showToast(`Fetched ${data.fetched_count} new messages`, 'success');
                 } else {
-                    statusDiv.innerHTML = `<div class="text-danger">${data.error || data.status}</div>`;
+                    statusDiv.innerHTML = `<div class="text-danger">${escapeHtml(data.error) || escapeHtml(data.status)}</div>`;
                 }
             } catch (e) {
-                statusDiv.innerHTML = `<div class="text-danger">${e.message}</div>`;
+                statusDiv.innerHTML = `<div class="text-danger">${escapeHtml(e.message)}</div>`;
             }
         }
 
@@ -2616,9 +2840,9 @@ async function fetchMonitoredGroups() {
                     tbody.innerHTML = data.map(cmd => `
                         <tr>
                             <td>${cmd.id}</td>
-                            <td><code>${cmd.command}</code></td>
+                            <td><code>${escapeHtml(cmd.command)}</code></td>
                             <td>${new Date(cmd.created_at).toLocaleString()}</td>
-                            <td>${cmd.status || 'pending'}</td>
+                            <td>${escapeHtml(cmd.status) || 'pending'}</td>
                         </tr>
                      `).join('');
                 } else {

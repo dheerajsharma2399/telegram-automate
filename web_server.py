@@ -3,6 +3,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import asyncio
 import ssl
+import functools
 from flask import Flask, render_template, jsonify, request
 import requests
 from database import Database
@@ -29,6 +30,27 @@ from sheets_sync import MultiSheetSync
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# API Key authentication decorator
+def require_api_key(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check for API key in header or query param
+        api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+        
+        # Get valid API key from environment
+        valid_key = os.getenv('API_KEY')
+        
+        # If no API_KEY configured, allow (for development)
+        if not valid_key:
+            return f(*args, **kwargs)
+        
+        # Validate provided key
+        if not api_key or api_key != valid_key:
+            return jsonify({'error': 'Unauthorized - Invalid or missing API key'}), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Initialize database and LLM processor at module level
 # This ensures they're available when Gunicorn imports the module
@@ -194,6 +216,7 @@ def api_get_monitored_groups():
 
 
 @app.route('/api/monitored_groups', methods=['POST'])
+@require_api_key
 def api_add_monitored_group():
     try:
         data = request.get_json(force=True) or {}
@@ -213,6 +236,7 @@ def api_add_monitored_group():
 
 
 @app.route('/api/monitored_groups', methods=['DELETE'])
+@require_api_key
 def api_remove_monitored_group():
     try:
         data = request.get_json(force=True) or {}
@@ -253,6 +277,7 @@ def api_logs():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/command", methods=["POST"])
+@require_api_key
 def api_command():
     """API endpoint to send a command to the bot."""
     command = request.json.get("command")
@@ -348,6 +373,7 @@ def api_hide_jobs():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/sheets/advanced_sync", methods=["POST"])
+@require_api_key
 def api_advanced_sheets_sync():
     """Advanced sync: Compare DB jobs with actual sheets content and sync missing ones."""
     try:
@@ -486,6 +512,7 @@ def get_dashboard_jobs():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/dashboard/jobs/archive_older_than", methods=["POST"])
+@require_api_key
 def archive_jobs_older_than():
     """Archive jobs older than N days"""
     try:
@@ -545,6 +572,7 @@ def add_job_to_dashboard():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/dashboard/jobs/<int:job_id>", methods=["PATCH"])
+@require_api_key
 def update_job_status(job_id):
     """Update job application status"""
     try:
@@ -573,6 +601,7 @@ def update_job_status(job_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/dashboard/jobs/bulk_update", methods=["POST"])
+@require_api_key
 def bulk_update_status():
     """Update status for multiple jobs"""
     try:
@@ -609,6 +638,7 @@ def bulk_update_status():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/dashboard/import", methods=["POST"])
+@require_api_key
 def import_jobs_from_sheets():
     """Import non-email jobs from processed_jobs to dashboard"""
     try:
@@ -669,6 +699,7 @@ def mark_as_duplicate_endpoint(job_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/dashboard/detect_duplicates", methods=["POST"])
+@require_api_key
 def detect_duplicates_endpoint():
     """Detect duplicate jobs in dashboard"""
     try:
@@ -799,6 +830,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret")
 telegram_clients = {}
 
 @app.route("/api/telegram/setup", methods=["POST"])
+@require_api_key
 def telegram_setup():
     from config import TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE
     
@@ -830,6 +862,7 @@ def telegram_setup():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/telegram/signin", methods=["POST"])
+@require_api_key
 def telegram_signin():
     data = request.json
     code = data.get("code")
@@ -875,6 +908,7 @@ def telegram_signin():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/telegram/clear_session", methods=["POST"])
+@require_api_key
 def api_clear_telegram_session():
     """Clear Telegram session from database"""
     try:
@@ -898,6 +932,7 @@ def api_telegram_status():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/fetch_historical_messages", methods=["POST"])
+@require_api_key
 def fetch_historical_messages():
     """Fetch historical messages from Telegram groups AND process them with duplicate removal"""
     try:
