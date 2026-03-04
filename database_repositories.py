@@ -138,6 +138,32 @@ class MessageRepository(BaseRepository):
             result = cursor.fetchone()
             return result['count'] if result else 0
 
+    def reset_stuck_processing_messages(self, stuck_minutes: int = 30) -> int:
+        """Reset messages stuck in 'processing' state back to 'unprocessed'.
+
+        If the worker crashes mid-batch, messages remain in 'processing' forever
+        and are never retried. This resets any that have been in that state
+        longer than stuck_minutes.
+        """
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE raw_messages
+                        SET status = 'unprocessed', error_message = 'Reset from stuck processing state'
+                        WHERE status = 'processing'
+                          AND updated_at < NOW() - INTERVAL '%s minutes'
+                    """, (stuck_minutes,))
+                    count = cursor.rowcount
+                conn.commit()
+                if count:
+                    self.logger.warning(f"Reset {count} stuck 'processing' messages to 'unprocessed'")
+                return count
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to reset stuck processing messages: {e}")
+                raise
+
     def get_last_message_id_for_group(self, group_id: int) -> Optional[int]:
         """Get the latest message_id for a specific group from the database."""
         with self.get_connection() as conn:
@@ -441,6 +467,7 @@ class UnifiedJobRepository(BaseRepository):
                     cursor.execute("""
                         SELECT * FROM jobs
                         WHERE lower(company_name) = lower(%s) AND lower(job_role) = lower(%s)
+                          AND created_at > NOW() - INTERVAL '30 days'
                         ORDER BY created_at DESC LIMIT 1
                     """, (company_name, job_role))
                     dup = cursor.fetchone()
@@ -450,6 +477,7 @@ class UnifiedJobRepository(BaseRepository):
                     cursor.execute("""
                         SELECT * FROM jobs
                         WHERE lower(email) = lower(%s)
+                          AND created_at > NOW() - INTERVAL '30 days'
                         ORDER BY created_at DESC LIMIT 1
                     """, (email,))
                     dup = cursor.fetchone()

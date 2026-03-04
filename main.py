@@ -185,6 +185,8 @@ async def sync_sheets_automatically():
 async def process_jobs(context=None):
     """The core job processing function with proper transaction handling."""
     logger.info("🚀 Starting job processing...")
+    # Reset any messages stuck in 'processing' from a previous crashed run
+    db.messages.reset_stuck_processing_messages(stuck_minutes=30)
     unprocessed_messages = db.messages.get_unprocessed_messages(limit=BATCH_SIZE)
     if not unprocessed_messages:
         logger.info("No unprocessed messages to process.")
@@ -234,36 +236,8 @@ async def process_jobs(context=None):
 
                     logger.info(f"✅ Job saved successfully: {processed_data.get('company_name')} (ID: {job_id})")
 
-                    # AUTOMATIC DASHBOARD POPULATION: Add non-email jobs to dashboard
-                    if processed_data.get('application_method') != 'email':
-                        try:
-                            dashboard_job_data = {
-                                'source_job_id': processed_data.get('job_id'),
-                                'original_sheet': 'non-email',
-                                'company_name': processed_data.get('company_name'),
-                                'job_role': processed_data.get('job_role'),
-                                'location': processed_data.get('location'),
-                                'application_link': processed_data.get('application_link'),
-                                'phone': processed_data.get('phone'),
-                                'recruiter_name': processed_data.get('recruiter_name'),
-                                'job_relevance': processed_data.get('job_relevance', 'relevant'),
-                                'original_created_at': processed_data.get('updated_at'),
-                                'application_status': 'not_applied',
-                                'salary': processed_data.get('salary')
-                            }
-
-                            with db.get_connection() as conn:
-                                with conn.cursor() as cursor:
-                                    cursor.execute(
-                                        "SELECT id FROM jobs WHERE job_id = %s",
-                                        (processed_data.get('job_id'),)
-                                    )
-                                    if not cursor.fetchone():
-                                        dashboard_id = db.jobs.add_dashboard_job(dashboard_job_data)
-                                        if dashboard_id:
-                                            logger.info(f"Auto-imported non-email job to dashboard: {processed_data.get('company_name')}")
-                        except Exception as e:
-                            logger.error(f"Failed to auto-import job to dashboard: {e}")
+                    # All saved jobs are visible in the dashboard (unified jobs table,
+                    # no source filter) — nothing extra needed here.
 
                 except Exception as e:
                     logger.error(f"Failed to process individual job: {e}")

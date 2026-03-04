@@ -305,8 +305,8 @@ class LLMProcessor:
                 except json.JSONDecodeError:
                     pass
             
-            # Try to find JSON array anywhere in text
-            json_match = re.search(r'\[.*?\]', content, re.DOTALL)
+            # Try to find JSON array anywhere in text (greedy to capture the full outer array)
+            json_match = re.search(r'\[.*\]', content, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group(0))
