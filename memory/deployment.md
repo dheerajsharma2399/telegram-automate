@@ -89,7 +89,7 @@ The two processes communicate **only via the `commands_queue` table in PostgreSQ
 | `MAX_RETRIES` | LLM retry count | `3` |
 | `PORT` | Web server port | `9501` |
 
-> **WARNING (Bug #1)**: As of last analysis, `config.py:70-74` incorrectly raises `ValueError` if `GOOGLE_CREDENTIALS_JSON` or `SPREADSHEET_ID` are missing, despite them being optional. See `memory/known_bugs.md` Bug #1 for fix.
+> **All config.py warnings are now just warnings** — `GOOGLE_CREDENTIALS_JSON`/`SPREADSHEET_ID` being absent logs a warning but does not crash startup (Bug #1 fix).
 
 ---
 
@@ -163,4 +163,6 @@ The `/health` endpoint is at `web_server.py:53`.
 
 4. **`initialize_db.py` for env seeding**: Standardised startup to run `initialize_db.py` before `honcho start`. This auto-seeds `monitored_groups` from `TELEGRAM_GROUP_USERNAMES` on first boot so the worker knows which groups to monitor without manual DB setup.
 
-5. **Graceful shutdown port mismatch (unfixed bug)**: `_signal_handler` in `web_server.py:758` falls back to port `8888` instead of `9501`. See `memory/known_bugs.md` Bug #4.
+5. **Signal handler port mismatch**: ~~`_signal_handler` in `web_server.py:758` falls back to port `8888` instead of `9501`~~ — **FIXED** (see Bug #4 in `known_bugs.md`).
+
+6. **`reset_stuck_processing_messages` crashed every 10 minutes**: `updated_at` column referenced in WHERE clause doesn't exist in `raw_messages` — only `created_at` does. Every scheduler run of `process_jobs()` would fail. **FIXED** (see Bug #5 in `known_bugs.md`, commit `1af7163`).
