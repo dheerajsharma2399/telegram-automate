@@ -849,40 +849,6 @@
             /* Removed relevance toggle functionality */
         }
 
-        async function editNotes(jobId) {
-            const job = allDashboardJobs.find(j => j.id === jobId);
-            const currentNotes = job ? job.notes : '';
-            const newNotes = prompt('Enter new notes:', currentNotes);
-
-            if (newNotes !== null) {
-                try {
-                    const response = await fetch(`/api/dashboard/jobs/${jobId}/notes`, {
-                        method: 'POST', // Changed to POST /notes endpoint
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ notes: newNotes })
-                    });
-
-                    if (response.ok) {
-                        showToast('Notes updated successfully.', 'success');
-                        if (job) job.notes = newNotes;
-                        const row = document.querySelector(`tr[data-job-id="${jobId}"]`);
-                        if (row) {
-                            const cell = row.querySelector('.notes-cell');
-                            if (cell) {
-                                cell.innerHTML = newNotes ? '📝' : '';
-                                cell.title = newNotes;
-                            }
-                        }
-                    } else {
-                        const data = await response.json();
-                        showToast(`Error: ${data.error}`, 'error');
-                    }
-                } catch (error) {
-                    showToast(`Failed to update notes: ${error}`, 'error');
-                }
-            }
-        }
-
         // === LOG MANAGEMENT FUNCTIONS ===
         function refreshLogs() {
             fetchLogs();

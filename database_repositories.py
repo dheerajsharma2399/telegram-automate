@@ -175,9 +175,9 @@ class UnifiedJobRepository(BaseRepository):
         sql = """
             INSERT INTO jobs (
                 job_id, source, status, company_name, job_role, location, eligibility, salary,
-                jd_text, raw_message_id, email, phone, application_link, notes,
+                jd_text, raw_message_id, email, phone, application_link,
                 is_hidden, is_duplicate, duplicate_of_id, job_relevance, metadata, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             ON CONFLICT (job_id) DO UPDATE SET
                 status = EXCLUDED.status,
                 company_name = COALESCE(EXCLUDED.company_name, jobs.company_name),
@@ -189,7 +189,6 @@ class UnifiedJobRepository(BaseRepository):
                 email = COALESCE(EXCLUDED.email, jobs.email),
                 phone = COALESCE(EXCLUDED.phone, jobs.phone),
                 application_link = COALESCE(EXCLUDED.application_link, jobs.application_link),
-                notes = COALESCE(EXCLUDED.notes, jobs.notes),
                 job_relevance = COALESCE(EXCLUDED.job_relevance, jobs.job_relevance),
                 metadata = jobs.metadata || EXCLUDED.metadata,
                 updated_at = NOW()
@@ -215,7 +214,6 @@ class UnifiedJobRepository(BaseRepository):
             job_data.get('email'),
             job_data.get('phone'),
             job_data.get('application_link'),
-            job_data.get('notes'),
             job_data.get('is_hidden', False),
             job_data.get('is_duplicate', False),
             job_data.get('duplicate_of_id'),
@@ -299,25 +297,26 @@ class UnifiedJobRepository(BaseRepository):
                     "page_size": page_size
                 }
 
-    def bulk_update_status(self, job_ids: Union[List[int], List[str]], status: str,
-                           archive: bool = False, notes: Optional[str] = None) -> int:
+    def bulk_update_status(self, job_ids: Union[List[int], List[str]], status: Optional[str] = None,
+                           archive: bool = False) -> int:
         """Update status for multiple jobs at once"""
         with self.get_connection() as conn:
             try:
                 with conn.cursor() as cursor:
-                    should_hide = archive or (status in ['rejected', 'archived'])
+                    should_hide = archive or (status is not None and status in ['rejected', 'archived'])
 
-                    sql = """
-                        UPDATE jobs
-                        SET status = %s,
-                            updated_at = NOW(),
-                            is_hidden = CASE WHEN %s THEN TRUE ELSE is_hidden END
-                    """
-                    params = [status, should_hide]
+                    set_clauses = []
+                    params = []
 
-                    if notes:
-                        sql += ", notes = %s"
-                        params.append(notes)
+                    if status is not None:
+                        set_clauses.append("status = %s")
+                        params.append(status)
+
+                    set_clauses.append("updated_at = NOW()")
+                    set_clauses.append("is_hidden = CASE WHEN %s THEN TRUE ELSE is_hidden END")
+                    params.append(should_hide)
+
+                    sql = "UPDATE jobs SET " + ", ".join(set_clauses)
 
                     # Handle both integer IDs and string job_ids
                     if all(isinstance(x, int) for x in job_ids):
@@ -537,10 +536,6 @@ class UnifiedJobRepository(BaseRepository):
             sort_by=kwargs.get('sort_by', 'created_at'),
             sort_order=kwargs.get('sort_order', 'DESC')
         )
-
-    def add_job_notes(self, job_id: int, notes: str) -> bool:
-        """Add or update notes for a job"""
-        return self.bulk_update_status([job_id], status=None, notes=notes) > 0
 
     def import_jobs_from_processed(self, sheet_name: str, max_jobs: int = 100) -> int:
         """

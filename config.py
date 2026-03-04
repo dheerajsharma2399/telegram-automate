@@ -68,9 +68,10 @@ if not OPENROUTER_API_KEYS or not OPENROUTER_API_KEYS[0]:
     )
 
 if not GOOGLE_CREDENTIALS_JSON or not SPREADSHEET_ID:
-    raise ValueError(
-        "GOOGLE_CREDENTIALS_JSON and SPREADSHEET_ID are required for Google Sheets sync. "
-        "Please configure them in .env file."
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "GOOGLE_CREDENTIALS_JSON or SPREADSHEET_ID not set — Google Sheets sync disabled. "
+        "Set both env vars to enable Sheets integration."
     )
 
 # Logging Configuration

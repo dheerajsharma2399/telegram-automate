@@ -93,7 +93,6 @@ def init_database(pool):
                 email TEXT,
                 phone TEXT,
                 application_link TEXT,
-                notes TEXT,
                 is_hidden BOOLEAN DEFAULT FALSE,
                 is_duplicate BOOLEAN DEFAULT FALSE,
                 duplicate_of_id INTEGER,

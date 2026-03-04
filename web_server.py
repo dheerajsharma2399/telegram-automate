@@ -570,26 +570,6 @@ def update_job_status(job_id):
         logging.error(f"Failed to update job status: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/dashboard/jobs/<int:job_id>/notes", methods=["POST"])
-def add_job_notes(job_id):
-    """Add notes to a job"""
-    try:
-        data = request.get_json(force=True) or {}
-        notes = data.get('notes', '').strip()
-        
-        if not notes:
-            return jsonify({"error": "Notes cannot be empty"}), 400
-        
-        success = db.jobs.add_job_notes(job_id, notes)
-        if success:
-            return jsonify({"message": "Notes added successfully"})
-        else:
-            return jsonify({"error": "Job not found"}), 404
-            
-    except Exception as e:
-        logging.error(f"Failed to add notes to job: {e}")
-        return jsonify({"error": str(e)}), 500
-
 @app.route("/api/dashboard/jobs/bulk_update", methods=["POST"])
 def bulk_update_status():
     """Update status for multiple jobs"""
@@ -755,9 +735,7 @@ def _signal_handler(signum, frame):
     """On SIGTERM/SIGINT, attempt graceful shutdown by calling the shutdown endpoint."""
     try:
         # Determine the port the app is likely running on. The app.run() uses PORT env or 9501 by default.
-        port = os.environ.get('PORT') or os.environ.get('FLASK_RUN_PORT') or os.environ.get('PORT', None)
-        if not port:
-            port = '8888'
+        port = os.environ.get('PORT') or os.environ.get('FLASK_RUN_PORT') or '9501'
         url = f"http://127.0.0.1:{port}/_shutdown"
         payload = {'token': ADMIN_USER_ID}
         try:

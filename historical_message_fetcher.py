@@ -312,14 +312,14 @@ class HistoricalMessageFetcher:
                     result = cursor.fetchone()
                     
                     return {
-                        'total': result[0],
-                        'unprocessed': result[1],
-                        'processed': result[2],
-                        'processing': result[3],
-                        'failed': result[4],
-                        'oldest': result[5],
-                        'newest': result[6],
-                        'groups': result[7]
+                        'total': result['total'],
+                        'unprocessed': result['unprocessed'],
+                        'processed': result['processed'],
+                        'processing': result['processing'],
+                        'failed': result['failed'],
+                        'oldest': result['oldest'],
+                        'newest': result['newest'],
+                        'groups': result['groups']
                     }
         except Exception as e:
             logger.error(f"Failed to get database stats: {e}")

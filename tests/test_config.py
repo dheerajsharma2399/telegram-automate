@@ -6,6 +6,7 @@ Tests the fail-fast configuration validation implemented in Phase 1.
 
 import unittest
 import os
+import logging
 from unittest.mock import patch
 
 
@@ -78,8 +79,8 @@ class TestConfigValidation(unittest.TestCase):
         
         self.assertIn('OPENROUTER_API_KEY', str(context.exception))
     
-    def test_missing_google_credentials_raises_error(self):
-        """Test that missing Google credentials raise ValueError"""
+    def test_missing_google_credentials_logs_warning(self):
+        """Test that missing Google credentials log a WARNING instead of raising"""
         os.environ['DATABASE_URL'] = 'postgresql://test'
         os.environ['TELEGRAM_API_ID'] = '12345'
         os.environ['TELEGRAM_API_HASH'] = 'test_hash'
@@ -88,14 +89,41 @@ class TestConfigValidation(unittest.TestCase):
             del os.environ['GOOGLE_CREDENTIALS_JSON']
         if 'SPREADSHEET_ID' in os.environ:
             del os.environ['SPREADSHEET_ID']
-        
-        with self.assertRaises(ValueError) as context:
-            import importlib
-            import config
+
+        import importlib
+        import config
+
+        with self.assertLogs('config', level='WARNING') as log_ctx:
             importlib.reload(config)
-        
-        self.assertIn('GOOGLE_CREDENTIALS_JSON', str(context.exception))
-    
+
+        # At least one warning message should mention Google credentials
+        warning_messages = ' '.join(log_ctx.output)
+        self.assertIn('GOOGLE_CREDENTIALS_JSON', warning_messages)
+
+    def test_missing_google_credentials_does_not_raise(self):
+        """Test that missing Google credentials do NOT raise an exception"""
+        os.environ['DATABASE_URL'] = 'postgresql://test'
+        os.environ['TELEGRAM_API_ID'] = '12345'
+        os.environ['TELEGRAM_API_HASH'] = 'test_hash'
+        os.environ['OPENROUTER_API_KEY'] = 'test_key'
+        if 'GOOGLE_CREDENTIALS_JSON' in os.environ:
+            del os.environ['GOOGLE_CREDENTIALS_JSON']
+        if 'SPREADSHEET_ID' in os.environ:
+            del os.environ['SPREADSHEET_ID']
+
+        import importlib
+        import config
+
+        try:
+            # Suppress the warning log so it doesn't pollute test output
+            with self.assertLogs('config', level='WARNING'):
+                importlib.reload(config)
+        except ValueError:
+            self.fail(
+                "Missing GOOGLE_CREDENTIALS_JSON should not raise ValueError — "
+                "it should only log a warning."
+            )
+
     def test_valid_configuration_loads_successfully(self):
         """Test that valid configuration loads without errors"""
         os.environ['DATABASE_URL'] = 'postgresql://user:pass@localhost/db'

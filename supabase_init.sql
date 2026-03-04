@@ -124,7 +124,6 @@ CREATE TABLE IF NOT EXISTS dashboard_jobs (
     -- Dashboard-specific fields (DO NOT sync back)
     application_status TEXT DEFAULT 'not_applied', -- 'not_applied', 'applied', 'interview', 'rejected', 'offer', 'archived'
     application_date TIMESTAMP,
-    notes TEXT,
     is_duplicate BOOLEAN DEFAULT FALSE,
     duplicate_of_id INTEGER,
     conflict_status TEXT, -- 'none', 'detected', 'resolved'
