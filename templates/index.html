@@ -904,19 +904,300 @@
         }
 
         /* Domain Badge */
-        .domain-badge {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            background: var(--bg-tertiary);
-            border-radius: var(--radius-sm);
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-    </style>
+.domain-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========================================
+   SETTINGS PAGE REDESIGN
+   ======================================== */
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.settings-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.settings-card-header i {
+  font-size: 1.25rem;
+  color: var(--accent-primary);
+}
+
+.settings-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-card-body {
+  padding: 1.5rem;
+}
+
+/* Setting Row Pattern */
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.setting-row:first-child {
+  padding-top: 0;
+}
+
+.setting-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-info label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-primary);
+}
+
+.setting-info p {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.setting-control {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Status Indicators */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-badge.connected {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+.status-badge.disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.status-badge.pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+/* Form Elements */
+.form-select,
+.form-input {
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-input {
+  width: 80px;
+  text-align: center;
+}
+
+.form-select {
+  min-width: 180px;
+}
+
+/* Full-width Settings Card */
+.settings-card-full {
+  grid-column: 1 / -1;
+}
+
+/* Settings Actions Row */
+.settings-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+}
+
+/* Inline Form Group */
+.inline-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.inline-form .form-label {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Status Alert Box */
+.status-alert {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+}
+
+.status-alert.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status-alert.success {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.status-alert.error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Monitored Groups List */
+.groups-list {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-tertiary);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.group-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.5rem;
+}
+
+.group-item:last-child {
+  margin-bottom: 0;
+}
+
+.group-item span {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.group-item .btn-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.2s, background 0.2s;
+}
+
+.group-item .btn-remove:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Pending Commands Table */
+.commands-table {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+
+.commands-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.commands-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.commands-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Responsive Settings */
+@media (max-width: 768px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .setting-control {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
+</style>
 </head>
 
 <body data-theme="dark">
@@ -1224,169 +1505,188 @@
                 </div>
             </div>
 
-            <!-- Settings View -->
-            <div id="view-settings" style="display: none;">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Settings & Configuration</h3>
-                    </div>
-                    <div class="card-body">
+<!-- Settings View -->
+<div id="view-settings" style="display: none;">
+  <div class="page-header" style="margin-bottom: 1.5rem;">
+    <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600;">
+      <i class="bi bi-gear" style="margin-right: 0.5rem;"></i>Settings
+    </h2>
+    <p style="margin: 0.5rem 0 0; color: var(--text-muted);">Configure your job scraper instance</p>
+  </div>
 
-                        <!-- Telegram Connection Status -->
-                        <div class="mb-4">
-                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Telegram
-                                Connection
-                            </h5>
-                            <div id="telegram-status-alert" class="p-3 rounded-lg mb-3"
-                                style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
-                                <div class="flex items-center gap-2">
-                                    <div class="loading spinner" style="width: 20px; height: 20px;"></div>
-                                    <span>Checking status...</span>
-                                </div>
-                            </div>
-
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-primary" onclick="startTelegramSetup()">
-                                    <i class="bi bi-shield-lock"></i> Configure / Re-authenticate
-                                </button>
-                                <button class="btn btn-secondary" onclick="clearTelegramSession()">
-                                    <i class="bi bi-trash"></i> Clear Session
-                                </button>
-                            </div>
-                        </div>
-
-                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
-
-                        <!-- Historical Message Recovery -->
-                        <div class="mb-4">
-                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Historical
-                                Message
-                                Recovery</h5>
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
-                                Fetch missed messages from past downtime. Use "12 Minutes" to test the automated
-                                scheduler's
-                                logic.
-                            </p>
-
-                            <div class="d-flex gap-2 align-items-center flex-wrap">
-                                <select id="hours-back" class="btn btn-secondary"
-                                    style="min-width: 200px; text-align: left;">
-                                    <option value="0.2">12 Minutes (Scheduled Default)</option>
-                                    <option value="6">6 Hours</option>
-                                    <option value="12" selected>12 Hours</option>
-                                    <option value="24">24 Hours</option>
-                                    <option value="48">48 Hours</option>
-                                    <option value="168">7 Days</option>
-                                </select>
-                                <button class="btn btn-primary" onclick="fetchHistoricalMessages()">
-                                    <i class="bi bi-clock-history"></i> Fetch Messages
-                                </button>
-                            </div>
-                            <div id="historical-fetch-status" class="mt-3"></div>
-                        </div>
-
-                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
-
-                        <!-- Google Sheets Sync -->
-                        <div class="mb-4">
-                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Advanced Google
-                                Sheets Sync</h5>
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
-                                Sync older jobs to Sheets. Ignores duplicates.
-                            </p>
-
-                            <div class="d-flex gap-2 align-items-center flex-wrap">
-                                <span style="color: var(--text-secondary); font-size: 0.875rem;">Sync past</span>
-                                <input type="number" id="syncDaysInput" value="7" min="1" max="365"
-                                    class="btn btn-secondary" style="width: 80px; text-align: center;">
-                                <span style="color: var(--text-secondary); font-size: 0.875rem;">days</span>
-                                <button class="btn btn-primary" onclick="runAdvancedSync()">
-                                    <i class="bi bi-cloud-upload"></i> Sync Now
-                                </button>
-                            </div>
-                            <div id="advanced-sync-status" class="mt-3"></div>
-                        </div>
-
-                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
-
-                        <!-- Monitored Groups -->
-                        <div class="mb-4">
-                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Monitored
-                                Groups
-                            </h5>
-                            <div class="d-flex gap-2 mb-3">
-                                <input type="text" id="new-group-username" placeholder="@groupname or link"
-                                    class="btn btn-secondary"
-                                    style="text-align: left; flex: 1; max-width: 300px; cursor: text;">
-                                <button class="btn btn-success" onclick="addMonitoredGroup()">
-                                    <i class="bi bi-plus-lg"></i> Add
-                                </button>
-                            </div>
-                            <div id="monitored-groups-list" class="d-flex flex-column gap-2"
-                                style="max-height: 200px; overflow-y: auto; background: var(--bg-tertiary); padding: 0.5rem; border-radius: var(--radius-md);">
-                                <!-- Group list items will go here -->
-                                <div class="text-muted p-2">Loading groups...</div>
-                            </div>
-                        </div>
-
-                        <hr style="border-color: var(--border-color); margin: 2rem 0;">
-
-                        <!-- Data Maintenance -->
-                        <div>
-                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Maintenance &
-                                System</h5>
-                            <div class="d-flex gap-2 flex-wrap mb-4">
-                                <button class="btn btn-secondary" onclick="detectDuplicates()">
-                                    <i class="bi bi-search"></i> Detect Duplicates
-                                </button>
-                                <button class="btn btn-secondary" onclick="importJobsFromSheets()">
-                                    <i class="bi bi-file-earmark-spreadsheet"></i> Import form Sheets
-                                </button>
-                                <div class="d-flex align-items-center gap-2">
-                                    <select id="archive-days-select" class="btn btn-secondary" style="width: auto;">
-                                        <option value="30">Older than 30 days</option>
-                                        <option value="60">Older than 60 days</option>
-                                        <option value="90">Older than 90 days</option>
-                                    </select>
-                                    <button class="btn btn-danger" onclick="archiveOlderThan()">
-                                        <i class="bi bi-archive"></i> Archive Jobs
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Pending Commands -->
-                            <h5 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Pending
-                                Commands
-                            </h5>
-                            <div class="card"
-                                style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
-                                <div class="card-body p-0">
-                                    <table class="table" style="margin: 0; font-size: 0.875rem;">
-                                        <thead>
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Command</th>
-                                                <th>Created At</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="pending-commands-body">
-                                            <tr>
-                                                <td colspan="4" class="text-center text-muted">Loading...</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="card-footer p-2 text-end">
-                                    <button class="btn btn-sm btn-secondary"
-                                        onclick="fetchPendingCommands()">Refresh</button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
+  <div class="settings-grid">
+    <!-- Telegram Connection -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <i class="bi bi-telegram"></i>
+        <h3>Telegram Connection</h3>
+      </div>
+      <div class="settings-card-body">
+        <div class="setting-row">
+          <div class="setting-info">
+            <label>Connection Status</label>
+            <p>Current authentication state with Telegram</p>
+          </div>
+          <div class="setting-control">
+            <div id="telegram-status-alert" class="status-alert loading">
+              <div class="loading spinner" style="width: 18px; height: 18px;"></div>
+              <span>Checking...</span>
             </div>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary" onclick="startTelegramSetup()">
+            <i class="bi bi-shield-lock"></i> Configure
+          </button>
+          <button class="btn btn-secondary" onclick="clearTelegramSession()">
+            <i class="bi bi-trash"></i> Clear Session
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monitored Groups -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <i class="bi bi-people"></i>
+        <h3>Monitored Groups</h3>
+      </div>
+      <div class="settings-card-body">
+        <div class="setting-row" style="padding-bottom: 1rem;">
+          <div class="setting-info">
+            <label>Add Group</label>
+            <p>Enter Telegram group username or invite link</p>
+          </div>
+        </div>
+        <div class="inline-form" style="margin-bottom: 1rem;">
+          <input type="text" id="new-group-username" placeholder="@groupname or link" class="form-input" style="flex: 1; min-width: 200px;">
+          <button class="btn btn-success" onclick="addMonitoredGroup()">
+            <i class="bi bi-plus-lg"></i> Add
+          </button>
+        </div>
+        <div id="monitored-groups-list" class="groups-list">
+          <div class="text-muted" style="padding: 0.5rem; text-align: center;">Loading groups...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historical Message Recovery -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <i class="bi bi-clock-history"></i>
+        <h3>Message Recovery</h3>
+      </div>
+      <div class="settings-card-body">
+        <div class="setting-row">
+          <div class="setting-info">
+            <label>Fetch Historical Messages</label>
+            <p>Retrieve missed messages from past downtime periods</p>
+          </div>
+          <div class="setting-control">
+            <select id="hours-back" class="form-select">
+              <option value="0.2">12 Minutes</option>
+              <option value="6">6 Hours</option>
+              <option value="12" selected>12 Hours</option>
+              <option value="24">24 Hours</option>
+              <option value="48">48 Hours</option>
+              <option value="168">7 Days</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary" onclick="fetchHistoricalMessages()">
+            <i class="bi bi-download"></i> Fetch Messages
+          </button>
+        </div>
+        <div id="historical-fetch-status" class="mt-3"></div>
+      </div>
+    </div>
+
+    <!-- Google Sheets Sync -->
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <i class="bi bi-cloud-upload"></i>
+        <h3>Google Sheets Sync</h3>
+      </div>
+      <div class="settings-card-body">
+        <div class="setting-row">
+          <div class="setting-info">
+            <label>Advanced Sync</label>
+            <p>Sync older jobs to Sheets. Duplicates are automatically skipped.</p>
+          </div>
+          <div class="setting-control">
+            <span class="form-label">Past</span>
+            <input type="number" id="syncDaysInput" value="7" min="1" max="365" class="form-input">
+            <span class="form-label">days</span>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="btn btn-primary" onclick="runAdvancedSync()">
+            <i class="bi bi-cloud-upload"></i> Sync Now
+          </button>
+        </div>
+        <div id="advanced-sync-status" class="mt-3"></div>
+      </div>
+    </div>
+
+    <!-- Maintenance & System - Full Width -->
+    <div class="settings-card settings-card-full">
+      <div class="settings-card-header">
+        <i class="bi bi-tools"></i>
+        <h3>Maintenance & System</h3>
+      </div>
+      <div class="settings-card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+          <button class="btn btn-secondary" onclick="detectDuplicates()">
+            <i class="bi bi-search"></i> Detect Duplicates
+          </button>
+          <button class="btn btn-secondary" onclick="importJobsFromSheets()">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Import from Sheets
+          </button>
+          <div class="inline-form">
+            <select id="archive-days-select" class="form-select">
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+            </select>
+            <button class="btn btn-danger" onclick="archiveOlderThan()">
+              <i class="bi bi-archive"></i> Archive Jobs
+            </button>
+          </div>
+        </div>
+
+        <!-- Pending Commands Section -->
+        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
+              <i class="bi bi-terminal" style="margin-right: 0.5rem;"></i>Pending Commands
+            </h4>
+            <button class="btn btn-sm btn-secondary" onclick="fetchPendingCommands()">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+          <div style="background: var(--bg-tertiary); border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-color);">
+            <table class="commands-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Command</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="pending-commands-body">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--text-muted);">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
             <!-- Telegram Setup Modal (Hidden by default) -->
             <div id="telegram-modal" class="sidebar-overlay"
@@ -2145,53 +2445,53 @@
             }
         }
 
-        async function fetchTelegramStatus() {
-            try {
-                const response = await fetch('/api/telegram/status');
-                const data = await response.json();
-                const alert = document.getElementById('telegram-status-alert');
-                const status = data.login_status || 'unknown';
+async function fetchTelegramStatus() {
+  try {
+    const response = await fetch('/api/telegram/status');
+    const data = await response.json();
+    const alert = document.getElementById('telegram-status-alert');
+    const status = data.login_status || 'unknown';
 
-                if (status === 'connected') {
-                    alert.className = 'p-3 rounded-lg mb-3 bg-green-900 border border-green-700 text-green-100'; // Tailwind-ish
-                    // Manually setting styles for compatibility
-                    alert.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                    alert.style.borderColor = '#10b981';
-                    alert.style.color = '#10b981';
-                    alert.innerHTML = '<div class="flex items-center gap-2"><i class="bi bi-check-circle-fill"></i> <strong>Connected</strong></div>';
-                } else if (status === 'not_authenticated') {
-                    alert.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                    alert.style.borderColor = '#ef4444';
-                    alert.style.color = '#ef4444';
-                    alert.innerHTML = '<div class="flex items-center gap-2"><i class="bi bi-x-circle-fill"></i> <strong>Not Authenticated</strong></div>';
-                } else {
-                    alert.innerHTML = `Status: ${status}`;
-                }
-            } catch (error) {
-                console.error("Telegram status error:", error);
-            }
-        }
+    if (status === 'connected') {
+      alert.className = 'status-badge connected';
+      alert.innerHTML = '<i class="bi bi-check-circle-fill"></i> Connected';
+    } else if (status === 'not_authenticated') {
+      alert.className = 'status-badge disconnected';
+      alert.innerHTML = '<i class="bi bi-x-circle-fill"></i> Not Authenticated';
+    } else if (status === 'session_expired') {
+      alert.className = 'status-badge disconnected';
+      alert.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Session Expired';
+    } else {
+      alert.className = 'status-badge pending';
+      alert.innerHTML = `<i class="bi bi-question-circle-fill"></i> ${status}`;
+    }
+  } catch (error) {
+    console.error("Telegram status error:", error);
+  }
+}
 
-        // Monitored Groups
-        async function fetchMonitoredGroups() {
-            try {
-                const response = await fetch('/api/monitored_groups');
-                const data = await response.json();
-                const list = document.getElementById('monitored-groups-list');
-                if (data.groups && data.groups.length > 0) {
-                    list.innerHTML = data.groups.map(group => `
-                        <div class="p-2 rounded d-flex justify-content-between align-items-center" style="background: var(--bg-tertiary); border: 1px solid var(--border-color);">
-                            <span>${group}</span>
-                            <button class="btn btn-sm btn-outline-danger" onclick="removeMonitoredGroup('${group}')"><i class="bi bi-trash"></i></button>
-                        </div>
-                    `).join('');
-                } else {
-                    list.innerHTML = '<div class="p-3 text-muted">No groups monitored</div>';
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
+// Monitored Groups
+async function fetchMonitoredGroups() {
+  try {
+    const response = await fetch('/api/monitored_groups');
+    const data = await response.json();
+    const list = document.getElementById('monitored-groups-list');
+    if (data.groups && data.groups.length > 0) {
+      list.innerHTML = data.groups.map(group => `
+        <div class="group-item">
+          <span>${group}</span>
+          <button class="btn-remove" onclick="removeMonitoredGroup('${group}')" title="Remove group">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      `).join('');
+    } else {
+      list.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-muted);">No groups monitored</div>';
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
 
         async function addMonitoredGroup() {
             const group = document.getElementById('new-group-username').value.trim();
