@@ -2101,6 +2101,11 @@ top: 0;
             if (!container) return;
             
             if (isLoading('jobs-table-body')) return; // Prevent concurrent requests
+
+            // Save scroll position so refresh doesn't jump the user back to top
+            const scrollEl = document.querySelector('.main-content') || window;
+            const savedScroll = scrollEl === window ? window.scrollY : scrollEl.scrollTop;
+
             showLoading('jobs-table-body', 'Loading jobs...');
             
             try {
@@ -2142,6 +2147,15 @@ top: 0;
                 renderJobsTable(sortedJobs);
                 renderPagination();
 
+                // Restore scroll position after re-render
+                requestAnimationFrame(() => {
+                    if (scrollEl === window) {
+                        window.scrollTo(0, savedScroll);
+                    } else {
+                        scrollEl.scrollTop = savedScroll;
+                    }
+                });
+
                 // Setup sortable headers
                 setupSortableHeaders();
             } catch (error) {
@@ -2159,6 +2173,14 @@ top: 0;
                 `;
             } finally {
                 hideLoading('jobs-table-body');
+                // Restore scroll even on error/loading states
+                requestAnimationFrame(() => {
+                    if (scrollEl === window) {
+                        window.scrollTo(0, savedScroll);
+                    } else {
+                        scrollEl.scrollTop = savedScroll;
+                    }
+                });
             }
         }
 
@@ -2864,11 +2886,18 @@ async function fetchMonitoredGroups() {
 
         // Initial Load
 
-        // Auto-refresh every 30 seconds
+        // Auto-refresh every 30 seconds — only update stats silently, never re-render jobs list
         setInterval(() => {
-            if (currentView !== 'settings' && currentView !== 'logs') {
-                loadView(currentView);
+            if (currentView === 'dashboard') {
+                // Full dashboard refresh is fine (no scroll position to preserve)
+                loadDashboardData();
+            } else if (currentView === 'queue') {
+                loadQueueData();
+            } else if (currentView === 'analytics') {
+                loadAnalyticsData();
             }
+            // jobs tab: do NOT auto-refresh — user may be scrolled / reading
+            // settings & logs: skip entirely
         }, 30000);
     </script>
 </body>
