@@ -83,7 +83,7 @@ def _make_mock_db():
     db.messages.get_unprocessed_count.return_value = 0
     db.messages.get_unprocessed_messages.return_value = []
     # jobs
-    db.jobs.get_jobs_today_stats.return_value = {"total": 0, "with_email": 0, "without_email": 0}
+    db.jobs.get_jobs_today_stats.return_value = {"total": 0, "telegram": 0, "manual": 0, "with_email": 0, "without_email": 0}
     db.jobs.get_dashboard_jobs.return_value = {"jobs": [], "total_count": 0}
     db.jobs.get_jobs.return_value = {"jobs": [], "total_count": 0}
     db.jobs.get_stats.return_value = {

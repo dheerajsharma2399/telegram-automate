@@ -418,11 +418,12 @@ class UnifiedJobRepository(BaseRepository):
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT
+                    SELECT 
                         COUNT(id) as total,
                         SUM(CASE WHEN source = 'telegram' THEN 1 ELSE 0 END) as telegram,
                         SUM(CASE WHEN source = 'manual' THEN 1 ELSE 0 END) as manual,
-                        SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email
+                        SUM(CASE WHEN email IS NOT NULL AND email != '' THEN 1 ELSE 0 END) as with_email,
+                        SUM(CASE WHEN email IS NULL OR email = '' THEN 1 ELSE 0 END) as without_email
                     FROM jobs
                     WHERE created_at::date = CURRENT_DATE
                 """)
@@ -432,6 +433,7 @@ class UnifiedJobRepository(BaseRepository):
                     "telegram": stats["telegram"] or 0,
                     "manual": stats["manual"] or 0,
                     "with_email": stats["with_email"] or 0,
+                    "without_email": stats["without_email"] or 0,
                 }
 
     def get_stats(self) -> Dict:
