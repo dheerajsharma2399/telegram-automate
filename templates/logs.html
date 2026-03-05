@@ -272,14 +272,45 @@
             background: #475569;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                display: none;
-                /* Hide sidebar on mobile for now */
-            }
-        }
-    </style>
+/* Responsive */
+@media (max-width: 768px) {
+.sidebar {
+display: none;
+/* Hide sidebar on mobile for now */
+}
+}
+
+/* Accessibility Improvements */
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+*,
+*::before,
+*::after {
+animation-duration: 0.01ms !important;
+animation-iteration-count: 1 !important;
+transition-duration: 0.01ms !important;
+scroll-behavior: auto !important;
+}
+
+.status-dot {
+animation: none;
+}
+}
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+outline: 2px solid var(--accent-primary);
+outline-offset: 2px;
+}
+
+/* Touch-friendly buttons */
+.btn-console {
+min-width: 44px;
+min-height: 44px;
+padding: 0.5rem 0.75rem;
+}
+</style>
 </head>
 
 <body>
