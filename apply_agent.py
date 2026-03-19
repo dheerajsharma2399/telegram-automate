@@ -10,12 +10,10 @@ load_dotenv()
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 TIMEOUT_SECONDS = 90
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-# Support both singular and plural env vars
-api_keys_str = os.getenv("OPENROUTER_API_KEYS", "")
-OPENROUTER_API_KEYS = [k.strip() for k in api_keys_str.split(",") if k.strip()]
-if not OPENROUTER_API_KEYS and OPENROUTER_API_KEY:
-    OPENROUTER_API_KEYS = [OPENROUTER_API_KEY]
+# Match config.py convention: use OPENROUTER_API_KEY (singular) as primary
+_api_keys_str = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_API_KEYS = [k.strip() for k in _api_keys_str.split(",") if k.strip()]
+OPENROUTER_API_KEY = OPENROUTER_API_KEYS[0] if OPENROUTER_API_KEYS else None
 OPENROUTER_MODELS = os.getenv("OPENROUTER_MODELS", "anthropic/claude-3.5-sonnet").split(",")
 OPENROUTER_FALLBACK_MODELS = os.getenv("OPENROUTER_FALLBACK_MODELS", "openai/gpt-4o-mini").split(",")
 
