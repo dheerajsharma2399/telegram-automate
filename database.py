@@ -111,6 +111,31 @@ def init_database(pool):
             CREATE INDEX IF NOT EXISTS idx_jobs_metadata_gin ON jobs USING gin(metadata);
                 """)
 
+                # Add apply_runs table
+                cursor.execute("""
+            CREATE TABLE IF NOT EXISTS apply_runs (
+                run_id          TEXT PRIMARY KEY,
+                job_id          TEXT NOT NULL,
+                profile_used    TEXT,
+                status          TEXT DEFAULT 'running',
+                email_subject   TEXT,
+                email_body      TEXT,
+                approved_subject TEXT,
+                approved_body   TEXT,
+                tokens_used     INTEGER DEFAULT 0,
+                model_used      TEXT,
+                error_message   TEXT,
+                approved_at     TIMESTAMP,
+                created_at      TIMESTAMP DEFAULT NOW()
+            )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_apply_runs_job_id ON apply_runs(job_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_apply_runs_status ON apply_runs(status)")
+
+                # Add columns to jobs table
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_status TEXT DEFAULT 'pending'")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_run_id TEXT")
+
                 # 3. Bot config table
                 cursor.execute("""
             CREATE TABLE IF NOT EXISTS bot_config (
