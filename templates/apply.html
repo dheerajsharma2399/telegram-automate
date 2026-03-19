@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply - Job Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .nav {
+            background: #1e293b;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .nav a {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .nav a:hover, .nav a.active {
+            background: #334155;
+            color: #f8fafc;
+        }
+        .container {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 70px);
+        }
+        .left-panel {
+            width: 320px;
+            flex-shrink: 0;
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .right-panel {
+            flex: 1;
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .section-title {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        select, input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #f8fafc;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        textarea { min-height: 200px; font-family: monospace; }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { background: #475569; cursor: not-allowed; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        .job-list { list-style: none; margin-top: 1rem; }
+        .job-item {
+            padding: 0.75rem;
+            background: #0f172a;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .job-item:hover { border-color: #3b82f6; }
+        .job-item.selected { border-color: #3b82f6; background: #1e3a5f; }
+        .job-company { font-weight: 600; color: #f8fafc; }
+        .job-role { font-size: 0.85rem; color: #94a3b8; }
+        .job-status {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+        .status-pending { background: #475569; color: #cbd5e1; }
+        .status-generating { background: #854d0e; color: #fef08a; }
+        .status-done { background: #166534; color: #bbf7d0; }
+        .status-queued { background: #1e40af; color: #bfdbfe; }
+        .status-error { background: #991b1b; color: #fecaca; }
+        .card {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .preview-box {
+            background: #ffffff;
+            color: #1e293b;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            min-height: 150px;
+        }
+        .preview-box p { margin-bottom: 0.5rem; }
+        .preview-box strong { color: #1e40af; }
+        .preview-box a { color: #2563eb; }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .success-msg { background: #166534; color: #bbf7d0; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+        .error-msg { background: #991b1b; color: #fecaca; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/">Dashboard</a>
+        <a href="/apply" class="active">Apply</a>
+    </nav>
+
+    <div class="container">
+        <div class="left-panel">
+            <div class="section-title">Profile</div>
+            <select id="profileSelect">
+                <option value="">Loading...</option>
+            </select>
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" style="width:100%;margin-bottom:1rem;">+ Upload Profile</button>
+            <input type="file" id="fileInput" accept=".json" style="display:none;" onchange="uploadProfile(this)">
+
+            <div class="section-title">Jobs with Email</div>
+            <input type="text" id="searchBox" placeholder="Search jobs..." oninput="filterJobs()">
+            <ul class="job-list" id="jobList"></ul>
+        </div>
+
+        <div class="right-panel" id="rightPanel">
+            <div style="color: #94a3b8; text-align: center; padding: 2rem;">
+                Select a job to generate an application email
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jobs = [];
+        let selectedJob = null;
+        let currentRunId = null;
+        let pollInterval = null;
+
+        async function loadProfiles() {
+            const res = await fetch('/apply/api/profiles');
+            const data = await res.json();
+            const select = document.getElementById('profileSelect');
+            select.innerHTML = data.profiles.map(p =>
+                `<option value="${p.filename}" ${p.filename === data.default ? 'selected' : ''}>${p.label}</option>`
+            ).join('');
+        }
+
+        async function loadJobs() {
+            const res = await fetch('/apply/api/jobs');
+            const data = await res.json();
+            jobs = data.jobs || [];
+            renderJobList(jobs);
+        }
+
+        function renderJobList(jobList) {
+            const list = document.getElementById('jobList');
+            list.innerHTML = jobList.map(job => `
+                <li class="job-item ${selectedJob && selectedJob.job_id === job.job_id ? 'selected' : ''}"
+                    onclick="selectJob('${job.job_id}')">
+                    <div class="job-company">${escapeHtml(job.company_name)}</div>
+                    <div class="job-role">${escapeHtml(job.job_role)}</div>
+                    <span class="job-status status-${job.apply_status || 'pending'}">${job.apply_status || 'pending'}</span>
+                </li>
+            `).join('');
+        }
+
+        function filterJobs() {
+            const query = document.getElementById('searchBox').value.toLowerCase();
+            const filtered = jobs.filter(j =>
+                (j.company_name || '').toLowerCase().includes(query) ||
+                (j.job_role || '').toLowerCase().includes(query)
+            );
+            renderJobList(filtered);
+        }
+
+        async function selectJob(jobId) {
+            selectedJob = jobs.find(j => j.job_id === jobId);
+            renderJobList(jobs);
+            showJobDetails();
+        }
+
+        function showJobDetails() {
+            const panel = document.getElementById('rightPanel');
+            const job = selectedJob;
+            if (!job) return;
+
+            panel.innerHTML = `
+                <div class="card">
+                    <h3>${escapeHtml(job.company_name)}</h3>
+                    <p style="color:#94a3b8">${escapeHtml(job.job_role)}</p>
+                    <p style="color:#94a3b8;font-size:0.9rem">${escapeHtml(job.location || '')}</p>
+                    <p style="color:#3b82f6;margin-top:0.5rem">${escapeHtml(job.email)}</p>
+                </div>
+                <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn">
+                    Generate Email
+                </button>
+                <div id="draftPanel" style="display:none;margin-top:1rem;">
+                    <div class="section-title">Subject</div>
+                    <input type="text" id="emailSubject">
+                    <div class="section-title">Email Body (HTML)</div>
+                    <textarea id="emailBody" oninput="updatePreview()"></textarea>
+                    <div class="section-title">Preview</div>
+                    <div class="preview-box" id="previewBox"></div>
+                    <div style="display:flex;gap:1rem;margin-top:1rem;">
+                        <button class="btn btn-primary" onclick="generateEmail()">Regenerate</button>
+                        <button class="btn btn-success" onclick="approveDraft()">Approve & Queue</button>
+                    </div>
+                </div>
+                <div id="statusMsg"></div>
+            `;
+        }
+
+        async function generateEmail() {
+            if (!selectedJob) return;
+
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+            const profile = document.getElementById('profileSelect').value;
+
+            try {
+                const res = await fetch('/apply/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({job_id: selectedJob.job_id, profile_filename: profile})
+                });
+                const data = await res.json();
+                currentRunId = data.run_id;
+
+                document.getElementById('statusMsg').innerHTML = '<div class="status-pending" style="padding:0.5rem;border-radius:4px;">Generating...</div>';
+
+                pollInterval = setInterval(pollStatus, 2000);
+            } catch (e) {
+                showError('Failed to start generation: ' + e.message);
+                btn.disabled = false;
+                btn.innerHTML = 'Generate Email';
+            }
+        }
+
+        async function pollStatus() {
+            if (!currentRunId) return;
+
+            try {
+                const res = await fetch('/apply/api/runs/' + currentRunId);
+                const data = await res.json();
+
+                if (data.status === 'done') {
+                    clearInterval(pollInterval);
+                    document.getElementById('emailSubject').value = data.email_subject || '';
+                    document.getElementById('emailBody').value = data.email_body || '';
+                    document.getElementById('draftPanel').style.display = 'block';
+                    document.getElementById('statusMsg').innerHTML = '';
+                    updatePreview();
+
+                    const btn = document.getElementById('generateBtn');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Generate Email';
+
+                    // Update job status in list
+                    selectedJob.apply_status = 'done';
+                    renderJobList(jobs);
+                } else if (data.status === 'error') {
+                    clearInterval(pollInterval);
+                    showError(data.error_message || 'Generation failed');
+                    const btn = document.getElementById('generateBtn');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Generate Email';
+                }
+            } catch (e) {
+                console.error('Poll error:', e);
+            }
+        }
+
+        function updatePreview() {
+            const body = document.getElementById('emailBody').value;
+            document.getElementById('previewBox').innerHTML = body;
+        }
+
+        async function approveDraft() {
+            const subject = document.getElementById('emailSubject').value;
+            const body = document.getElementById('emailBody').value;
+
+            try {
+                const res = await fetch('/apply/api/runs/' + currentRunId + '/approve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email_subject: subject, email_body: body})
+                });
+                const data = await res.json();
+
+                if (data.approved) {
+                    document.getElementById('statusMsg').innerHTML = '<div class="success-msg">Approved! Draft written to sheet.</div>';
+                    selectedJob.apply_status = 'queued';
+                    renderJobList(jobs);
+                }
+            } catch (e) {
+                showError('Failed to approve: ' + e.message);
+            }
+        }
+
+        async function uploadProfile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/apply/api/profiles', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.saved) {
+                    loadProfiles();
+                } else {
+                    alert(data.error || 'Upload failed');
+                }
+            } catch (e) {
+                alert('Upload failed: ' + e.message);
+            }
+            input.value = '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(msg) {
+            document.getElementById('statusMsg').innerHTML = '<div class="error-msg">' + escapeHtml(msg) + '</div>';
+        }
+
+        // Load data on page load
+        loadProfiles();
+        loadJobs();
+    </script>
+</body>
+</html>
