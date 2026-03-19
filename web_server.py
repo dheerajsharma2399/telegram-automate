@@ -28,8 +28,23 @@ from config import (
 )
 from sheets_sync import MultiSheetSync
 
+# Import apply blueprint with fallback
+try:
+    from apply_routes import apply_bp
+except ImportError:
+    apply_bp = None
+    logging.warning("apply_routes not available")
+
 # Initialize Flask app
 app = Flask(__name__)
+
+# Set config for apply routes
+app.config["DB"] = db
+app.config["GET_SHEETS_SYNC"] = get_sheets_sync
+
+# Register Apply blueprint if available
+if apply_bp is not None:
+    app.register_blueprint(apply_bp)
 
 # API Key authentication decorator
 def require_api_key(f):
