@@ -58,7 +58,7 @@ app.config["GET_SHEETS_SYNC"] = get_sheets_sync
 # Register Apply blueprint if available
 try:
     from apply_routes import apply_bp
-    app.register_blueprint(apply_bp)
+    app.register_blueprint(apply_bp, url_prefix='/apply')
 except ImportError:
     logging.warning("apply_routes not available")
 
