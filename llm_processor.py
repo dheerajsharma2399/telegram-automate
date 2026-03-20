@@ -292,29 +292,67 @@ class LLMProcessor:
             raise e
 
     
-    def _extract_json(self, content: str) -> Optional[List[Dict]]:
-        """Extract JSON array from LLM response"""
+    def _extract_json(self, content: str) -> Optional[Union[List[Dict], Dict]]:
+        """
+        Extract JSON from LLM response text, handling potential markdown blocks.
+        Supports both list and single dictionary results.
+        """
+        if not content:
+            return None
+            
         try:
-            # Try direct JSON parse
-            return json.loads(content)
+            # Try parsing directly first
+            return json.loads(content.strip())
         except json.JSONDecodeError:
-            # Try to extract JSON from markdown code blocks
-            json_match = re.search(r'```(?:json)?\s*(\[.*?\])\s*```', 
-                                 content, re.DOTALL)
+            # Try to find JSON in markdown blocks
+            json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
             if json_match:
                 try:
-                    return json.loads(json_match.group(1))
+                    return json.loads(json_match.group(1).strip())
                 except json.JSONDecodeError:
                     pass
             
-            # Try to find JSON array anywhere in text (greedy to capture the full outer array)
-            json_match = re.search(r'\[.*\]', content, re.DOTALL)
-            if json_match:
+            # Fallback: try to find anything between { } or [ ]
+            brace_match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', content)
+            if brace_match:
                 try:
-                    return json.loads(json_match.group(0))
+                    return json.loads(brace_match.group(1).strip())
                 except json.JSONDecodeError:
                     pass
-        
+                    
+        return None
+
+    async def _call_custom_llm(self, messages: List[Dict], model: str, api_key: str) -> Optional[Dict]:
+        """Custom LLM call for email generation with JSON extraction."""
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://job.mooh.me",
+            "X-Title": "telegram-automate-apply"
+        }
+        payload = {
+            "model": model,
+            "messages": messages,
+            "response_format": {"type": "json_object"},
+            "temperature": 0.3,
+            "max_tokens": 2000
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.base_url, json=payload, headers=headers, timeout=90) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        if content:
+                            result = self._extract_json(content)
+                            if result and isinstance(result, dict):
+                                result["usage"] = data.get("usage", {})
+                                result["model"] = model
+                                return result
+                    else:
+                        self.logger.warning(f"Model {model} returned status {resp.status}")
+        except Exception as e:
+            self.logger.warning(f"API call failed with {model}: {e}")
         return None
     
     def _regex_fallback(self, message_text: str) -> List[Dict]:
@@ -600,13 +638,13 @@ class LLMProcessor:
 
         candidate_name = profile.get("personal_information", {}).get("full_name", "Dheeraj Sharma")
 
-        system_prompt = """You are a professional job application email writer. Generate a cold outreach email.
+        system_prompt = f"""You are a professional job application email writer. Generate a cold outreach email.
 
 Output JSON with exactly this schema:
-{
+{{
   "subject": "string — max 98 chars",
   "body_html": "string — HTML email body, 250-300 words"
-}
+}}
 
 Requirements:
 - Write a professional but warm cold email, 250-300 words
@@ -644,50 +682,10 @@ Write the email now. Return only valid JSON."""
             {"role": "user", "content": user_prompt}
         ]
 
-        async def _call_custom_llm(model: str, api_key: str) -> Optional[Dict]:
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://job.mooh.me",
-                "X-Title": "telegram-automate-apply"
-            }
-            payload = {
-                "model": model,
-                "messages": messages,
-                "response_format": {"type": "json_object"},
-                "temperature": 0.3,
-                "max_tokens": 2000
-            }
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(self.base_url, json=payload, headers=headers, timeout=90) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                            if content:
-                                # Sometimes LLM returns a string inside content that is actually JSON
-                                try:
-                                    if isinstance(content, str):
-                                        result = json.loads(content)
-                                    else:
-                                        result = content
-                                    
-                                    result["usage"] = data.get("usage", {})
-                                    result["model"] = model
-                                    return result
-                                except json.JSONDecodeError as e:
-                                    self.logger.warning(f"Failed to parse JSON content from {model}: {e}")
-                                    return None
-                        else:
-                            self.logger.warning(f"Model {model} returned status {resp.status}")
-            except Exception as e:
-                self.logger.warning(f"API call failed with {model}: {e}")
-            return None
-
         # Try primary pool
         for model in self.models:
             for api_key in self.api_keys:
-                result = await _call_custom_llm(model, api_key)
+                result = await self._call_custom_llm(messages, model, api_key)
                 if result:
                     return {
                         "subject": result.get("subject", ""),
@@ -699,7 +697,7 @@ Write the email now. Return only valid JSON."""
         # Try fallback pool
         for model in self.fallback_models:
             for api_key in self.api_keys:
-                result = await _call_custom_llm(model, api_key)
+                result = await self._call_custom_llm(messages, model, api_key)
                 if result:
                     return {
                         "subject": result.get("subject", ""),

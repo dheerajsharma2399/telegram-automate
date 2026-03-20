@@ -108,7 +108,7 @@
             letter-spacing: 0.1em;
             font-weight: 700;
         }
-        select, input[type="text"], textarea {
+        select, input[type="text"], input[type="password"], textarea {
             width: 100%;
             padding: 0.75rem;
             background: var(--bg-primary);
@@ -202,7 +202,7 @@
         }
         
         .jd-container {
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
             background: #020617;
             padding: 1rem;
@@ -281,7 +281,6 @@
         .empty-state i { font-size: 4rem; opacity: 0.2; }
         .empty-state p { font-size: 1.1rem; max-width: 250px; line-height: 1.5; }
 
-        /* Badge for recruiter */
         .recruiter-badge {
             background: rgba(59, 130, 246, 0.15);
             color: #93c5fd;
@@ -359,11 +358,11 @@
             </div>
             <div class="section-title">Backend Access Key</div>
             <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.4;">
-                Enter your security key to authorize communication with the backend services. This key is saved locally in your browser.
+                Enter your security key to authorize communication with the backend.
             </p>
             <input type="password" id="apiKeyInput" placeholder="Enter API Key" style="margin-bottom:1.5rem;">
             <div style="display:flex; justify-content:flex-end;">
-                <button class="btn btn-primary" onclick="saveApiKey()" style="width:100%;">Save & Update Dashboard</button>
+                <button class="btn btn-primary" onclick="saveApiKey()" style="width:100%;">Save Changes</button>
             </div>
         </div>
     </div>
@@ -403,7 +402,7 @@
             options.headers = {...getHeaders(), ...options.headers};
             const res = await fetch(url, options);
             if (res.status === 401) {
-                showError('Unauthorized: Please verify your API Key in settings.');
+                showError('Unauthorized access. Please check your API key in settings.');
                 toggleSettings();
                 throw new Error('Unauthorized');
             }
@@ -437,18 +436,14 @@
                 document.getElementById('jobCountLabel').innerText = `Jobs with Email (${jobs.length})`;
             } catch (e) { 
                 console.error('Failed to load jobs', e);
-                list.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle" style="color:var(--danger); opacity:0.5;"></i><p>Connection failed. Check your API key.</p></div>';
+                list.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle" style="color:var(--danger); opacity:0.5;"></i><p>Failed to load jobs. Check API key.</p></div>';
             }
         }
 
         function renderJobList(jobList) {
             const list = document.getElementById('jobList');
             if (jobList.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <i class="bi bi-search"></i>
-                        <p>No active jobs with email found</p>
-                    </div>`;
+                list.innerHTML = `<div class="empty-state"><i class="bi bi-search"></i><p>No jobs found</p></div>`;
                 return;
             }
             list.innerHTML = jobList.map(job => `
@@ -473,6 +468,13 @@
         }
 
         async function selectJob(jobId) {
+            // Stop previous polling
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+            currentRunId = null;
+            
             selectedJob = jobs.find(j => j.job_id === jobId);
             renderJobList(jobs);
             showJobDetails();
@@ -484,42 +486,44 @@
             if (!job) return;
 
             panel.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
-                    <div>
-                        <h2 style="font-size:1.75rem; font-weight:800; margin-bottom:0.5rem; letter-spacing:-0.02em;">${escapeHtml(job.company_name)}</h2>
-                        <div style="color:var(--text-secondary); display:flex; gap:1.25rem; font-size:1rem; flex-wrap:wrap;">
-                            <span style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-briefcase-fill" style="color:var(--accent-primary)"></i> ${escapeHtml(job.job_role)}</span>
-                            ${job.location ? `<span style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-geo-alt-fill" style="color:var(--danger)"></i> ${escapeHtml(job.location)}</span>` : ''}
+                <div id="jobHeader">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+                        <div>
+                            <h2 style="font-size:1.75rem; font-weight:800; margin-bottom:0.5rem; letter-spacing:-0.02em;">${escapeHtml(job.company_name)}</h2>
+                            <div style="color:var(--text-secondary); display:flex; gap:1.25rem; font-size:1rem; flex-wrap:wrap;">
+                                <span style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-briefcase-fill" style="color:var(--accent-primary)"></i> ${escapeHtml(job.job_role)}</span>
+                                ${job.location ? `<span style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-geo-alt-fill" style="color:var(--danger)"></i> ${escapeHtml(job.location)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="job-status status-${job.apply_status || 'pending'}" style="position:static; padding:0.4rem 0.8rem; font-size:0.75rem;">
+                            ${job.apply_status || 'pending'}
                         </div>
                     </div>
-                    <div class="job-status status-${job.apply_status || 'pending'}" style="position:static; padding:0.4rem 0.8rem; font-size:0.75rem;">
-                        ${job.apply_status || 'pending'}
-                    </div>
-                </div>
 
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
-                    <div class="card" style="margin-bottom:0; padding:1.25rem;">
-                        <div class="section-title" style="margin-bottom:0.5rem;">Recruiter Details</div>
-                        <div class="recruiter-badge">
-                            <i class="bi bi-person-circle"></i>
-                            ${escapeHtml(job.recruiter_name || 'Hiring Manager')}
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+                        <div class="card" style="margin-bottom:0; padding:1.25rem;">
+                            <div class="section-title" style="margin-bottom:0.5rem;">Recruiter</div>
+                            <div class="recruiter-badge">
+                                <i class="bi bi-person-circle"></i>
+                                ${escapeHtml(job.recruiter_name || 'Hiring Manager')}
+                            </div>
+                        </div>
+                        <div class="card" style="margin-bottom:0; padding:1.25rem;">
+                            <div class="section-title" style="margin-bottom:0.5rem;">Contact Email</div>
+                            <div style="color:var(--accent-primary); font-weight:700; font-family:monospace;">
+                                <i class="bi bi-envelope-fill"></i> ${escapeHtml(job.email)}
+                            </div>
                         </div>
                     </div>
-                    <div class="card" style="margin-bottom:0; padding:1.25rem;">
-                        <div class="section-title" style="margin-bottom:0.5rem;">Direct Email</div>
-                        <div style="color:var(--accent-primary); font-weight:700; font-family:monospace; font-size:1rem;">
-                            <i class="bi bi-envelope-fill"></i> ${escapeHtml(job.email)}
-                        </div>
+
+                    <div class="section-title">Job Description</div>
+                    <div class="jd-container">${escapeHtml(job.jd_text || 'No description available.')}</div>
+
+                    <div id="actionArea" style="margin-top:2rem;">
+                        <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn" style="width:100%; height:3.5rem; font-size:1.1rem; box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.3);">
+                            <i class="bi bi-stars"></i> Generate Personalized Draft
+                        </button>
                     </div>
-                </div>
-
-                <div class="section-title">Job Description Preview</div>
-                <div class="jd-container">${escapeHtml(job.jd_text || 'No description available for this job.')}</div>
-
-                <div id="actionArea" style="margin-top:2rem;">
-                    <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn" style="width:100%; height:3.5rem; font-size:1.1rem; box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);">
-                        <i class="bi bi-stars"></i> Generate AI-Powered Outreach
-                    </button>
                 </div>
 
                 <div id="statusMsg" style="margin-top:1.5rem;"></div>
@@ -528,21 +532,21 @@
                     <hr style="border:0; border-top:1px solid var(--border-color); margin: 2rem 0;">
                     
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                        <div class="section-title" style="margin-bottom:0;">Generated Content</div>
+                        <div class="section-title" style="margin-bottom:0;">Draft for ${escapeHtml(job.company_name)}</div>
                         <span id="modelUsedBadge" class="job-status status-pending" style="position:static; font-size:0.6rem;"></span>
                     </div>
 
                     <div style="margin-bottom:1.5rem;">
                         <label class="section-title" style="display:block; margin-bottom:0.5rem;">Subject Line</label>
-                        <input type="text" id="emailSubject" placeholder="Email Subject" style="font-weight:600;">
+                        <input type="text" id="emailSubject" placeholder="Email Subject" style="background:var(--bg-secondary); border-color:var(--border-color); font-weight:600;">
                     </div>
                     
                     <div style="margin-bottom:1.5rem;">
-                        <label class="section-title" style="display:block; margin-bottom:0.5rem;">Draft Editor (HTML)</label>
+                        <label class="section-title" style="display:block; margin-bottom:0.5rem;">Email Body (HTML)</label>
                         <textarea id="emailBody" oninput="updatePreview()" placeholder="Tailored content..."></textarea>
                     </div>
                     
-                    <div class="section-title" style="margin-bottom:0.5rem;">Visual Email Preview</div>
+                    <div class="section-title" style="margin-bottom:0.5rem;">Live Preview</div>
                     <div class="preview-box" id="previewBox"></div>
                     
                     <div style="display:flex; gap:1rem; margin-top:2rem; padding-bottom:3rem;">
@@ -550,13 +554,12 @@
                             <i class="bi bi-arrow-repeat"></i> Regenerate
                         </button>
                         <button class="btn btn-success" onclick="approveDraft()" style="flex:2; height:3.5rem; font-size:1.1rem; box-shadow: 0 4px 14px 0 rgba(34, 197, 94, 0.3);">
-                            <i class="bi bi-send-fill"></i> Approve & Sync to Sheets
+                            <i class="bi bi-check-circle-fill"></i> Approve & Sync
                         </button>
                     </div>
                 </div>
             `;
             
-            // Scroll right panel to top when job changes
             panel.scrollTop = 0;
         }
 
@@ -566,7 +569,7 @@
             const btn = document.getElementById('generateBtn');
             const originalBtnHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> AI is reading your profile...';
+            btn.innerHTML = '<span class="spinner"></span> Working...';
             
             const draftPanel = document.getElementById('draftPanel');
             const statusMsg = document.getElementById('statusMsg');
@@ -576,7 +579,7 @@
 
             const profile = document.getElementById('profileSelect').value;
             if (!profile) {
-                showError('Please select a profile first.');
+                showError('Select a profile first.');
                 btn.disabled = false;
                 btn.innerHTML = originalBtnHtml;
                 return;
@@ -594,8 +597,8 @@
                     <div class="msg-box" style="background:rgba(59, 130, 246, 0.1); color:#93c5fd; border:1px solid rgba(59, 130, 246, 0.2);">
                         <div class="spinner" style="border-top-color:var(--accent-primary)"></div>
                         <div>
-                            <strong>Drafting in progress...</strong><br>
-                            <span style="font-size:0.85rem; opacity:0.8;">Matching your projects and achievements with the job requirements.</span>
+                            <strong>Matching profile with JD...</strong><br>
+                            <span style="font-size:0.85rem; opacity:0.8;">Tailoring achievements and projects for ${escapeHtml(selectedJob.company_name)}.</span>
                         </div>
                     </div>`;
 
@@ -603,7 +606,7 @@
                 pollInterval = setInterval(pollStatus, 2000);
             } catch (e) {
                 if (e.message !== 'Unauthorized') {
-                    showError('Generation failed to start: ' + e.message);
+                    showError('Failed to start generation: ' + e.message);
                 }
                 btn.disabled = false;
                 btn.innerHTML = originalBtnHtml;
@@ -617,6 +620,12 @@
                 const res = await apiFetch('/apply/api/runs/' + currentRunId);
                 const data = await res.json();
 
+                // If job was changed during polling, ignore results for previous run
+                if (data.job_id !== selectedJob.job_id) {
+                    clearInterval(pollInterval);
+                    return;
+                }
+
                 if (data.status === 'done') {
                     clearInterval(pollInterval);
                     document.getElementById('emailSubject').value = data.email_subject || '';
@@ -628,29 +637,28 @@
                             <i class="bi bi-patch-check-fill" style="font-size:1.5rem;"></i>
                             <div>
                                 <strong>Tailored draft is ready!</strong><br>
-                                <span style="font-size:0.85rem; opacity:0.9;">Generated using ${data.model_used || 'Advanced AI'}. Review and approve below.</span>
+                                <span style="font-size:0.85rem; opacity:0.9;">Review the content below before syncing to sheets.</span>
                             </div>
                         </div>`;
                     updatePreview();
 
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-stars"></i> Regenerate Alternative Draft';
+                    btn.innerHTML = '<i class="bi bi-stars"></i> Regenerate Draft';
 
                     selectedJob.apply_status = 'done';
                     renderJobList(jobs);
                     
-                    // Scroll to draft panel
                     document.getElementById('draftPanel').scrollIntoView({behavior: 'smooth', block: 'start'});
                 } else if (data.status === 'error') {
                     clearInterval(pollInterval);
-                    showError(data.error_message || 'The AI encountered an error while generating your draft.');
+                    showError(data.error_message || 'AI generation failed.');
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-stars"></i> Try Again';
                 }
             } catch (e) {
-                console.error('Polling error:', e);
+                console.error('Poll error:', e);
             }
         }
 
@@ -663,15 +671,12 @@
             const subject = document.getElementById('emailSubject').value;
             const body = document.getElementById('emailBody').value;
 
-            if (!subject || !body) {
-                showError('Subject and Body cannot be empty.');
-                return;
-            }
+            if (!subject || !body) return showError('Subject and Body are required.');
 
             const btn = event.target.closest('button');
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Processing...';
+            btn.innerHTML = '<span class="spinner"></span> Syncing...';
 
             try {
                 const res = await apiFetch('/apply/api/runs/' + currentRunId + '/approve', {
@@ -688,10 +693,8 @@
                         <div class="${isSuccess ? 'success-msg' : 'error-msg'} msg-box">
                             <i class="bi ${isSuccess ? 'bi-check-all' : 'bi-exclamation-triangle-fill'}" style="font-size:1.5rem;"></i>
                             <div>
-                                <strong>${isSuccess ? 'Draft successfully synced!' : 'Database updated, Sheet failed'}</strong><br>
-                                <span style="font-size:0.85rem; opacity:0.9;">
-                                    ${isSuccess ? 'The draft is now in your Google Sheet. Your App Script will handle sending.' : 'The draft was saved to the DB but couldn\'t be written to the Google Sheet. Please check logs.'}
-                                </span>
+                                <strong>${isSuccess ? 'Successfully synced to Sheet!' : 'Saved to DB, Sheet failed'}</strong><br>
+                                <span style="font-size:0.85rem; opacity:0.9;">${isSuccess ? 'The draft is ready for sending in your Google Sheet.' : 'Check logs for sheet connection issues.'}</span>
                             </div>
                         </div>`;
                     
@@ -700,9 +703,7 @@
                     statusMsg.scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
             } catch (e) {
-                if (e.message !== 'Unauthorized') {
-                    showError('Failed to approve: ' + e.message);
-                }
+                if (e.message !== 'Unauthorized') showError('Failed to approve: ' + e.message);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
@@ -712,37 +713,16 @@
         async function uploadProfile(input) {
             const file = input.files[0];
             if (!file) return;
-
             const formData = new FormData();
             formData.append('file', file);
-
             try {
-                // For multipart, we let browser set Content-Type
                 const headers = getHeaders();
                 delete headers['Content-Type'];
-                
-                const res = await fetch('/apply/api/profiles', {
-                    method: 'POST',
-                    body: formData,
-                    headers: headers
-                });
-                
-                if (res.status === 401) {
-                    showError('Unauthorized access key.');
-                    toggleSettings();
-                    return;
-                }
-                
+                const res = await fetch('/apply/api/profiles', { method: 'POST', body: formData, headers: headers });
                 const data = await res.json();
-                if (data.saved) {
-                    loadProfiles();
-                    showToast('Profile uploaded successfully!');
-                } else {
-                    alert(data.error || 'Upload failed');
-                }
-            } catch (e) {
-                alert('Upload error: ' + e.message);
-            }
+                if (data.saved) { loadProfiles(); alert('Profile uploaded!'); }
+                else alert(data.error || 'Upload failed');
+            } catch (e) { alert('Error: ' + e.message); }
             input.value = '';
         }
 
@@ -754,20 +734,10 @@
         }
 
         function showError(msg) {
-            document.getElementById('statusMsg').innerHTML = `
-                <div class="error-msg msg-box">
-                    <i class="bi bi-x-circle-fill" style="font-size:1.2rem;"></i>
-                    ${escapeHtml(msg)}
-                </div>`;
+            document.getElementById('statusMsg').innerHTML = `<div class="error-msg msg-box"><i class="bi bi-x-circle-fill"></i> ${escapeHtml(msg)}</div>`;
             document.getElementById('statusMsg').scrollIntoView({behavior: 'smooth', block: 'center'});
         }
 
-        function showToast(msg) {
-            // Simple alert for now, could be a toast div
-            alert(msg);
-        }
-
-        // Initialize
         loadProfiles();
         loadJobs();
     </script>
