@@ -5,6 +5,7 @@ import logging
 import threading
 from flask import Blueprint, render_template, jsonify, request, current_app
 from dotenv import load_dotenv
+from auth_utils import require_api_key
 
 load_dotenv()
 
@@ -29,11 +30,13 @@ def get_sheets_sync():
 
 
 @apply_bp.route("/")
+@require_api_key
 def index():
     return render_template("apply.html")
 
 
 @apply_bp.route("/api/jobs")
+@require_api_key
 def get_jobs():
     """Get jobs with email addresses that are synced to sheets."""
     db = get_db()
@@ -44,7 +47,7 @@ def get_jobs():
         with db.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT id, job_id, company_name, job_role, email, location,
+                    SELECT id, job_id, company_name, job_role, email, location, recruiter_name,
                     COALESCE(apply_status, 'pending') as apply_status, created_at
                     FROM jobs
                     WHERE email IS NOT NULL
@@ -63,6 +66,7 @@ def get_jobs():
 
 
 @apply_bp.route("/api/profiles", methods=["GET"])
+@require_api_key
 def get_profiles():
     """List available profile JSON files."""
     profiles = []
@@ -95,6 +99,7 @@ def get_profiles():
 
 
 @apply_bp.route("/api/profiles", methods=["POST"])
+@require_api_key
 def upload_profile():
     """Upload a new profile JSON file."""
     if 'file' not in request.files:
@@ -128,6 +133,7 @@ def upload_profile():
 
 
 @apply_bp.route("/api/generate", methods=["POST"])
+@require_api_key
 def generate_email():
     """Trigger email generation in background thread."""
     data = request.get_json() or {}
@@ -146,7 +152,7 @@ def generate_email():
         with db.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT job_id, company_name, job_role, email, jd_text
+                    SELECT job_id, company_name, job_role, email, jd_text, recruiter_name
                     FROM jobs WHERE job_id = %s
                 """, (job_id,))
                 row = cursor.fetchone()
@@ -156,8 +162,7 @@ def generate_email():
                 jd_text = row.get("jd_text", "")
                 company = row.get("company_name", "")
                 role = row.get("job_role", "")
-                # Note: jobs table has no recruiter_name column - using email as fallback if needed
-                recruiter_name = ""
+                recruiter_name = row.get("recruiter_name", "")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -228,6 +233,7 @@ def generate_email():
 
 
 @apply_bp.route("/api/runs/<run_id>")
+@require_api_key
 def get_run_status(run_id):
     """Get status of a generation run."""
     db = get_db()
@@ -251,6 +257,7 @@ def get_run_status(run_id):
 
 
 @apply_bp.route("/api/runs/<run_id>/approve", methods=["POST"])
+@require_api_key
 def approve_draft(run_id):
     """Approve draft and write to Google Sheet."""
     data = request.get_json() or {}

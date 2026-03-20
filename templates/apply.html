@@ -4,166 +4,312 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apply - Job Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .nav {
-            background: #1e293b;
-            padding: 1rem 2rem;
-            border-bottom: 1px solid #334155;
+            background: var(--bg-secondary);
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
             display: flex;
-            gap: 1rem;
+            justify-content: space-between;
             align-items: center;
         }
-        .nav a {
-            color: #94a3b8;
+        .nav-brand {
+            font-weight: 700;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
             text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            transition: all 0.2s;
         }
-        .nav a:hover, .nav a.active {
-            background: #334155;
-            color: #f8fafc;
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-md);
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
         }
         .container {
             display: flex;
             gap: 1rem;
             padding: 1rem;
-            height: calc(100vh - 70px);
+            flex: 1;
+            height: calc(100vh - 60px);
+            overflow: hidden;
         }
         .left-panel {
-            width: 320px;
+            width: 350px;
             flex-shrink: 0;
-            background: #1e293b;
-            border-radius: 8px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
             padding: 1rem;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
         }
         .right-panel {
             flex: 1;
-            background: #1e293b;
-            border-radius: 8px;
-            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
             overflow-y: auto;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
         }
         .section-title {
-            font-size: 0.875rem;
-            color: #94a3b8;
-            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            font-weight: 600;
         }
         select, input[type="text"], textarea {
             width: 100%;
             padding: 0.75rem;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 6px;
-            color: #f8fafc;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
             font-size: 0.9rem;
             margin-bottom: 1rem;
+            transition: border-color 0.2s;
         }
-        textarea { min-height: 200px; font-family: monospace; }
+        select:focus, input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+        textarea { min-height: 250px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.5; }
         .btn {
-            padding: 0.75rem 1.5rem;
+            padding: 0.6rem 1rem;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 0.9rem;
             font-weight: 500;
             transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-primary:disabled { background: #475569; cursor: not-allowed; }
-        .btn-success { background: #22c55e; color: white; }
-        .btn-success:hover { background: #16a34a; }
-        .job-list { list-style: none; margin-top: 1rem; }
+        .btn-primary { background: var(--accent-primary); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-primary:disabled { background: var(--bg-tertiary); color: var(--text-muted); cursor: not-allowed; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); }
+        .btn-outline:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        
+        .job-list-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+        }
+        .job-list { list-style: none; }
         .job-item {
             padding: 0.75rem;
-            background: #0f172a;
-            border-radius: 6px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-md);
             margin-bottom: 0.5rem;
             cursor: pointer;
-            border: 1px solid transparent;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
         }
-        .job-item:hover { border-color: #3b82f6; }
-        .job-item.selected { border-color: #3b82f6; background: #1e3a5f; }
-        .job-company { font-weight: 600; color: #f8fafc; }
-        .job-role { font-size: 0.85rem; color: #94a3b8; }
+        .job-item:hover { border-color: var(--accent-primary); background: var(--bg-tertiary); }
+        .job-item.selected { border-color: var(--accent-primary); background: rgba(59, 130, 246, 0.1); }
+        .job-company { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; }
+        .job-role { font-size: 0.85rem; color: var(--text-secondary); margin: 0.1rem 0; }
+        .job-recruiter { font-size: 0.75rem; color: var(--accent-primary); font-style: italic; }
         .job-status {
             display: inline-block;
             font-size: 0.7rem;
-            padding: 0.2rem 0.5rem;
+            padding: 0.15rem 0.5rem;
             border-radius: 4px;
-            margin-top: 0.5rem;
+            margin-top: 0.4rem;
+            font-weight: 600;
+            text-transform: uppercase;
         }
-        .status-pending { background: #475569; color: #cbd5e1; }
+        .status-pending { background: var(--bg-tertiary); color: var(--text-muted); }
         .status-generating { background: #854d0e; color: #fef08a; }
         .status-done { background: #166534; color: #bbf7d0; }
         .status-queued { background: #1e40af; color: #bfdbfe; }
         .status-error { background: #991b1b; color: #fecaca; }
-.status-approved { background: #166534; color: #bbf7d0; }
+        .status-approved { background: #166534; color: #bbf7d0; }
+
         .card {
-            background: #0f172a;
-            border-radius: 8px;
-            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
             margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
         }
         .preview-box {
             background: #ffffff;
             color: #1e293b;
-            padding: 1rem;
-            border-radius: 6px;
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
             margin-top: 1rem;
-            min-height: 150px;
+            min-height: 200px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 0.95rem;
+            line-height: 1.6;
         }
-        .preview-box p { margin-bottom: 0.5rem; }
-        .preview-box strong { color: #1e40af; }
-        .preview-box a { color: #2563eb; }
+        .preview-box p { margin-bottom: 0.75rem; }
+        .preview-box strong { color: #1e40af; font-weight: 700; }
+        .preview-box a { color: #2563eb; text-decoration: underline; }
+        .preview-box ul, .preview-box ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
+        
         .spinner {
             display: inline-block;
             width: 16px;
             height: 16px;
-            border: 2px solid #ffffff;
-            border-top-color: transparent;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #ffffff;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .success-msg { background: #166534; color: #bbf7d0; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
-        .error-msg { background: #991b1b; color: #fecaca; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+        
+        .msg-box { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; }
+        .success-msg { background: rgba(22, 101, 52, 0.2); color: #bbf7d0; border: 1px solid #166534; }
+        .error-msg { background: rgba(153, 27, 27, 0.2); color: #fecaca; border: 1px solid #991b1b; }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 450px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 1rem;
+        }
+        .empty-state i { font-size: 3rem; opacity: 0.5; }
     </style>
 </head>
 <body>
     <nav class="nav">
-        <a href="/">Dashboard</a>
-        <a href="/apply" class="active">Apply</a>
+        <a href="/" class="nav-brand">
+            <i class="bi bi-send-fill" style="color: var(--accent-primary)"></i>
+            JobApply
+        </a>
+        <div class="nav-links">
+            <a href="/"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+            <a href="#" class="active"><i class="bi bi-envelope-paper"></i> Apply</a>
+            <button class="btn btn-outline" onclick="toggleSettings()" title="API Settings">
+                <i class="bi bi-key"></i>
+            </button>
+        </div>
     </nav>
 
     <div class="container">
         <div class="left-panel">
-            <div class="section-title">Profile</div>
-            <select id="profileSelect">
-                <option value="">Loading...</option>
-            </select>
-            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" style="width:100%;margin-bottom:1rem;">+ Upload Profile</button>
+            <div class="section-title">Job Search & Profile</div>
+            <div style="display:flex; gap:0.5rem; margin-bottom: 1rem;">
+                <select id="profileSelect" style="margin-bottom:0; flex:1;">
+                    <option value="">Loading...</option>
+                </select>
+                <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()" title="Upload Profile">
+                    <i class="bi bi-upload"></i>
+                </button>
+            </div>
             <input type="file" id="fileInput" accept=".json" style="display:none;" onchange="uploadProfile(this)">
 
-            <div class="section-title">Jobs with Email</div>
-            <input type="text" id="searchBox" placeholder="Search jobs..." oninput="filterJobs()">
-            <ul class="job-list" id="jobList"></ul>
+            <input type="text" id="searchBox" placeholder="Search company, role, or recruiter..." oninput="filterJobs()">
+            
+            <div class="section-title" id="jobCountLabel">Jobs with Email</div>
+            <div class="job-list-container">
+                <ul class="job-list" id="jobList">
+                    <div class="empty-state"><div class="spinner"></div></div>
+                </ul>
+            </div>
         </div>
 
         <div class="right-panel" id="rightPanel">
-            <div style="color: #94a3b8; text-align: center; padding: 2rem;">
-                Select a job to generate an application email
+            <div class="empty-state">
+                <i class="bi bi-envelope-plus"></i>
+                <p>Select a job from the list to start drafting your application</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay" onclick="if(event.target===this) toggleSettings()">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-key-fill"></i> API Settings</h3>
+                <button class="btn btn-outline" onclick="toggleSettings()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="section-title">Authentication Key</div>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">
+                If you have an API_KEY set in your environment, enter it here.
+            </p>
+            <input type="password" id="apiKeyInput" placeholder="Enter API Key">
+            <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-primary" onclick="saveApiKey()">Save Changes</button>
             </div>
         </div>
     </div>
@@ -174,29 +320,83 @@
         let currentRunId = null;
         let pollInterval = null;
 
+        // API Key management
+        let API_KEY = localStorage.getItem('apply_api_key') || '';
+        document.getElementById('apiKeyInput').value = API_KEY;
+
+        function getHeaders() {
+            const headers = {'Content-Type': 'application/json'};
+            if (API_KEY) {
+                headers['X-API-Key'] = API_KEY;
+            }
+            return headers;
+        }
+
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function saveApiKey() {
+            API_KEY = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem('apply_api_key', API_KEY);
+            toggleSettings();
+            // Reload data with new key
+            loadJobs();
+            loadProfiles();
+        }
+
+        async function apiFetch(url, options = {}) {
+            options.headers = {...getHeaders(), ...options.headers};
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                showError('Unauthorized: Please check your API Key in settings.');
+                toggleSettings();
+                throw new Error('Unauthorized');
+            }
+            return res;
+        }
+
         async function loadProfiles() {
-            const res = await fetch('/apply/api/profiles');
-            const data = await res.json();
-            const select = document.getElementById('profileSelect');
-            select.innerHTML = data.profiles.map(p =>
-                `<option value="${p.filename}" ${p.filename === data.default ? 'selected' : ''}>${p.label}</option>`
-            ).join('');
+            try {
+                const res = await apiFetch('/apply/api/profiles');
+                const data = await res.json();
+                const select = document.getElementById('profileSelect');
+                select.innerHTML = data.profiles.map(p =>
+                    `<option value="${p.filename}" ${p.filename === data.default ? 'selected' : ''}>${p.label}</option>`
+                ).join('');
+            } catch (e) { console.error('Failed to load profiles', e); }
         }
 
         async function loadJobs() {
-            const res = await fetch('/apply/api/jobs');
-            const data = await res.json();
-            jobs = data.jobs || [];
-            renderJobList(jobs);
+            try {
+                const res = await apiFetch('/apply/api/jobs');
+                const data = await res.json();
+                jobs = data.jobs || [];
+                renderJobList(jobs);
+                document.getElementById('jobCountLabel').innerText = `Jobs with Email (${jobs.length})`;
+            } catch (e) { 
+                console.error('Failed to load jobs', e);
+                document.getElementById('jobList').innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>Failed to load jobs</p></div>';
+            }
         }
 
         function renderJobList(jobList) {
             const list = document.getElementById('jobList');
+            if (jobList.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-search"></i>
+                        <p>No matching jobs found</p>
+                    </div>`;
+                return;
+            }
             list.innerHTML = jobList.map(job => `
                 <li class="job-item ${selectedJob && selectedJob.job_id === job.job_id ? 'selected' : ''}"
                     onclick="selectJob('${job.job_id}')">
                     <div class="job-company">${escapeHtml(job.company_name)}</div>
                     <div class="job-role">${escapeHtml(job.job_role)}</div>
+                    ${job.recruiter_name ? `<div class="job-recruiter"><i class="bi bi-person-badge"></i> ${escapeHtml(job.recruiter_name)}</div>` : ''}
                     <span class="job-status status-${job.apply_status || 'pending'}">${job.apply_status || 'pending'}</span>
                 </li>
             `).join('');
@@ -206,7 +406,8 @@
             const query = document.getElementById('searchBox').value.toLowerCase();
             const filtered = jobs.filter(j =>
                 (j.company_name || '').toLowerCase().includes(query) ||
-                (j.job_role || '').toLowerCase().includes(query)
+                (j.job_role || '').toLowerCase().includes(query) ||
+                (j.recruiter_name || '').toLowerCase().includes(query)
             );
             renderJobList(filtered);
         }
@@ -223,56 +424,105 @@
             if (!job) return;
 
             panel.innerHTML = `
-                <div class="card">
-                    <h3>${escapeHtml(job.company_name)}</h3>
-                    <p style="color:#94a3b8">${escapeHtml(job.job_role)}</p>
-                    <p style="color:#94a3b8;font-size:0.9rem">${escapeHtml(job.location || '')}</p>
-                    <p style="color:#3b82f6;margin-top:0.5rem">${escapeHtml(job.email)}</p>
-                </div>
-                <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn">
-                    Generate Email
-                </button>
-                <div id="draftPanel" style="display:none;margin-top:1rem;">
-                    <div class="section-title">Subject</div>
-                    <input type="text" id="emailSubject">
-                    <div class="section-title">Email Body (HTML)</div>
-                    <textarea id="emailBody" oninput="updatePreview()"></textarea>
-                    <div class="section-title">Preview</div>
-                    <div class="preview-box" id="previewBox"></div>
-                    <div style="display:flex;gap:1rem;margin-top:1rem;">
-                        <button class="btn btn-primary" onclick="generateEmail()">Regenerate</button>
-                        <button class="btn btn-success" onclick="approveDraft()">Approve & Queue</button>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+                    <div>
+                        <h2 style="font-size:1.5rem; margin-bottom:0.25rem;">${escapeHtml(job.company_name)}</h2>
+                        <div style="color:var(--text-secondary); display:flex; gap:1rem; font-size:0.95rem;">
+                            <span><i class="bi bi-briefcase"></i> ${escapeHtml(job.job_role)}</span>
+                            ${job.location ? `<span><i class="bi bi-geo-alt"></i> ${escapeHtml(job.location)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="job-status status-${job.apply_status || 'pending'}" style="margin-top:0; padding:0.4rem 0.75rem;">
+                        ${job.apply_status || 'pending'}
                     </div>
                 </div>
-                <div id="statusMsg"></div>
+
+                <div class="card">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                        <div>
+                            <div class="section-title">Contact Email</div>
+                            <div style="color:var(--accent-primary); font-weight:500;">${escapeHtml(job.email)}</div>
+                        </div>
+                        <div>
+                            <div class="section-title">Recruiter</div>
+                            <div style="color:var(--text-primary);">${escapeHtml(job.recruiter_name || 'Hiring Manager')}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="actionArea">
+                    <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn" style="width:100%; height:3rem; font-size:1rem;">
+                        <i class="bi bi-magic"></i> Generate Personalized Email
+                    </button>
+                </div>
+
+                <div id="statusMsg" style="margin-top:1rem;"></div>
+
+                <div id="draftPanel" style="display:none; margin-top:1.5rem;">
+                    <hr style="border:0; border-top:1px solid var(--border-color); margin-bottom:1.5rem;">
+                    <div class="section-title">Email Draft</div>
+                    <div style="margin-bottom:1rem;">
+                        <label class="section-title" style="display:block; margin-bottom:0.25rem;">Subject Line</label>
+                        <input type="text" id="emailSubject" placeholder="Email Subject">
+                    </div>
+                    <div>
+                        <label class="section-title" style="display:block; margin-bottom:0.25rem;">Message Body (HTML Supported)</label>
+                        <textarea id="emailBody" oninput="updatePreview()" placeholder="Email content..."></textarea>
+                    </div>
+                    
+                    <div class="section-title">Visual Preview</div>
+                    <div class="preview-box" id="previewBox"></div>
+                    
+                    <div style="display:flex; gap:1rem; margin-top:1.5rem; padding-bottom:2rem;">
+                        <button class="btn btn-outline" onclick="generateEmail()" style="flex:1;">
+                            <i class="bi bi-arrow-clockwise"></i> Regenerate
+                        </button>
+                        <button class="btn btn-success" onclick="approveDraft()" style="flex:2;">
+                            <i class="bi bi-check-circle-fill"></i> Approve & Queue to Sheets
+                        </button>
+                    </div>
+                </div>
             `;
+
+            // If job already has a status that implies it was generated, we could fetch the last run
+            // For now, keep it simple.
         }
 
         async function generateEmail() {
             if (!selectedJob) return;
 
             const btn = document.getElementById('generateBtn');
+            const originalBtnHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Generating...';
+            btn.innerHTML = '<span class="spinner"></span> Generating Draft...';
+            
+            document.getElementById('draftPanel').style.display = 'none';
+            document.getElementById('statusMsg').innerHTML = '';
 
             const profile = document.getElementById('profileSelect').value;
 
             try {
-                const res = await fetch('/apply/api/generate', {
+                const res = await apiFetch('/apply/api/generate', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({job_id: selectedJob.job_id, profile_filename: profile})
                 });
                 const data = await res.json();
                 currentRunId = data.run_id;
 
-                document.getElementById('statusMsg').innerHTML = '<div class="status-pending" style="padding:0.5rem;border-radius:4px;">Generating...</div>';
+                document.getElementById('statusMsg').innerHTML = `
+                    <div class="msg-box" style="background:var(--bg-tertiary); color:var(--text-secondary);">
+                        <div class="spinner" style="border-top-color:var(--accent-primary)"></div>
+                        AI is matching your profile with the job description...
+                    </div>`;
 
+                if (pollInterval) clearInterval(pollInterval);
                 pollInterval = setInterval(pollStatus, 2000);
             } catch (e) {
-                showError('Failed to start generation: ' + e.message);
+                if (e.message !== 'Unauthorized') {
+                    showError('Failed to start generation: ' + e.message);
+                }
                 btn.disabled = false;
-                btn.innerHTML = 'Generate Email';
+                btn.innerHTML = originalBtnHtml;
             }
         }
 
@@ -280,7 +530,7 @@
             if (!currentRunId) return;
 
             try {
-                const res = await fetch('/apply/api/runs/' + currentRunId);
+                const res = await apiFetch('/apply/api/runs/' + currentRunId);
                 const data = await res.json();
 
                 if (data.status === 'done') {
@@ -288,12 +538,16 @@
                     document.getElementById('emailSubject').value = data.email_subject || '';
                     document.getElementById('emailBody').value = data.email_body || '';
                     document.getElementById('draftPanel').style.display = 'block';
-                    document.getElementById('statusMsg').innerHTML = '';
+                    document.getElementById('statusMsg').innerHTML = `
+                        <div class="success-msg msg-box">
+                            <i class="bi bi-check-circle-fill"></i>
+                            Email draft generated successfully using ${data.model_used || 'AI'}.
+                        </div>`;
                     updatePreview();
 
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
-                    btn.innerHTML = 'Generate Email';
+                    btn.innerHTML = '<i class="bi bi-magic"></i> Regenerate Email';
 
                     // Update job status in list
                     selectedJob.apply_status = 'done';
@@ -303,7 +557,7 @@
                     showError(data.error_message || 'Generation failed');
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
-                    btn.innerHTML = 'Generate Email';
+                    btn.innerHTML = '<i class="bi bi-magic"></i> Try Again';
                 }
             } catch (e) {
                 console.error('Poll error:', e);
@@ -319,21 +573,45 @@
             const subject = document.getElementById('emailSubject').value;
             const body = document.getElementById('emailBody').value;
 
+            const btn = event.target.closest('button');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Approving...';
+
             try {
-                const res = await fetch('/apply/api/runs/' + currentRunId + '/approve', {
+                const res = await apiFetch('/apply/api/runs/' + currentRunId + '/approve', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({email_subject: subject, email_body: body})
                 });
                 const data = await res.json();
 
                 if (data.approved) {
-                    document.getElementById('statusMsg').innerHTML = '<div class="success-msg">Approved! Draft written to sheet.</div>';
+                    const sheetMsg = data.sheet_updated
+                        ? 'Draft successfully written to Google Sheet. Your App Script will handle sending.'
+                        : 'Approved in database, but Google Sheet write failed. Please copy manually.';
+                    
+                    const msgClass = data.sheet_updated ? 'success-msg' : 'error-msg';
+                    const icon = data.sheet_updated ? 'bi-check-all' : 'bi-exclamation-circle';
+                    
+                    document.getElementById('statusMsg').innerHTML = `
+                        <div class="${msgClass} msg-box">
+                            <i class="bi ${icon}"></i>
+                            ${sheetMsg}
+                        </div>`;
+                    
                     selectedJob.apply_status = 'queued';
                     renderJobList(jobs);
+                    
+                    // Scroll to top of status message
+                    document.getElementById('statusMsg').scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
             } catch (e) {
-                showError('Failed to approve: ' + e.message);
+                if (e.message !== 'Unauthorized') {
+                    showError('Failed to approve: ' + e.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
             }
         }
 
@@ -345,30 +623,39 @@
             formData.append('file', file);
 
             try {
-                const res = await fetch('/apply/api/profiles', {
+                const res = await apiFetch('/apply/api/profiles', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {} // Let browser set form-data boundary
                 });
                 const data = await res.json();
                 if (data.saved) {
                     loadProfiles();
+                    alert('Profile uploaded successfully!');
                 } else {
                     alert(data.error || 'Upload failed');
                 }
             } catch (e) {
-                alert('Upload failed: ' + e.message);
+                if (e.message !== 'Unauthorized') {
+                    alert('Upload failed: ' + e.message);
+                }
             }
             input.value = '';
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
         function showError(msg) {
-            document.getElementById('statusMsg').innerHTML = '<div class="error-msg">' + escapeHtml(msg) + '</div>';
+            document.getElementById('statusMsg').innerHTML = `
+                <div class="error-msg msg-box">
+                    <i class="bi bi-x-circle-fill"></i>
+                    ${escapeHtml(msg)}
+                </div>`;
         }
 
         // Load data on page load

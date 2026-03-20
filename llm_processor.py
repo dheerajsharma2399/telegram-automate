@@ -498,6 +498,7 @@ class LLMProcessor:
             "company_name": job_data.get("company_name"),
             "job_role": job_data.get("job_role"),
             "location": job_data.get("location"),
+            "recruiter_name": recruiter_name,
             "eligibility": job_data.get("eligibility"),
             "experience_required": job_data.get("experience_required"),  # NEW: Experience requirements
             "salary": job_data.get("salary"),  # NEW: Salary/Compensation
@@ -545,4 +546,164 @@ class LLMProcessor:
         """Generates an email subject line for the job application."""
         if custom_subject:
             return custom_subject  # Keep placeholders as-is for users to customize
-        return f"Application for {job_role} - [Your Name]"
+        return f"Application: {job_role} - Dheeraj Sharma"
+
+    def _score_keywords(self, text: str, keywords: list) -> int:
+        """Count overlapping keywords between text and keyword list."""
+        if not text or not keywords:
+            return 0
+        text_lower = text.lower()
+        return sum(1 for kw in keywords if kw.lower() in text_lower)
+
+    def _match_relevant_projects(self, jd_text: str, profile: dict) -> list:
+        """Score and return top 2 projects matching the job description."""
+        projects = profile.get("projects", [])
+        scored = []
+        for proj in projects:
+            tech_stack = proj.get("tech_stack", [])
+            description = proj.get("description", "")
+            score = self._score_keywords(jd_text, tech_stack) + self._score_keywords(jd_text, description.split())
+            scored.append((score, proj))
+        scored.sort(reverse=True, key=lambda x: x[0])
+        return [p for _, p in scored[:2]]
+
+    def _match_relevant_experience(self, jd_text: str, profile: dict) -> list:
+        """Score and return top 2 work achievements matching the job description."""
+        experience = profile.get("work_experience", [])
+        scored = []
+        for exp in experience:
+            achievements = exp.get("key_achievements", [])
+            techs = exp.get("technologies", [])
+            for ach in achievements:
+                score = self._score_keywords(jd_text, [ach]) + self._score_keywords(jd_text, techs)
+                scored.append((score, ach))
+        scored.sort(reverse=True, key=lambda x: x[0])
+        return [a for _, a in scored[:2]]
+
+    @log_execution
+    async def generate_email_for_job(
+        self,
+        jd_text: str,
+        profile: dict,
+        company: str = "",
+        role: str = "",
+        recruiter_name: str = ""
+    ) -> Dict:
+        """
+        Generate a tailored job application email using robust failover and rotation.
+        """
+        # Match relevant projects and experience
+        top_projects = self._match_relevant_projects(jd_text, profile)
+        top_achievements = self._match_relevant_experience(jd_text, profile)
+
+        candidate_name = profile.get("personal_information", {}).get("full_name", "Dheeraj Sharma")
+
+        system_prompt = """You are a professional job application email writer. Generate a cold outreach email.
+
+Output JSON with exactly this schema:
+{
+  "subject": "string — max 98 chars",
+  "body_html": "string — HTML email body, 250-300 words"
+}
+
+Requirements:
+- Write a professional but warm cold email, 250-300 words
+- Lead with one concrete achievement or metric directly relevant to the job description
+- Mention 1-2 of the candidate's most relevant projects with repo links as clickable <a href=""> tags
+- Bold key metrics using <strong>
+- No generic openers like "I hope this email finds you well"
+- End with a clear call to action
+- Use light HTML only: <p>, <strong>, <a>, <ul>, <li>
+- Subject line format: Application: {role} — {candidate_name}
+"""
+
+        user_prompt = f"""Generate a tailored application email.
+
+Job Description:
+{jd_text}
+
+Company: {company}
+Role: {role}
+Recruiter Name: {recruiter_name or 'Hiring Manager'}
+
+Candidate Profile:
+{json.dumps(profile, indent=2)}
+
+Top Relevant Projects (include these with links):
+{json.dumps(top_projects, indent=2)}
+
+Top Relevant Achievements:
+{json.dumps(top_achievements, indent=2)}
+
+Write the email now. Return only valid JSON."""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        async def _call_custom_llm(model: str, api_key: str) -> Optional[Dict]:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://job.mooh.me",
+                "X-Title": "telegram-automate-apply"
+            }
+            payload = {
+                "model": model,
+                "messages": messages,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.3,
+                "max_tokens": 2000
+            }
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(self.base_url, json=payload, headers=headers, timeout=90) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                            if content:
+                                # Sometimes LLM returns a string inside content that is actually JSON
+                                try:
+                                    if isinstance(content, str):
+                                        result = json.loads(content)
+                                    else:
+                                        result = content
+                                    
+                                    result["usage"] = data.get("usage", {})
+                                    result["model"] = model
+                                    return result
+                                except json.JSONDecodeError as e:
+                                    logging.warning(f"Failed to parse JSON content from {model}: {e}")
+                                    return None
+                        else:
+                            logging.warning(f"Model {model} returned status {resp.status}")
+            except Exception as e:
+                logging.warning(f"API call failed with {model}: {e}")
+            return None
+
+        # Try primary pool
+        for model in self.models:
+            for api_key in self.api_keys:
+                result = await _call_custom_llm(model, api_key)
+                if result:
+                    return {
+                        "subject": result.get("subject", ""),
+                        "body_html": result.get("body_html", ""),
+                        "tokens_used": result.get("usage", {}).get("total_tokens", 0),
+                        "model_used": result.get("model", model)
+                    }
+
+        # Try fallback pool
+        for model in self.fallback_models:
+            for api_key in self.api_keys:
+                result = await _call_custom_llm(model, api_key)
+                if result:
+                    return {
+                        "subject": result.get("subject", ""),
+                        "body_html": result.get("body_html", ""),
+                        "tokens_used": result.get("usage", {}).get("total_tokens", 0),
+                        "model_used": result.get("model", model)
+                    }
+
+        raise RuntimeError("All LLM models failed to generate email draft")

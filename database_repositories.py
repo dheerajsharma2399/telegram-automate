@@ -201,9 +201,9 @@ class UnifiedJobRepository(BaseRepository):
         sql = """
             INSERT INTO jobs (
                 job_id, source, status, company_name, job_role, location, eligibility, salary,
-                jd_text, raw_message_id, email, phone, application_link,
+                jd_text, raw_message_id, email, phone, application_link, recruiter_name,
                 is_hidden, is_duplicate, duplicate_of_id, job_relevance, metadata, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             ON CONFLICT (job_id) DO UPDATE SET
                 status = EXCLUDED.status,
                 company_name = COALESCE(EXCLUDED.company_name, jobs.company_name),
@@ -215,6 +215,7 @@ class UnifiedJobRepository(BaseRepository):
                 email = COALESCE(EXCLUDED.email, jobs.email),
                 phone = COALESCE(EXCLUDED.phone, jobs.phone),
                 application_link = COALESCE(EXCLUDED.application_link, jobs.application_link),
+                recruiter_name = COALESCE(EXCLUDED.recruiter_name, jobs.recruiter_name),
                 job_relevance = COALESCE(EXCLUDED.job_relevance, jobs.job_relevance),
                 metadata = jobs.metadata || EXCLUDED.metadata,
                 updated_at = NOW()
@@ -240,6 +241,7 @@ class UnifiedJobRepository(BaseRepository):
             job_data.get('email'),
             job_data.get('phone'),
             job_data.get('application_link'),
+            job_data.get('recruiter_name'),
             job_data.get('is_hidden', False),
             job_data.get('is_duplicate', False),
             job_data.get('duplicate_of_id'),

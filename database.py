@@ -93,6 +93,7 @@ def init_database(pool):
                 email TEXT,
                 phone TEXT,
                 application_link TEXT,
+                recruiter_name TEXT,
                 is_hidden BOOLEAN DEFAULT FALSE,
                 is_duplicate BOOLEAN DEFAULT FALSE,
                 duplicate_of_id INTEGER,
@@ -135,6 +136,7 @@ def init_database(pool):
                 # Add columns to jobs table
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_status TEXT DEFAULT 'pending'")
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_run_id TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS recruiter_name TEXT")
 
                 # 3. Bot config table
                 cursor.execute("""
