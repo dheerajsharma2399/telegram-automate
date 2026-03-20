@@ -17,6 +17,7 @@ class LLMProcessor:
         self.models = models
         self.fallback_models = fallback_models
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
+        self.logger = logging.getLogger(__name__)
         # attempt to load a local user profile JSON (optional)
         self.user_profile = None
         try:
