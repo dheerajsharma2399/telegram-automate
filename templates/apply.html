@@ -30,6 +30,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
         .nav {
             background: var(--bg-secondary);
@@ -38,6 +39,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            z-index: 100;
         }
         .nav-brand {
             font-weight: 700;
@@ -77,14 +79,15 @@
             overflow: hidden;
         }
         .left-panel {
-            width: 350px;
+            width: 380px;
             flex-shrink: 0;
             background: var(--bg-secondary);
             border-radius: var(--radius-lg);
-            padding: 1rem;
+            padding: 1.25rem;
             display: flex;
             flex-direction: column;
             border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
         .right-panel {
             flex: 1;
@@ -95,14 +98,15 @@
             border: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
         .section-title {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
             margin-bottom: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
+            letter-spacing: 0.1em;
+            font-weight: 700;
         }
         select, input[type="text"], textarea {
             width: 100%;
@@ -113,97 +117,125 @@
             color: var(--text-primary);
             font-size: 0.9rem;
             margin-bottom: 1rem;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
         select:focus, input:focus, textarea:focus {
             outline: none;
             border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
-        textarea { min-height: 250px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.5; }
+        textarea { min-height: 300px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6; resize: vertical; }
         .btn {
-            padding: 0.6rem 1rem;
+            padding: 0.6rem 1.2rem;
             border: none;
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 0.9rem;
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.2s;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
+            gap: 0.6rem;
         }
         .btn-primary { background: var(--accent-primary); color: white; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-primary:disabled { background: var(--bg-tertiary); color: var(--text-muted); cursor: not-allowed; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { background: var(--bg-tertiary); color: var(--text-muted); cursor: not-allowed; transform: none; }
+        
         .btn-success { background: var(--success); color: white; }
-        .btn-success:hover { opacity: 0.9; }
+        .btn-success:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        
         .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); }
-        .btn-outline:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-outline:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--text-muted); }
         
         .job-list-container {
             flex: 1;
             overflow-y: auto;
             margin-top: 0.5rem;
+            padding-right: 4px;
         }
+        .job-list-container::-webkit-scrollbar { width: 6px; }
+        .job-list-container::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+
         .job-list { list-style: none; }
         .job-item {
-            padding: 0.75rem;
+            padding: 1rem;
             background: var(--bg-primary);
             border-radius: var(--radius-md);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
             cursor: pointer;
             border: 1px solid var(--border-color);
             transition: all 0.2s;
+            position: relative;
         }
-        .job-item:hover { border-color: var(--accent-primary); background: var(--bg-tertiary); }
-        .job-item.selected { border-color: var(--accent-primary); background: rgba(59, 130, 246, 0.1); }
-        .job-company { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; }
-        .job-role { font-size: 0.85rem; color: var(--text-secondary); margin: 0.1rem 0; }
-        .job-recruiter { font-size: 0.75rem; color: var(--accent-primary); font-style: italic; }
+        .job-item:hover { border-color: var(--accent-primary); transform: translateX(4px); }
+        .job-item.selected { border-color: var(--accent-primary); background: rgba(59, 130, 246, 0.08); box-shadow: 0 0 0 1px var(--accent-primary); }
+        
+        .job-company { font-weight: 700; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.25rem; }
+        .job-role { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block; }
+        .job-recruiter { font-size: 0.75rem; color: var(--accent-primary); font-weight: 500; display: flex; align-items: center; gap: 0.3rem; }
+        
         .job-status {
-            display: inline-block;
-            font-size: 0.7rem;
-            padding: 0.15rem 0.5rem;
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 0.65rem;
+            padding: 0.2rem 0.5rem;
             border-radius: 4px;
-            margin-top: 0.4rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
         .status-pending { background: var(--bg-tertiary); color: var(--text-muted); }
         .status-generating { background: #854d0e; color: #fef08a; }
-        .status-done { background: #166534; color: #bbf7d0; }
-        .status-queued { background: #1e40af; color: #bfdbfe; }
-        .status-error { background: #991b1b; color: #fecaca; }
-        .status-approved { background: #166534; color: #bbf7d0; }
+        .status-done { background: #064e3b; color: #6ee7b7; }
+        .status-queued { background: #1e3a8a; color: #93c5fd; }
+        .status-error { background: #7f1d1d; color: #fca5a5; }
 
         .card {
             background: var(--bg-primary);
             border-radius: var(--radius-lg);
-            padding: 1.25rem;
-            margin-bottom: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
             border: 1px solid var(--border-color);
         }
+        
+        .jd-container {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #020617;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            border: 1px solid var(--border-color);
+            margin-top: 0.5rem;
+        }
+        
         .preview-box {
             background: #ffffff;
-            color: #1e293b;
-            padding: 1.5rem;
+            color: #0f172a;
+            padding: 2rem;
             border-radius: var(--radius-md);
             margin-top: 1rem;
-            min-height: 200px;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-            font-size: 0.95rem;
-            line-height: 1.6;
+            min-height: 250px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 1rem;
+            line-height: 1.7;
         }
-        .preview-box p { margin-bottom: 0.75rem; }
-        .preview-box strong { color: #1e40af; font-weight: 700; }
-        .preview-box a { color: #2563eb; text-decoration: underline; }
-        .preview-box ul, .preview-box ol { margin-left: 1.5rem; margin-bottom: 0.75rem; }
+        .preview-box p { margin-bottom: 1rem; }
+        .preview-box strong { color: #1e3a8a; font-weight: 700; }
+        .preview-box a { color: #2563eb; text-decoration: underline; font-weight: 500; }
+        .preview-box ul, .preview-box ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+        .preview-box li { margin-bottom: 0.4rem; }
         
         .spinner {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border: 2px solid rgba(255,255,255,0.3);
             border-top-color: #ffffff;
             border-radius: 50%;
@@ -211,31 +243,29 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        .msg-box { padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; }
-        .success-msg { background: rgba(22, 101, 52, 0.2); color: #bbf7d0; border: 1px solid #166534; }
-        .error-msg { background: rgba(153, 27, 27, 0.2); color: #fecaca; border: 1px solid #991b1b; }
+        .msg-box { padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.95rem; display: flex; align-items: center; gap: 1rem; line-height: 1.4; }
+        .success-msg { background: rgba(22, 163, 74, 0.15); color: #86efac; border: 1px solid rgba(22, 163, 74, 0.3); }
+        .error-msg { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border: 1px solid rgba(220, 38, 38, 0.3); }
         
-        /* Modal Styles */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7);
+            background: rgba(2, 6, 23, 0.85);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(8px);
         }
         .modal {
             background: var(--bg-secondary);
             border-radius: var(--radius-lg);
-            width: 100%;
-            max-width: 450px;
-            padding: 1.5rem;
+            width: 90%;
+            max-width: 500px;
+            padding: 2rem;
             border: 1px solid var(--border-color);
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         
         .empty-state {
             display: flex;
@@ -245,53 +275,77 @@
             height: 100%;
             color: var(--text-muted);
             text-align: center;
-            gap: 1rem;
+            gap: 1.5rem;
+            padding: 2rem;
         }
-        .empty-state i { font-size: 3rem; opacity: 0.5; }
+        .empty-state i { font-size: 4rem; opacity: 0.2; }
+        .empty-state p { font-size: 1.1rem; max-width: 250px; line-height: 1.5; }
+
+        /* Badge for recruiter */
+        .recruiter-badge {
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
     </style>
 </head>
 <body>
     <nav class="nav">
         <a href="/" class="nav-brand">
-            <i class="bi bi-send-fill" style="color: var(--accent-primary)"></i>
-            JobApply
+            <i class="bi bi-send-check-fill" style="color: var(--accent-primary)"></i>
+            JobApply Pro
         </a>
         <div class="nav-links">
-            <a href="/"><i class="bi bi-grid-1x2"></i> Dashboard</a>
-            <a href="#" class="active"><i class="bi bi-envelope-paper"></i> Apply</a>
-            <button class="btn btn-outline" onclick="toggleSettings()" title="API Settings">
-                <i class="bi bi-key"></i>
+            <a href="/"><i class="bi bi-speedometer2"></i> Dashboard</a>
+            <a href="#" class="active"><i class="bi bi-envelope-at-fill"></i> Apply</a>
+            <button class="btn btn-outline" onclick="toggleSettings()" title="API Settings" style="padding: 0.5rem; width: 40px;">
+                <i class="bi bi-shield-lock-fill"></i>
             </button>
         </div>
     </nav>
 
     <div class="container">
         <div class="left-panel">
-            <div class="section-title">Job Search & Profile</div>
+            <div class="section-title">Configuration</div>
             <div style="display:flex; gap:0.5rem; margin-bottom: 1rem;">
                 <select id="profileSelect" style="margin-bottom:0; flex:1;">
-                    <option value="">Loading...</option>
+                    <option value="">Loading profiles...</option>
                 </select>
-                <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()" title="Upload Profile">
-                    <i class="bi bi-upload"></i>
+                <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()" title="Upload JSON Profile" style="padding: 0 1rem;">
+                    <i class="bi bi-plus-circle"></i>
                 </button>
             </div>
             <input type="file" id="fileInput" accept=".json" style="display:none;" onchange="uploadProfile(this)">
 
-            <input type="text" id="searchBox" placeholder="Search company, role, or recruiter..." oninput="filterJobs()">
+            <div class="section-title">Search Jobs</div>
+            <div style="position:relative;">
+                <i class="bi bi-search" style="position:absolute; left:0.8rem; top:0.8rem; color:var(--text-muted); font-size:0.9rem;"></i>
+                <input type="text" id="searchBox" placeholder="Company, role, or recruiter..." oninput="filterJobs()" style="padding-left:2.5rem;">
+            </div>
             
-            <div class="section-title" id="jobCountLabel">Jobs with Email</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+                <div class="section-title" id="jobCountLabel" style="margin-bottom:0;">Jobs with Email</div>
+                <button class="btn btn-outline" onclick="loadJobs()" style="padding:2px 8px; font-size:0.7rem;">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+
             <div class="job-list-container">
                 <ul class="job-list" id="jobList">
-                    <div class="empty-state"><div class="spinner"></div></div>
+                    <div class="empty-state"><div class="spinner" style="width:30px; height:30px; border-width:3px;"></div></div>
                 </ul>
             </div>
         </div>
 
         <div class="right-panel" id="rightPanel">
             <div class="empty-state">
-                <i class="bi bi-envelope-plus"></i>
-                <p>Select a job from the list to start drafting your application</p>
+                <i class="bi bi-envelope-paper-heart"></i>
+                <p>Select a job from the left to start your personalized application</p>
             </div>
         </div>
     </div>
@@ -299,17 +353,17 @@
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal-overlay" onclick="if(event.target===this) toggleSettings()">
         <div class="modal">
-            <div class="modal-header">
-                <h3 style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-key-fill"></i> API Settings</h3>
-                <button class="btn btn-outline" onclick="toggleSettings()"><i class="bi bi-x-lg"></i></button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+                <h3 style="display:flex;align-items:center;gap:0.75rem;"><i class="bi bi-key-fill" style="color:var(--accent-primary)"></i> API Settings</h3>
+                <button class="btn btn-outline" onclick="toggleSettings()" style="padding: 0.4rem; border: none;"><i class="bi bi-x-lg"></i></button>
             </div>
-            <div class="section-title">Authentication Key</div>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">
-                If you have an API_KEY set in your environment, enter it here.
+            <div class="section-title">Backend Access Key</div>
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.4;">
+                Enter your security key to authorize communication with the backend services. This key is saved locally in your browser.
             </p>
-            <input type="password" id="apiKeyInput" placeholder="Enter API Key">
+            <input type="password" id="apiKeyInput" placeholder="Enter API Key" style="margin-bottom:1.5rem;">
             <div style="display:flex; justify-content:flex-end;">
-                <button class="btn btn-primary" onclick="saveApiKey()">Save Changes</button>
+                <button class="btn btn-primary" onclick="saveApiKey()" style="width:100%;">Save & Update Dashboard</button>
             </div>
         </div>
     </div>
@@ -341,7 +395,6 @@
             API_KEY = document.getElementById('apiKeyInput').value.trim();
             localStorage.setItem('apply_api_key', API_KEY);
             toggleSettings();
-            // Reload data with new key
             loadJobs();
             loadProfiles();
         }
@@ -350,7 +403,7 @@
             options.headers = {...getHeaders(), ...options.headers};
             const res = await fetch(url, options);
             if (res.status === 401) {
-                showError('Unauthorized: Please check your API Key in settings.');
+                showError('Unauthorized: Please verify your API Key in settings.');
                 toggleSettings();
                 throw new Error('Unauthorized');
             }
@@ -362,13 +415,20 @@
                 const res = await apiFetch('/apply/api/profiles');
                 const data = await res.json();
                 const select = document.getElementById('profileSelect');
-                select.innerHTML = data.profiles.map(p =>
-                    `<option value="${p.filename}" ${p.filename === data.default ? 'selected' : ''}>${p.label}</option>`
-                ).join('');
+                if (data.profiles && data.profiles.length > 0) {
+                    select.innerHTML = data.profiles.map(p =>
+                        `<option value="${p.filename}" ${p.filename === data.default ? 'selected' : ''}>${p.label}</option>`
+                    ).join('');
+                } else {
+                    select.innerHTML = '<option value="">No profiles found</option>';
+                }
             } catch (e) { console.error('Failed to load profiles', e); }
         }
 
         async function loadJobs() {
+            const list = document.getElementById('jobList');
+            list.innerHTML = '<div class="empty-state"><div class="spinner" style="width:30px; height:30px; border-width:3px;"></div></div>';
+            
             try {
                 const res = await apiFetch('/apply/api/jobs');
                 const data = await res.json();
@@ -377,7 +437,7 @@
                 document.getElementById('jobCountLabel').innerText = `Jobs with Email (${jobs.length})`;
             } catch (e) { 
                 console.error('Failed to load jobs', e);
-                document.getElementById('jobList').innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>Failed to load jobs</p></div>';
+                list.innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle" style="color:var(--danger); opacity:0.5;"></i><p>Connection failed. Check your API key.</p></div>';
             }
         }
 
@@ -387,7 +447,7 @@
                 list.innerHTML = `
                     <div class="empty-state">
                         <i class="bi bi-search"></i>
-                        <p>No matching jobs found</p>
+                        <p>No active jobs with email found</p>
                     </div>`;
                 return;
             }
@@ -396,7 +456,7 @@
                     onclick="selectJob('${job.job_id}')">
                     <div class="job-company">${escapeHtml(job.company_name)}</div>
                     <div class="job-role">${escapeHtml(job.job_role)}</div>
-                    ${job.recruiter_name ? `<div class="job-recruiter"><i class="bi bi-person-badge"></i> ${escapeHtml(job.recruiter_name)}</div>` : ''}
+                    ${job.recruiter_name ? `<div class="job-recruiter"><i class="bi bi-person-fill"></i> ${escapeHtml(job.recruiter_name)}</div>` : ''}
                     <span class="job-status status-${job.apply_status || 'pending'}">${job.apply_status || 'pending'}</span>
                 </li>
             `).join('');
@@ -426,66 +486,78 @@
             panel.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
                     <div>
-                        <h2 style="font-size:1.5rem; margin-bottom:0.25rem;">${escapeHtml(job.company_name)}</h2>
-                        <div style="color:var(--text-secondary); display:flex; gap:1rem; font-size:0.95rem;">
-                            <span><i class="bi bi-briefcase"></i> ${escapeHtml(job.job_role)}</span>
-                            ${job.location ? `<span><i class="bi bi-geo-alt"></i> ${escapeHtml(job.location)}</span>` : ''}
+                        <h2 style="font-size:1.75rem; font-weight:800; margin-bottom:0.5rem; letter-spacing:-0.02em;">${escapeHtml(job.company_name)}</h2>
+                        <div style="color:var(--text-secondary); display:flex; gap:1.25rem; font-size:1rem; flex-wrap:wrap;">
+                            <span style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-briefcase-fill" style="color:var(--accent-primary)"></i> ${escapeHtml(job.job_role)}</span>
+                            ${job.location ? `<span style="display:flex;align-items:center;gap:0.5rem;"><i class="bi bi-geo-alt-fill" style="color:var(--danger)"></i> ${escapeHtml(job.location)}</span>` : ''}
                         </div>
                     </div>
-                    <div class="job-status status-${job.apply_status || 'pending'}" style="margin-top:0; padding:0.4rem 0.75rem;">
+                    <div class="job-status status-${job.apply_status || 'pending'}" style="position:static; padding:0.4rem 0.8rem; font-size:0.75rem;">
                         ${job.apply_status || 'pending'}
                     </div>
                 </div>
 
-                <div class="card">
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                        <div>
-                            <div class="section-title">Contact Email</div>
-                            <div style="color:var(--accent-primary); font-weight:500;">${escapeHtml(job.email)}</div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+                    <div class="card" style="margin-bottom:0; padding:1.25rem;">
+                        <div class="section-title" style="margin-bottom:0.5rem;">Recruiter Details</div>
+                        <div class="recruiter-badge">
+                            <i class="bi bi-person-circle"></i>
+                            ${escapeHtml(job.recruiter_name || 'Hiring Manager')}
                         </div>
-                        <div>
-                            <div class="section-title">Recruiter</div>
-                            <div style="color:var(--text-primary);">${escapeHtml(job.recruiter_name || 'Hiring Manager')}</div>
+                    </div>
+                    <div class="card" style="margin-bottom:0; padding:1.25rem;">
+                        <div class="section-title" style="margin-bottom:0.5rem;">Direct Email</div>
+                        <div style="color:var(--accent-primary); font-weight:700; font-family:monospace; font-size:1rem;">
+                            <i class="bi bi-envelope-fill"></i> ${escapeHtml(job.email)}
                         </div>
                     </div>
                 </div>
 
-                <div id="actionArea">
-                    <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn" style="width:100%; height:3rem; font-size:1rem;">
-                        <i class="bi bi-magic"></i> Generate Personalized Email
+                <div class="section-title">Job Description Preview</div>
+                <div class="jd-container">${escapeHtml(job.jd_text || 'No description available for this job.')}</div>
+
+                <div id="actionArea" style="margin-top:2rem;">
+                    <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn" style="width:100%; height:3.5rem; font-size:1.1rem; box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);">
+                        <i class="bi bi-stars"></i> Generate AI-Powered Outreach
                     </button>
                 </div>
 
-                <div id="statusMsg" style="margin-top:1rem;"></div>
+                <div id="statusMsg" style="margin-top:1.5rem;"></div>
 
-                <div id="draftPanel" style="display:none; margin-top:1.5rem;">
-                    <hr style="border:0; border-top:1px solid var(--border-color); margin-bottom:1.5rem;">
-                    <div class="section-title">Email Draft</div>
-                    <div style="margin-bottom:1rem;">
-                        <label class="section-title" style="display:block; margin-bottom:0.25rem;">Subject Line</label>
-                        <input type="text" id="emailSubject" placeholder="Email Subject">
+                <div id="draftPanel" style="display:none; margin-top:1rem;">
+                    <hr style="border:0; border-top:1px solid var(--border-color); margin: 2rem 0;">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <div class="section-title" style="margin-bottom:0;">Generated Content</div>
+                        <span id="modelUsedBadge" class="job-status status-pending" style="position:static; font-size:0.6rem;"></span>
                     </div>
-                    <div>
-                        <label class="section-title" style="display:block; margin-bottom:0.25rem;">Message Body (HTML Supported)</label>
-                        <textarea id="emailBody" oninput="updatePreview()" placeholder="Email content..."></textarea>
+
+                    <div style="margin-bottom:1.5rem;">
+                        <label class="section-title" style="display:block; margin-bottom:0.5rem;">Subject Line</label>
+                        <input type="text" id="emailSubject" placeholder="Email Subject" style="font-weight:600;">
                     </div>
                     
-                    <div class="section-title">Visual Preview</div>
+                    <div style="margin-bottom:1.5rem;">
+                        <label class="section-title" style="display:block; margin-bottom:0.5rem;">Draft Editor (HTML)</label>
+                        <textarea id="emailBody" oninput="updatePreview()" placeholder="Tailored content..."></textarea>
+                    </div>
+                    
+                    <div class="section-title" style="margin-bottom:0.5rem;">Visual Email Preview</div>
                     <div class="preview-box" id="previewBox"></div>
                     
-                    <div style="display:flex; gap:1rem; margin-top:1.5rem; padding-bottom:2rem;">
-                        <button class="btn btn-outline" onclick="generateEmail()" style="flex:1;">
-                            <i class="bi bi-arrow-clockwise"></i> Regenerate
+                    <div style="display:flex; gap:1rem; margin-top:2rem; padding-bottom:3rem;">
+                        <button class="btn btn-outline" onclick="generateEmail()" style="flex:1; height:3.5rem;">
+                            <i class="bi bi-arrow-repeat"></i> Regenerate
                         </button>
-                        <button class="btn btn-success" onclick="approveDraft()" style="flex:2;">
-                            <i class="bi bi-check-circle-fill"></i> Approve & Queue to Sheets
+                        <button class="btn btn-success" onclick="approveDraft()" style="flex:2; height:3.5rem; font-size:1.1rem; box-shadow: 0 4px 14px 0 rgba(34, 197, 94, 0.3);">
+                            <i class="bi bi-send-fill"></i> Approve & Sync to Sheets
                         </button>
                     </div>
                 </div>
             `;
-
-            // If job already has a status that implies it was generated, we could fetch the last run
-            // For now, keep it simple.
+            
+            // Scroll right panel to top when job changes
+            panel.scrollTop = 0;
         }
 
         async function generateEmail() {
@@ -494,12 +566,21 @@
             const btn = document.getElementById('generateBtn');
             const originalBtnHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Generating Draft...';
+            btn.innerHTML = '<span class="spinner"></span> AI is reading your profile...';
             
-            document.getElementById('draftPanel').style.display = 'none';
-            document.getElementById('statusMsg').innerHTML = '';
+            const draftPanel = document.getElementById('draftPanel');
+            const statusMsg = document.getElementById('statusMsg');
+            
+            draftPanel.style.display = 'none';
+            statusMsg.innerHTML = '';
 
             const profile = document.getElementById('profileSelect').value;
+            if (!profile) {
+                showError('Please select a profile first.');
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
+                return;
+            }
 
             try {
                 const res = await apiFetch('/apply/api/generate', {
@@ -509,17 +590,20 @@
                 const data = await res.json();
                 currentRunId = data.run_id;
 
-                document.getElementById('statusMsg').innerHTML = `
-                    <div class="msg-box" style="background:var(--bg-tertiary); color:var(--text-secondary);">
+                statusMsg.innerHTML = `
+                    <div class="msg-box" style="background:rgba(59, 130, 246, 0.1); color:#93c5fd; border:1px solid rgba(59, 130, 246, 0.2);">
                         <div class="spinner" style="border-top-color:var(--accent-primary)"></div>
-                        AI is matching your profile with the job description...
+                        <div>
+                            <strong>Drafting in progress...</strong><br>
+                            <span style="font-size:0.85rem; opacity:0.8;">Matching your projects and achievements with the job requirements.</span>
+                        </div>
                     </div>`;
 
                 if (pollInterval) clearInterval(pollInterval);
                 pollInterval = setInterval(pollStatus, 2000);
             } catch (e) {
                 if (e.message !== 'Unauthorized') {
-                    showError('Failed to start generation: ' + e.message);
+                    showError('Generation failed to start: ' + e.message);
                 }
                 btn.disabled = false;
                 btn.innerHTML = originalBtnHtml;
@@ -537,30 +621,36 @@
                     clearInterval(pollInterval);
                     document.getElementById('emailSubject').value = data.email_subject || '';
                     document.getElementById('emailBody').value = data.email_body || '';
+                    document.getElementById('modelUsedBadge').innerText = data.model_used || 'AI Optimized';
                     document.getElementById('draftPanel').style.display = 'block';
                     document.getElementById('statusMsg').innerHTML = `
                         <div class="success-msg msg-box">
-                            <i class="bi bi-check-circle-fill"></i>
-                            Email draft generated successfully using ${data.model_used || 'AI'}.
+                            <i class="bi bi-patch-check-fill" style="font-size:1.5rem;"></i>
+                            <div>
+                                <strong>Tailored draft is ready!</strong><br>
+                                <span style="font-size:0.85rem; opacity:0.9;">Generated using ${data.model_used || 'Advanced AI'}. Review and approve below.</span>
+                            </div>
                         </div>`;
                     updatePreview();
 
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-magic"></i> Regenerate Email';
+                    btn.innerHTML = '<i class="bi bi-stars"></i> Regenerate Alternative Draft';
 
-                    // Update job status in list
                     selectedJob.apply_status = 'done';
                     renderJobList(jobs);
+                    
+                    // Scroll to draft panel
+                    document.getElementById('draftPanel').scrollIntoView({behavior: 'smooth', block: 'start'});
                 } else if (data.status === 'error') {
                     clearInterval(pollInterval);
-                    showError(data.error_message || 'Generation failed');
+                    showError(data.error_message || 'The AI encountered an error while generating your draft.');
                     const btn = document.getElementById('generateBtn');
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-magic"></i> Try Again';
+                    btn.innerHTML = '<i class="bi bi-stars"></i> Try Again';
                 }
             } catch (e) {
-                console.error('Poll error:', e);
+                console.error('Polling error:', e);
             }
         }
 
@@ -573,10 +663,15 @@
             const subject = document.getElementById('emailSubject').value;
             const body = document.getElementById('emailBody').value;
 
+            if (!subject || !body) {
+                showError('Subject and Body cannot be empty.');
+                return;
+            }
+
             const btn = event.target.closest('button');
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Approving...';
+            btn.innerHTML = '<span class="spinner"></span> Processing...';
 
             try {
                 const res = await apiFetch('/apply/api/runs/' + currentRunId + '/approve', {
@@ -586,24 +681,23 @@
                 const data = await res.json();
 
                 if (data.approved) {
-                    const sheetMsg = data.sheet_updated
-                        ? 'Draft successfully written to Google Sheet. Your App Script will handle sending.'
-                        : 'Approved in database, but Google Sheet write failed. Please copy manually.';
+                    const statusMsg = document.getElementById('statusMsg');
+                    const isSuccess = data.sheet_updated;
                     
-                    const msgClass = data.sheet_updated ? 'success-msg' : 'error-msg';
-                    const icon = data.sheet_updated ? 'bi-check-all' : 'bi-exclamation-circle';
-                    
-                    document.getElementById('statusMsg').innerHTML = `
-                        <div class="${msgClass} msg-box">
-                            <i class="bi ${icon}"></i>
-                            ${sheetMsg}
+                    statusMsg.innerHTML = `
+                        <div class="${isSuccess ? 'success-msg' : 'error-msg'} msg-box">
+                            <i class="bi ${isSuccess ? 'bi-check-all' : 'bi-exclamation-triangle-fill'}" style="font-size:1.5rem;"></i>
+                            <div>
+                                <strong>${isSuccess ? 'Draft successfully synced!' : 'Database updated, Sheet failed'}</strong><br>
+                                <span style="font-size:0.85rem; opacity:0.9;">
+                                    ${isSuccess ? 'The draft is now in your Google Sheet. Your App Script will handle sending.' : 'The draft was saved to the DB but couldn\'t be written to the Google Sheet. Please check logs.'}
+                                </span>
+                            </div>
                         </div>`;
                     
                     selectedJob.apply_status = 'queued';
                     renderJobList(jobs);
-                    
-                    // Scroll to top of status message
-                    document.getElementById('statusMsg').scrollIntoView({behavior: 'smooth', block: 'center'});
+                    statusMsg.scrollIntoView({behavior: 'smooth', block: 'center'});
                 }
             } catch (e) {
                 if (e.message !== 'Unauthorized') {
@@ -623,22 +717,31 @@
             formData.append('file', file);
 
             try {
-                const res = await apiFetch('/apply/api/profiles', {
+                // For multipart, we let browser set Content-Type
+                const headers = getHeaders();
+                delete headers['Content-Type'];
+                
+                const res = await fetch('/apply/api/profiles', {
                     method: 'POST',
                     body: formData,
-                    headers: {} // Let browser set form-data boundary
+                    headers: headers
                 });
+                
+                if (res.status === 401) {
+                    showError('Unauthorized access key.');
+                    toggleSettings();
+                    return;
+                }
+                
                 const data = await res.json();
                 if (data.saved) {
                     loadProfiles();
-                    alert('Profile uploaded successfully!');
+                    showToast('Profile uploaded successfully!');
                 } else {
                     alert(data.error || 'Upload failed');
                 }
             } catch (e) {
-                if (e.message !== 'Unauthorized') {
-                    alert('Upload failed: ' + e.message);
-                }
+                alert('Upload error: ' + e.message);
             }
             input.value = '';
         }
@@ -653,12 +756,18 @@
         function showError(msg) {
             document.getElementById('statusMsg').innerHTML = `
                 <div class="error-msg msg-box">
-                    <i class="bi bi-x-circle-fill"></i>
+                    <i class="bi bi-x-circle-fill" style="font-size:1.2rem;"></i>
                     ${escapeHtml(msg)}
                 </div>`;
+            document.getElementById('statusMsg').scrollIntoView({behavior: 'smooth', block: 'center'});
         }
 
-        // Load data on page load
+        function showToast(msg) {
+            // Simple alert for now, could be a toast div
+            alert(msg);
+        }
+
+        // Initialize
         loadProfiles();
         loadJobs();
     </script>

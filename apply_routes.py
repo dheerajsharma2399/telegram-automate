@@ -47,7 +47,7 @@ def get_jobs():
         with db.get_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT id, job_id, company_name, job_role, email, location, recruiter_name,
+                    SELECT id, job_id, company_name, job_role, email, location, recruiter_name, jd_text,
                     COALESCE(apply_status, 'pending') as apply_status, created_at
                     FROM jobs
                     WHERE email IS NOT NULL
