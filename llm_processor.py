@@ -674,12 +674,12 @@ Write the email now. Return only valid JSON."""
                                     result["model"] = model
                                     return result
                                 except json.JSONDecodeError as e:
-                                    logging.warning(f"Failed to parse JSON content from {model}: {e}")
+                                    self.logger.warning(f"Failed to parse JSON content from {model}: {e}")
                                     return None
                         else:
-                            logging.warning(f"Model {model} returned status {resp.status}")
+                            self.logger.warning(f"Model {model} returned status {resp.status}")
             except Exception as e:
-                logging.warning(f"API call failed with {model}: {e}")
+                self.logger.warning(f"API call failed with {model}: {e}")
             return None
 
         # Try primary pool
