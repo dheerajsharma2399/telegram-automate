@@ -14,8 +14,8 @@ TIMEOUT_SECONDS = 90
 _api_keys_str = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_API_KEYS = [k.strip() for k in _api_keys_str.split(",") if k.strip()]
 OPENROUTER_API_KEY = OPENROUTER_API_KEYS[0] if OPENROUTER_API_KEYS else None
-OPENROUTER_MODELS = os.getenv("OPENROUTER_MODELS", "anthropic/claude-3.5-sonnet").split(",")
-OPENROUTER_FALLBACK_MODELS = os.getenv("OPENROUTER_FALLBACK_MODELS", "openai/gpt-4o-mini").split(",")
+OPENROUTER_MODELS = os.getenv("OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet").split(",")
+OPENROUTER_FALLBACK_MODELS = os.getenv("OPENROUTER_FALLBACK_MODEL", "openai/gpt-4o-mini").split(",")
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,8 @@ def _match_relevant_experience(jd_text: str, profile: dict) -> list:
     return [a for _, a in scored[:2]]
 
 
-def _call_openrouter(model: str, messages: list, api_keys: list) -> Optional[dict]:
-    """Make synchronous call to OpenRouter API."""
+def _call_openrouter(model: str, messages: list, api_keys: list) -> tuple[Optional[dict], int]:
+    """Make synchronous call to OpenRouter API. Returns (result, tokens_used)."""
     headers = {
         "Authorization": f"Bearer {api_keys[0]}",
         "Content-Type": "application/json",
@@ -77,12 +77,13 @@ def _call_openrouter(model: str, messages: list, api_keys: list) -> Optional[dic
                 data = resp.json()
                 content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                 if content:
-                    return json.loads(content)
+                    tokens_used = data.get("usage", {}).get("total_tokens", 0)
+                    return json.loads(content), tokens_used
             else:
                 logger.warning(f"Model {model} returned status {resp.status_code}")
         except Exception as e:
             logger.warning(f"API call failed with {model}: {e}")
-    return None
+    return None, 0
 
 
 def generate_email_draft(
@@ -155,11 +156,14 @@ Write the email now. Return only valid JSON."""
     ]
 
     # Try primary model
-    result = _call_openrouter(OPENROUTER_MODELS[0].strip(), messages, OPENROUTER_API_KEYS)
+    result, tokens_used = _call_openrouter(OPENROUTER_MODELS[0].strip(), messages, OPENROUTER_API_KEYS)
+    model_used = OPENROUTER_MODELS[0].strip()
 
     # Try fallback if primary fails
     if result is None and OPENROUTER_FALLBACK_MODELS:
-        result = _call_openrouter(OPENROUTER_FALLBACK_MODELS[0].strip(), messages, OPENROUTER_API_KEYS)
+        result, fallback_tokens = _call_openrouter(OPENROUTER_FALLBACK_MODELS[0].strip(), messages, OPENROUTER_API_KEYS)
+        tokens_used = fallback_tokens
+        model_used = OPENROUTER_FALLBACK_MODELS[0].strip()
 
     if result is None:
         raise RuntimeError("All OpenRouter models failed to generate email")
@@ -167,18 +171,15 @@ Write the email now. Return only valid JSON."""
     return {
         "subject": result.get("subject", ""),
         "body_html": result.get("body_html", ""),
-        "tokens_used": 0,  # OpenRouter doesn't return token count in response
-        "model_used": OPENROUTER_MODELS[0].strip()
+        "tokens_used": tokens_used,
+        "model_used": model_used
     }
 
 
 if __name__ == "__main__":
     # Test with sample data
-    import sys
-    sys.path.insert(0, "/home/drdash/Documents/Projects/telegram-automate")
-
-    # Load user profile
-    with open("/home/drdash/Documents/Projects/telegram-automate/user_profile.json") as f:
+    # Load user profile from current directory
+    with open("user_profile.json") as f:
         profile = json.load(f)
 
     jd_text = "We are looking for a Backend Engineer with Python, PostgreSQL, and AWS experience. 2+ years experience required."

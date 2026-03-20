@@ -40,28 +40,26 @@ def get_jobs():
     if not db:
         return jsonify({"error": "Database not configured"}), 500
 
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, job_id, company_name, job_role, email, location,
-                   COALESCE(apply_status, 'pending') as apply_status, created_at
-            FROM jobs
-            WHERE email IS NOT NULL
-              AND email != ''
-              AND synced_to_sheets = TRUE
-              AND is_hidden = FALSE
-              AND is_duplicate = FALSE
-            ORDER BY created_at DESC
-            LIMIT 100
-        """)
-        jobs = cursor.fetchall()
-        return jsonify({"jobs": jobs})
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, job_id, company_name, job_role, email, location,
+                    COALESCE(apply_status, 'pending') as apply_status, created_at
+                    FROM jobs
+                    WHERE email IS NOT NULL
+                    AND email != ''
+                    AND synced_to_sheets = TRUE
+                    AND is_hidden = FALSE
+                    AND is_duplicate = FALSE
+                    ORDER BY created_at DESC
+                    LIMIT 100
+                """)
+                jobs = cursor.fetchall()
+                return jsonify({"jobs": jobs})
     except Exception as e:
         logger.exception("Failed to fetch apply jobs")
         return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
 
 @apply_bp.route("/api/profiles", methods=["GET"])
@@ -144,27 +142,24 @@ def generate_email():
         return jsonify({"error": "Database not configured"}), 500
 
     # Fetch job details
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT job_id, company_name, job_role, email, jd_text
-            FROM jobs WHERE job_id = %s
-        """, (job_id,))
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"error": "Job not found"}), 404
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT job_id, company_name, job_role, email, jd_text
+                    FROM jobs WHERE job_id = %s
+                """, (job_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return jsonify({"error": "Job not found"}), 404
 
-        job = dict(row)
-        jd_text = job.get("jd_text", "")
-        company = job.get("company_name", "")
-        role = job.get("job_role", "")
-        # Extract recruiter name from email or use empty
-        recruiter_name = ""
+                jd_text = row.get("jd_text", "")
+                company = row.get("company_name", "")
+                role = row.get("job_role", "")
+                # Note: jobs table has no recruiter_name column - using email as fallback if needed
+                recruiter_name = ""
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
     # Load profile
     profile_path = os.path.join(PROFILES_DIR, profile_filename)
@@ -181,19 +176,17 @@ def generate_email():
     run_id = uuid.uuid4().hex[:8]
 
     # Insert apply_runs row
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO apply_runs (run_id, job_id, profile_used, status, created_at)
-            VALUES (%s, %s, %s, 'running', NOW())
-            ON CONFLICT DO NOTHING
-        """, (run_id, job_id, profile_filename))
-        conn.commit()
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    INSERT INTO apply_runs (run_id, job_id, profile_used, status, created_at)
+                    VALUES (%s, %s, %s, 'running', NOW())
+                    ON CONFLICT (run_id) DO NOTHING
+                """, (run_id, job_id, profile_filename))
+                conn.commit()
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
     # Spawn background thread
     def background_generate():
@@ -207,38 +200,28 @@ def generate_email():
                 recruiter_name=recruiter_name
             )
             # Update with success
-            conn = db.get_connection()
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE apply_runs
-                    SET status = 'done', email_subject = %s, email_body = %s,
+            with db.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE apply_runs
+                        SET status = 'done', email_subject = %s, email_body = %s,
                         tokens_used = %s, model_used = %s
-                    WHERE run_id = %s
-                """, (result["subject"], result["body_html"], result.get("tokens_used", 0),
-                      result.get("model_used", ""), run_id))
-                conn.commit()
-            except Exception as e:
-                logger.exception("Failed to update apply_runs on success")
-            finally:
-                conn.close()
+                        WHERE run_id = %s
+                    """, (result["subject"], result["body_html"], result.get("tokens_used", 0),
+                        result.get("model_used", ""), run_id))
+                    conn.commit()
         except Exception as e:
             logger.exception("Email generation failed")
-            conn = db.get_connection()
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE apply_runs
-                    SET status = 'error', error_message = %s
-                    WHERE run_id = %s
-                """, (str(e), run_id))
-                conn.commit()
-            except Exception:
-                pass
-            finally:
-                conn.close()
+            with db.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE apply_runs
+                        SET status = 'error', error_message = %s
+                        WHERE run_id = %s
+                    """, (str(e), run_id))
+                    conn.commit()
 
-    thread = threading.Thread(target=background_generate)
+    thread = threading.Thread(target=background_generate, daemon=True)
     thread.start()
 
     return jsonify({"run_id": run_id, "status": "running"})
@@ -251,22 +234,20 @@ def get_run_status(run_id):
     if not db:
         return jsonify({"error": "Database not configured"}), 500
 
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT run_id, job_id, status, email_subject, email_body,
-                   tokens_used, model_used, error_message, created_at
-            FROM apply_runs WHERE run_id = %s
-        """, (run_id,))
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"error": "Run not found"}), 404
-        return jsonify(dict(row))
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT run_id, job_id, status, email_subject, email_body,
+                    tokens_used, model_used, error_message, created_at
+                    FROM apply_runs WHERE run_id = %s
+                """, (run_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return jsonify({"error": "Run not found"}), 404
+                return jsonify(dict(row))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
 
 @apply_bp.route("/api/runs/<run_id>/approve", methods=["POST"])
@@ -284,36 +265,34 @@ def approve_draft(run_id):
         return jsonify({"error": "Database not configured"}), 500
 
     # Get run details
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT job_id FROM apply_runs WHERE run_id = %s
-        """, (run_id,))
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"error": "Run not found"}), 404
-        job_id = row["job_id"]
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT job_id FROM apply_runs WHERE run_id = %s
+                """, (run_id,))
+                row = cursor.fetchone()
+                if not row:
+                    return jsonify({"error": "Run not found"}), 404
+                job_id = row["job_id"]
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
 
     # Get job details for logging
-    conn = db.get_connection()
+    company_name = ""
+    job_role = ""
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT company_name, job_role FROM jobs WHERE job_id = %s
-        """, (job_id,))
-        row = cursor.fetchone()
-        company_name = row.get("company_name", "") if row else ""
-        job_role = row.get("job_role", "") if row else ""
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT company_name, job_role FROM jobs WHERE job_id = %s
+                """, (job_id,))
+                row = cursor.fetchone()
+                if row:
+                    company_name = row.get("company_name", "")
+                    job_role = row.get("job_role", "")
     except Exception:
-        company_name = ""
-        job_role = ""
-    finally:
-        conn.close()
+        pass
 
     # Write to Google Sheet
     sheets_sync = get_sheets_sync()
@@ -325,34 +304,30 @@ def approve_draft(run_id):
             logger.warning(f"Sheet write failed: {e}")
 
     # Update apply_runs with approved content
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE apply_runs
-            SET status = 'approved', approved_subject = %s, approved_body = %s,
-                approved_at = NOW()
-            WHERE run_id = %s
-        """, (email_subject, email_body, run_id))
-        conn.commit()
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE apply_runs
+                    SET status = 'approved', approved_subject = %s, approved_body = %s,
+                    approved_at = NOW()
+                    WHERE run_id = %s
+                """, (email_subject, email_body, run_id))
+                conn.commit()
     except Exception as e:
         logger.exception("Failed to update apply_runs on approve")
-    finally:
-        conn.close()
 
     # Update jobs table
-    conn = db.get_connection()
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE jobs SET apply_status = 'queued', apply_run_id = %s
-            WHERE job_id = %s
-        """, (run_id, job_id))
-        conn.commit()
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE jobs SET apply_status = 'queued', apply_run_id = %s
+                    WHERE job_id = %s
+                """, (run_id, job_id))
+                conn.commit()
     except Exception as e:
         logger.exception("Failed to update jobs apply_status")
-    finally:
-        conn.close()
 
     logger.info(f"Approved draft for {job_id} ({company_name} - {job_role}), sheet_updated={sheet_updated}")
 
@@ -395,9 +370,9 @@ def _write_draft_to_sheet(sheets_sync, job_id: str, subject: str, body_html: str
                         row_index = idx + 1
                         break
 
-        if row_index is None:
-            logger.warning(f"Job {job_id} not found in any sheet")
-            return False
+            if row_index is None:
+                logger.warning(f"Job {job_id} not found in any sheet")
+                return False
 
         # Update columns L (12), M (13), N (14)
         sheet.update(f"L{row_index}:N{row_index}", [[subject, body_html, "DRAFTED"]])
