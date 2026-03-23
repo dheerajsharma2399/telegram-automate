@@ -638,24 +638,25 @@ class LLMProcessor:
 
         candidate_name = profile.get("personal_information", {}).get("full_name", "Dheeraj Sharma")
 
-        system_prompt = f"""You are a professional job application email writer. Generate a cold outreach email.
+        system_prompt = f"""Generate a job application email (250-300 words) as JSON:
+{{"subject": "Application: {role} — {candidate_name}", "body_html": "..."}}
 
-Output JSON with exactly this schema:
-{{
-  "subject": "string — max 98 chars",
-  "body_html": "string — HTML email body, 250-300 words"
-}}
+Rules:
+- Lead with a relevant achievement/metric
+- Mention 2 relevant projects with links (use <a href="">)
+- Bold key numbers/metrics with <strong>
+- Clear call-to-action
+- Light HTML only: <p>, <strong>, <a>, <ul>, <li>
+- No generic openers"""
 
-Requirements:
-- Write a professional but warm cold email, 250-300 words
-- Lead with one concrete achievement or metric directly relevant to the job description
-- Mention 1-2 of the candidate's most relevant projects with repo links as clickable <a href=""> tags
-- Bold key metrics using <strong>
-- No generic openers like "I hope this email finds you well"
-- End with a clear call to action
-- Use light HTML only: <p>, <strong>, <a>, <ul>, <li>
-- Subject line format: Application: {role} — {candidate_name}
-"""
+        # Trim profile to only essential fields (projects/achievements passed separately)
+        profile_trimmed = {
+            "name": profile.get("full_name", ""),
+            "short_bio": profile.get("short_bio", ""),
+            "current_role": profile.get("current_job", {}).get("title", ""),
+            "current_company": profile.get("current_job", {}).get("company", ""),
+            "education": profile.get("education", [{}])[0] if profile.get("education") else {},
+        }
 
         user_prompt = f"""Generate a tailored application email.
 
@@ -666,8 +667,8 @@ Company: {company}
 Role: {role}
 Recruiter Name: {recruiter_name or 'Hiring Manager'}
 
-Candidate Profile:
-{json.dumps(profile, indent=2)}
+Candidate (summary):
+{json.dumps(profile_trimmed, indent=2)}
 
 Top Relevant Projects (include these with links):
 {json.dumps(top_projects, indent=2)}
