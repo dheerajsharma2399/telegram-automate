@@ -1294,10 +1294,6 @@ top: 0;
                     <i class="bi bi-inbox"></i>
                     <span>Queue</span>
                 </a>
-                <a href="/apply" class="tab-link">
-                    <i class="bi bi-send"></i>
-                    <span>Apply</span>
-                </a>
                 <a class="nav-item" data-view="analytics">
                     <i class="bi bi-graph-up"></i>
                     <span>Analytics</span>
@@ -1329,6 +1325,10 @@ top: 0;
                     <p>Monitor your job scraping application</p>
                 </div>
                 <div class="header-actions">
+                    <a href="/apply" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                        <i class="bi bi-send"></i>
+                        Apply
+                    </a>
                     <div class="search-input">
                         <i class="bi bi-search"></i>
                         <input type="text" placeholder="Search jobs..." id="search-input">
@@ -1884,6 +1884,7 @@ top: 0;
         let currentSortColumn = 'created_at';
         let currentSortDirection = 'desc';
         let currentJobTab = 'links';
+        let searchQuery = '';
 
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -2128,6 +2129,9 @@ top: 0;
                 // Add other filters if present
                 const relevance = document.getElementById('filter-relevance').value;
                 if (relevance) url.searchParams.append('relevance', relevance);
+
+                // Add search query if present (searches job_role and company_name)
+                if (searchQuery) url.searchParams.append('job_role', searchQuery);
 
                 const response = await fetch(url);
                 if (!response.ok) {
@@ -2574,16 +2578,20 @@ top: 0;
             }
         });
 
-        // Search with debounce
+        // Search with debounce - fetches from API with search query
         const debouncedSearch = debounce((query) => {
             if (currentView === 'jobs') {
                 currentPage = 1;
+                // Reload jobs data (which will pick up the current searchQuery)
                 loadJobsData();
             }
         }, 300);
 
         document.getElementById('search-input')?.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
+            searchQuery = query;
+
+            // Immediate client-side filtering if jobsData exists
             if (currentView === 'jobs' && jobsData.length > 0) {
                 const filtered = jobsData.filter(job =>
                     (job.company_name || '').toLowerCase().includes(query) ||
@@ -2591,8 +2599,10 @@ top: 0;
                 );
                 renderJobsTable(filtered);
                 renderPagination();
+            } else if (query && currentView === 'jobs') {
+                // No jobs loaded yet - trigger API fetch with search
+                debouncedSearch(query);
             }
-            debouncedSearch(query);
         });
 
         // Toast Notification
@@ -2889,6 +2899,7 @@ async function fetchMonitoredGroups() {
         }
 
         // Initial Load
+        loadView(currentView);
 
         // Auto-refresh every 30 seconds — only update stats silently, never re-render jobs list
         setInterval(() => {
