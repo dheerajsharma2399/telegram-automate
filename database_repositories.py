@@ -658,6 +658,61 @@ class UnifiedJobRepository(BaseRepository):
                     "raw_message": raw_message
                 }
 
+    def get_jobs_for_agent_classification(self, limit: int = 10) -> List[Dict]:
+        """Fetch jobs that are pending classification by the AI Agent"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, job_id, company_name, job_role, email, location, salary, jd_text, metadata
+                    FROM jobs
+                    WHERE is_hidden = FALSE
+                    AND is_duplicate = FALSE
+                    AND email IS NOT NULL AND email != ''
+                    AND (metadata->>'agent_classified') IS NULL
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                """, (limit,))
+                return [dict(row) for row in cursor.fetchall()]
+
+    def update_agent_classification(self, job_id: Union[int, str], passed_filters: bool, relevance: Optional[str] = None):
+        """Update job classification results from AI Agent"""
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    final_relevance = relevance or ('relevant' if passed_filters else 'irrelevant')
+                    if isinstance(job_id, int) or (isinstance(job_id, str) and job_id.isdigit()):
+                        cursor.execute("""
+                            UPDATE jobs
+                            SET job_relevance = %s,
+                                metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('agent_classified', true, 'agent_passed_filters', %s),
+                                updated_at = NOW()
+                            WHERE id = %s
+                        """, (final_relevance, passed_filters, int(job_id)))
+                    else:
+                        cursor.execute("""
+                            UPDATE jobs
+                            SET job_relevance = %s,
+                                metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('agent_classified', true, 'agent_passed_filters', %s),
+                                updated_at = NOW()
+                            WHERE job_id = %s
+                        """, (final_relevance, passed_filters, job_id))
+                    conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to update agent classification for job {job_id}: {e}")
+                raise
+
+    def export_jobs(self) -> List[Dict]:
+        """Export all non-hidden jobs for CSV"""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM jobs
+                    WHERE is_hidden = FALSE
+                    ORDER BY created_at DESC
+                """)
+                return [dict(row) for row in cursor.fetchall()]
+
 class ConfigRepository(BaseRepository):
     def get_config(self, key: str) -> Optional[str]:
         """Get config value"""

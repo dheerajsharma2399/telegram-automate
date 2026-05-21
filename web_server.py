@@ -730,6 +730,137 @@ def export_dashboard_jobs():
         logging.error(f"Failed to export jobs: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/ai-agent/export", methods=["POST"])
+@require_api_key
+def export_jobs_to_agent():
+    """Export pending jobs to AI Agent for classification"""
+    try:
+        data = request.get_json() or {}
+        limit = data.get("limit", 10)
+        batch_size = data.get("batch_size", 10)
+        webhook_url = data.get("webhook_url") or os.environ.get("AI_AGENT_WEBHOOK_URL")
+
+        if not webhook_url:
+            return jsonify({"error": "AI_AGENT_WEBHOOK_URL is not configured and webhook_url was not provided in request body"}), 400
+
+        # Get eligible jobs
+        pending_jobs = db.jobs.get_jobs_for_agent_classification(limit)
+        if not pending_jobs:
+            return jsonify({
+                "status": "success",
+                "message": "No pending jobs to export",
+                "total_processed": 0,
+                "batches_sent": 0,
+                "details": []
+            }), 200
+
+        results_summary = []
+        batches_sent = 0
+
+        # Batch jobs in groups of batch_size
+        for i in range(0, len(pending_jobs), batch_size):
+            batch = pending_jobs[i:i + batch_size]
+            
+            # Format payload with requested fields
+            payload_jobs = []
+            for job in batch:
+                payload_jobs.append({
+                    "id": job["id"],
+                    "job_id": job["job_id"],
+                    "company_name": job["company_name"],
+                    "job_role": job["job_role"],
+                    "jd_text": job["jd_text"],
+                    "email": job["email"],
+                    "salary": job["salary"]
+                })
+
+            payload = {"jobs": payload_jobs}
+
+            # Send payload to the AI Agent webhook
+            try:
+                response = requests.post(webhook_url, json=payload, timeout=30)
+                response.raise_for_status()
+                batches_sent += 1
+                
+                # Parse response
+                response_data = response.json()
+                
+                # Normalize response formats:
+                # Expecting: {"results": [{"id": 1, "passed_filters": True, "relevance": "relevant"}]}
+                # Or: [{"id": 1, "passed_filters": True}]
+                results_list = []
+                if isinstance(response_data, list):
+                    results_list = response_data
+                elif isinstance(response_data, dict):
+                    results_list = response_data.get("results") or response_data.get("jobs") or response_data.get("data")
+                    if not results_list:
+                        # Try to find any list in the dictionary
+                        for val in response_data.values():
+                            if isinstance(val, list):
+                                results_list = val
+                                break
+                
+                if not results_list:
+                    logging.warning(f"AI Agent response did not contain a valid list of results. Response: {response_data}")
+                    for job in batch:
+                        results_summary.append({
+                            "id": job["id"],
+                            "job_id": job["job_id"],
+                            "status": "error",
+                            "message": "Invalid agent response format"
+                        })
+                    continue
+
+                # Process results and update DB
+                for res in results_list:
+                    if not isinstance(res, dict):
+                        continue
+                    
+                    # Extract identifier
+                    j_db_id = res.get("id")
+                    j_str_id = res.get("job_id")
+                    target_identifier = j_db_id if j_db_id is not None else j_str_id
+                    
+                    if target_identifier is None:
+                        continue
+
+                    # Extract filter / relevance status
+                    passed_filters = res.get("passed_filters")
+                    if passed_filters is None:
+                        passed_filters = res.get("passed") or res.get("matched") or False
+                    
+                    relevance = res.get("relevance")
+                    
+                    db.jobs.update_agent_classification(target_identifier, passed_filters, relevance)
+                    results_summary.append({
+                        "identifier": target_identifier,
+                        "status": "classified",
+                        "passed_filters": passed_filters,
+                        "relevance": relevance or ("relevant" if passed_filters else "irrelevant")
+                    })
+
+            except requests.RequestException as req_err:
+                logging.error(f"Failed to push batch to AI agent webhook: {req_err}")
+                for job in batch:
+                    results_summary.append({
+                        "id": job["id"],
+                        "job_id": job["job_id"],
+                        "status": "error",
+                        "message": f"Webhook request failed: {str(req_err)}"
+                    })
+                
+        return jsonify({
+            "status": "success",
+            "total_processed": len(pending_jobs),
+            "batches_sent": batches_sent,
+            "details": results_summary
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Exception during AI Agent job export: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/dashboard/stats", methods=["GET"])
 def get_dashboard_stats():
     """Get dashboard job statistics"""
