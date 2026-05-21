@@ -154,7 +154,9 @@ async def sync_sheets_automatically():
 
         for job in unsynced_jobs:
             try:
-                if sheets_sync.sync_job(job):
+                # Offload the blocking sync_job call to a separate thread
+                sync_success = await asyncio.to_thread(sheets_sync.sync_job, job)
+                if sync_success:
                     db.jobs.mark_job_synced(job.get('job_id'))
                     synced_count += 1
                 else:

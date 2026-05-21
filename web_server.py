@@ -419,6 +419,15 @@ def api_advanced_sheets_sync():
             # we can safely call it for all jobs. This ensures new sheets get populated
             # even if the job exists in other sheets or was previously tracked.
 
+            # If the job is already present in the sheet, skip calling sync_job to save API quota and prevent timeouts
+            if job_id in existing_ids.get(sheet_name, set()):
+                skipped_count += 1
+                # If database incorrectly shows synced_to_sheets=False, heal the database state
+                if not job.get('synced_to_sheets'):
+                    db.jobs.mark_job_synced(job_id, sheet_name=sheet_name)
+                    fixed_count += 1
+                    logging.info(f"Database sync flag healed for job {job_id} (already in sheet '{sheet_name}')")
+                continue
             
             # Job doesn't exist in sheet - sync it
             if not job.get('sheet_name'):

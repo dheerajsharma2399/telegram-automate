@@ -17,12 +17,15 @@ logger = logging.getLogger(__name__)
 # Need to set Python path to include current directory
 import sys
 sys.path.append(os.getcwd())
-
 from web_server import get_sheets_sync, db
 
 def backfill_jobs(days=7):
     logger.info(f"Starting backfill for the past {days} days...")
     
+    if not db:
+        logger.error("Database connection not configured. Set DATABASE_URL.")
+        return
+
     # 1. Initialize Sheets Sync
     sheets_sync = get_sheets_sync()
     if not sheets_sync:
