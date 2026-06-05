@@ -6,6 +6,15 @@
         "code-review-graph",
         "serve"
       ]
+    },
+    "telegram-automate": {
+      "command": "python3",
+      "args": [
+        "mcp_server.py"
+      ],
+      "env": {
+        "TELEGRAM_AUTOMATE_API_BASE_URL": "http://127.0.0.1:9501"
+      }
     }
   }
 }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Telegram Automate MCP"
+  short_description: "Use the Telegram Automate FastMCP server."
+  default_prompt: "Use the telegram-automate MCP server to inspect status, fetch or process Telegram job messages, and retrieve jobs through the existing API layer."

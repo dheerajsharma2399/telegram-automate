@@ -10,6 +10,7 @@ tests/
 ├── test_config.py              # Configuration validation tests
 ├── test_database.py            # Database operations tests
 ├── test_llm_processor.py       # LLM job parsing tests
+├── test_mcp_server.py          # MCP server protocol and API routing tests
 ├── test_integration.py         # End-to-end integration tests
 ├── test_extraction_logic.py    # Job extraction logic tests (legacy)
 ├── test_link_extraction.py     # Link extraction tests (legacy)

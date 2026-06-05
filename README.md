@@ -288,6 +288,94 @@ curl -X POST http://localhost:9501/api/dashboard/import
 curl -X POST http://localhost:9501/api/dashboard/detect_duplicates
 ```
 
+## 🔌 MCP Server
+
+The project includes a FastMCP stdio adapter in `mcp_server.py` that wraps the existing Flask API layer. The MCP layer does not access PostgreSQL directly; it calls the same dashboard/API routes used by the web UI so authorization, validation, and business rules stay centralized.
+
+### Run
+
+Run the Flask API first, then connect an MCP client to:
+
+```bash
+python3 mcp_server.py
+```
+
+You can also run it through the FastMCP CLI:
+
+```bash
+fastmcp run mcp_server.py:mcp
+```
+
+Configuration:
+
+```bash
+TELEGRAM_AUTOMATE_API_BASE_URL=http://127.0.0.1:9501
+API_KEY=your_api_key_if_configured
+# or TELEGRAM_AUTOMATE_API_KEY=your_api_key_if_configured
+```
+
+The repository `.mcp.json` contains a `telegram-automate` MCP server entry for local clients.
+
+### MCP Tool Definitions
+
+| Tool | Arguments | Purpose | Wrapped API route |
+|---|---|---|---|
+| `get_status` | none | Read monitoring status, queue count, job stats, and Telegram auth state | `GET /api/status` |
+| `list_jobs` | `page`, `page_size`, `status`, `relevance`, `job_role`, `has_email`, `include_archived`, `sort_by`, `sort_order` | Query dashboard jobs with pagination and filters | `GET /api/dashboard/jobs` |
+| `get_new_jobs` | `limit`, `has_email`, `status`, `relevance` | Fetch newest dashboard jobs, sorted by `updated_at DESC` | `GET /api/dashboard/jobs` |
+| `fetch_historical_messages` | `hours_back` | Fetch recent Telegram messages and process them into jobs | `POST /api/fetch_historical_messages` |
+| `process_queue` | none | Enqueue `/process` for the worker | `POST /api/command` |
+| `sync_sheets` | none | Enqueue `/sync_sheets` for the worker | `POST /api/command` |
+| `list_queue` | `limit` | Read unprocessed raw Telegram messages | `GET /api/queue` |
+| `list_pending_commands` | none | Read commands waiting for the worker | `GET /api/pending_commands` |
+| `get_telegram_status` | none | Read Telegram session/login state | `GET /api/telegram/status` |
+
+`list_jobs` filter values:
+
+```text
+relevance: relevant | irrelevant | unclassified
+sort_by: created_at | updated_at | job_role | company_name | status | job_relevance | id
+sort_order: ASC | DESC
+```
+
+### Common MCP Workflows
+
+Fetch newest jobs:
+
+```json
+{
+  "name": "get_new_jobs",
+  "arguments": {
+    "limit": 25,
+    "has_email": false
+  }
+}
+```
+
+Fetch fresh Telegram messages from the last six hours:
+
+```json
+{
+  "name": "fetch_historical_messages",
+  "arguments": {
+    "hours_back": 6
+  }
+}
+```
+
+Process existing queued raw messages:
+
+```json
+{
+  "name": "process_queue",
+  "arguments": {}
+}
+```
+
+### Agent Skill
+
+A project-local Codex skill for other agents is available at `.codex/skills/telegram-automate-mcp/SKILL.md`. Use it when an agent needs operational guidance for this MCP layer.
+
 ## 🌐 Web Dashboard
 
 ### Dashboard Tabs
