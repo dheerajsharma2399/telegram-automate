@@ -184,6 +184,241 @@ class MessageRepository(BaseRepository):
             result = cursor.fetchone()
             return dict(result) if result else None
 
+class EventRepository(BaseRepository):
+    def add_event(self, source: str, source_id: str, content: str, metadata: Optional[Dict] = None) -> Optional[int]:
+        metadata = metadata or {}
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO raw_events (source, source_id, content, metadata)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (source, source_id) DO NOTHING
+                        RETURNING id
+                    """, (source, source_id, content, Json(metadata)))
+                    result = cursor.fetchone()
+                conn.commit()
+                return result['id'] if result else None
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to add event: {e}")
+                raise
+
+    def get_unprocessed(self, limit: int = 10) -> List[Dict]:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM raw_events
+                    WHERE status = 'unprocessed'
+                    ORDER BY created_at ASC
+                    LIMIT %s
+                """, (limit,))
+                return [dict(row) for row in cursor.fetchall()]
+
+    def get_unprocessed_by_source(self, source: str, limit: int = 10) -> List[Dict]:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM raw_events
+                    WHERE status = 'unprocessed' AND source = %s
+                    ORDER BY created_at ASC
+                    LIMIT %s
+                """, (source, limit))
+                return [dict(row) for row in cursor.fetchall()]
+
+    def update_status(self, event_id: int, status: str, error_message: Optional[str] = None):
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE raw_events
+                        SET status = %s, error_message = %s
+                        WHERE id = %s
+                    """, (status, error_message, event_id))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to update event status: {e}")
+                raise
+
+    def get_by_id(self, event_id: int) -> Optional[Dict]:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM raw_events WHERE id = %s", (event_id,))
+                result = cursor.fetchone()
+                return dict(result) if result else None
+
+    def get_by_source_id(self, source: str, source_id: str) -> Optional[Dict]:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM raw_events WHERE source = %s AND source_id = %s LIMIT 1", (source, source_id))
+                result = cursor.fetchone()
+                return dict(result) if result else None
+
+    def get_unprocessed_count(self) -> int:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM raw_events WHERE status = 'unprocessed'")
+                result = cursor.fetchone()
+                return result['count'] if result else 0
+
+    def reset_stuck_events(self, stuck_minutes: int = 30) -> int:
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE raw_events
+                        SET status = 'unprocessed', error_message = 'Reset from stuck processing state'
+                        WHERE status = 'processing'
+                          AND created_at < NOW() - INTERVAL '1 minute' * %s
+                    """, (stuck_minutes,))
+                    count = cursor.rowcount
+                conn.commit()
+                return count
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to reset stuck events: {e}")
+                raise
+
+
+class QueueRepository(BaseRepository):
+    def enqueue(self, event_id: int, priority: int = 0) -> Optional[int]:
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        INSERT INTO processing_queue (event_id, priority)
+                        VALUES (%s, %s)
+                        RETURNING id
+                    """, (event_id, priority))
+                    result = cursor.fetchone()
+                conn.commit()
+                return result['id'] if result else None
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to enqueue event: {e}")
+                raise
+
+    def claim_batch(self, limit: int = 10, worker_id: str = 'default') -> List[Dict]:
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT id
+                        FROM processing_queue
+                        WHERE status = 'pending'
+                          AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+                        ORDER BY priority DESC, created_at ASC
+                        LIMIT %s
+                        FOR UPDATE SKIP LOCKED
+                    """, (limit,))
+                    rows = cursor.fetchall()
+                    ids = [row['id'] for row in rows]
+                    if not ids:
+                        conn.commit()
+                        return []
+                    cursor.execute("""
+                        UPDATE processing_queue
+                        SET status = 'claimed', claimed_by = %s, claimed_at = NOW()
+                        WHERE id = ANY(%s)
+                        RETURNING *
+                    """, (worker_id, ids))
+                    claimed = [dict(row) for row in cursor.fetchall()]
+                conn.commit()
+                return claimed
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to claim batch: {e}")
+                raise
+
+    def mark_done(self, queue_id: int):
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE processing_queue
+                        SET status = 'done', completed_at = NOW(), error_message = NULL
+                        WHERE id = %s
+                    """, (queue_id,))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to mark queue item done: {e}")
+                raise
+
+    def mark_failed(self, queue_id: int, error_message: Optional[str] = None):
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT retry_count, max_retries FROM processing_queue WHERE id = %s", (queue_id,))
+                    row = cursor.fetchone()
+                    if not row:
+                        return
+                    retry_count = int(row['retry_count'] or 0) + 1
+                    max_retries = int(row['max_retries'] or 3)
+                    if retry_count < max_retries:
+                        delay_minutes = 2 ** (retry_count - 1)
+                        cursor.execute("""
+                            UPDATE processing_queue
+                            SET status = 'pending',
+                                retry_count = %s,
+                                next_retry_at = NOW() + INTERVAL '1 minute' * %s,
+                                error_message = %s,
+                                claimed_by = NULL,
+                                claimed_at = NULL
+                            WHERE id = %s
+                        """, (retry_count, delay_minutes, error_message, queue_id))
+                    else:
+                        cursor.execute("""
+                            UPDATE processing_queue
+                            SET status = 'failed',
+                                retry_count = %s,
+                                error_message = %s,
+                                completed_at = NOW()
+                            WHERE id = %s
+                        """, (retry_count, error_message, queue_id))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to mark queue item failed: {e}")
+                raise
+
+    def retry_failed(self, limit: int = 10) -> int:
+        with self.get_connection() as conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        UPDATE processing_queue
+                        SET status = 'pending',
+                            next_retry_at = NULL,
+                            error_message = NULL,
+                            claimed_by = NULL,
+                            claimed_at = NULL
+                        WHERE id IN (
+                            SELECT id FROM processing_queue
+                            WHERE status = 'failed' AND retry_count < max_retries
+                            ORDER BY created_at ASC
+                            LIMIT %s
+                        )
+                    """, (limit,))
+                    count = cursor.rowcount
+                conn.commit()
+                return count
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Failed to retry failed queue items: {e}")
+                raise
+
+    def get_stats(self) -> Dict:
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT status, COUNT(*) FROM processing_queue GROUP BY status")
+                by_status = {row['status']: row['count'] for row in cursor.fetchall()}
+                cursor.execute("SELECT COUNT(*) FROM processing_queue")
+                total = cursor.fetchone()['count']
+                return {"total": total, "by_status": by_status}
+
+
 class UnifiedJobRepository(BaseRepository):
     """
     Unified Job Repository that manages the 'jobs' table.
@@ -202,8 +437,11 @@ class UnifiedJobRepository(BaseRepository):
             INSERT INTO jobs (
                 job_id, source, status, company_name, job_role, location, eligibility, salary,
                 jd_text, raw_message_id, email, phone, application_link, recruiter_name,
-                is_hidden, is_duplicate, duplicate_of_id, job_relevance, metadata, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                is_hidden, is_duplicate, duplicate_of_id, confidence_score, extraction_method,
+                job_fingerprint, normalized_role, role_category, experience_hint, location_hint,
+                contact_method, poster_name, poster_url, post_url, source_event_id, job_relevance,
+                metadata, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             ON CONFLICT (job_id) DO UPDATE SET
                 status = EXCLUDED.status,
                 company_name = COALESCE(EXCLUDED.company_name, jobs.company_name),
@@ -216,6 +454,18 @@ class UnifiedJobRepository(BaseRepository):
                 phone = COALESCE(EXCLUDED.phone, jobs.phone),
                 application_link = COALESCE(EXCLUDED.application_link, jobs.application_link),
                 recruiter_name = COALESCE(EXCLUDED.recruiter_name, jobs.recruiter_name),
+                confidence_score = COALESCE(EXCLUDED.confidence_score, jobs.confidence_score),
+                extraction_method = COALESCE(EXCLUDED.extraction_method, jobs.extraction_method),
+                job_fingerprint = COALESCE(EXCLUDED.job_fingerprint, jobs.job_fingerprint),
+                normalized_role = COALESCE(EXCLUDED.normalized_role, jobs.normalized_role),
+                role_category = COALESCE(EXCLUDED.role_category, jobs.role_category),
+                experience_hint = COALESCE(EXCLUDED.experience_hint, jobs.experience_hint),
+                location_hint = COALESCE(EXCLUDED.location_hint, jobs.location_hint),
+                contact_method = COALESCE(EXCLUDED.contact_method, jobs.contact_method),
+                poster_name = COALESCE(EXCLUDED.poster_name, jobs.poster_name),
+                poster_url = COALESCE(EXCLUDED.poster_url, jobs.poster_url),
+                post_url = COALESCE(EXCLUDED.post_url, jobs.post_url),
+                source_event_id = COALESCE(EXCLUDED.source_event_id, jobs.source_event_id),
                 job_relevance = COALESCE(EXCLUDED.job_relevance, jobs.job_relevance),
                 metadata = jobs.metadata || EXCLUDED.metadata,
                 updated_at = NOW()
@@ -245,6 +495,18 @@ class UnifiedJobRepository(BaseRepository):
             job_data.get('is_hidden', False),
             job_data.get('is_duplicate', False),
             job_data.get('duplicate_of_id'),
+            job_data.get('confidence_score'),
+            job_data.get('extraction_method'),
+            job_data.get('job_fingerprint'),
+            job_data.get('normalized_role'),
+            job_data.get('role_category'),
+            job_data.get('experience_hint'),
+            job_data.get('location_hint'),
+            job_data.get('contact_method'),
+            job_data.get('poster_name'),
+            job_data.get('poster_url'),
+            job_data.get('post_url'),
+            job_data.get('source_event_id'),
             job_data.get('job_relevance', 'relevant'),
             Json(metadata)
         )
@@ -498,6 +760,64 @@ class UnifiedJobRepository(BaseRepository):
                     cursor.execute("SELECT * FROM jobs WHERE job_id = %s", (job_id,))
                 result = cursor.fetchone()
                 return dict(result) if result else None
+
+    def search_by_fingerprint(self, fingerprint: str) -> Optional[Dict]:
+        """Find job by fingerprint."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM jobs WHERE job_fingerprint = %s LIMIT 1", (fingerprint,))
+                result = cursor.fetchone()
+                return dict(result) if result else None
+
+    def search_by_email(self, email: str) -> Optional[Dict]:
+        """Find job by email."""
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM jobs
+                    WHERE lower(email) = lower(%s)
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, (email,))
+                result = cursor.fetchone()
+                return dict(result) if result else None
+
+    def search_fulltext(self, query: str, filters=None, page: int = 1, page_size: int = 50) -> Dict:
+        """Full-text search over jobs."""
+        filters = filters or {}
+        with self.get_connection() as conn:
+            with conn.cursor() as cursor:
+                where_clauses = ["search_vector @@ plainto_tsquery('english', %s)"]
+                params = [query]
+                if filters.get('source'):
+                    where_clauses.append("source = %s")
+                    params.append(filters['source'])
+                if filters.get('role_category'):
+                    where_clauses.append("role_category = %s")
+                    params.append(filters['role_category'])
+                if filters.get('has_email') is True:
+                    where_clauses.append("email IS NOT NULL AND email != ''")
+                elif filters.get('has_email') is False:
+                    where_clauses.append("(email IS NULL OR email = '')")
+                if filters.get('location_hint'):
+                    where_clauses.append("location_hint ILIKE %s")
+                    params.append(f"%{filters['location_hint']}%")
+                if filters.get('confidence_min') is not None:
+                    where_clauses.append("COALESCE(confidence_score, 0) >= %s")
+                    params.append(filters['confidence_min'])
+                if filters.get('date_from'):
+                    where_clauses.append("created_at >= %s")
+                    params.append(filters['date_from'])
+                if filters.get('date_to'):
+                    where_clauses.append("created_at <= %s")
+                    params.append(filters['date_to'])
+                where_sql = " AND ".join(where_clauses)
+                cursor.execute(f"SELECT COUNT(*) FROM jobs WHERE {where_sql}", tuple(params))
+                total_count = cursor.fetchone()['count']
+                offset = (page - 1) * page_size
+                cursor.execute(f"SELECT * FROM jobs WHERE {where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s", tuple(params + [page_size, offset]))
+                jobs = [dict(row) for row in cursor.fetchall()]
+                return {"jobs": jobs, "total_count": total_count, "page": page, "page_size": page_size}
 
     def archive_jobs_older_than(self, days: int) -> int:
         """Archive old jobs"""
