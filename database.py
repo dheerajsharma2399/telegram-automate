@@ -167,19 +167,28 @@ def init_database(pool):
                 IF EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'jobs' AND column_name = 'search_vector'
+                      AND generation_expression IS NULL
                 ) THEN
+                    -- Drop dependent index first, then the non-generated column
+                    EXECUTE 'DROP INDEX IF EXISTS idx_jobs_search';
                     EXECUTE 'ALTER TABLE jobs DROP COLUMN search_vector';
                 END IF;
-                EXECUTE '
-                    ALTER TABLE jobs
-                    ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
-                        setweight(to_tsvector(''english'', coalesce(company_name, '''')), ''A'') ||
-                        setweight(to_tsvector(''english'', coalesce(job_role, '''')), ''A'') ||
-                        setweight(to_tsvector(''english'', coalesce(normalized_role, '''')), ''B'') ||
-                        setweight(to_tsvector(''english'', coalesce(role_category, '''')), ''B'') ||
-                        setweight(to_tsvector(''english'', coalesce(jd_text, '''')), ''C'')
-                    ) STORED
-                ';
+                -- Add as generated column (skip if already a generated column)
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'jobs' AND column_name = 'search_vector'
+                ) THEN
+                    EXECUTE '
+                        ALTER TABLE jobs
+                        ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
+                            setweight(to_tsvector(''english'', coalesce(company_name, '''')), ''A'') ||
+                            setweight(to_tsvector(''english'', coalesce(job_role, '''')), ''A'') ||
+                            setweight(to_tsvector(''english'', coalesce(normalized_role, '''')), ''B'') ||
+                            setweight(to_tsvector(''english'', coalesce(role_category, '''')), ''B'') ||
+                            setweight(to_tsvector(''english'', coalesce(jd_text, '''')), ''C'')
+                        ) STORED
+                    ';
+                END IF;
             END $$;
                 """)
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING gin(search_vector)")
