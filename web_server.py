@@ -938,7 +938,7 @@ except Exception:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", api_key=os.getenv("API_KEY", ""))
 
 @app.route("/old")
 def old():
@@ -948,7 +948,7 @@ def old():
 @app.route("/modern")
 def modern():
     """Redirect for legacy modern link"""
-    return render_template("index.html")
+    return render_template("index.html", api_key=os.getenv("API_KEY", ""))
 
 
 from telethon.sessions import StringSession

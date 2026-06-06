@@ -134,5 +134,23 @@ class TestSignalHandlerPort(unittest.TestCase):
         ))
 
 
+class TestDashboardApiKeyInjection(unittest.TestCase):
+    """The admin dashboard must send the configured API key on protected calls."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.client, cls.ws_module = _make_flask_test_client()
+
+    def test_index_injects_configured_api_key_for_dashboard_actions(self):
+        with patch.dict("os.environ", {"API_KEY": "browser-test-key"}):
+            resp = self.client.get("/")
+
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn('const DASHBOARD_API_KEY = "browser-test-key";', html)
+        self.assertIn("function apiFetch(endpoint, options = {})", html)
+        self.assertNotIn("YOUR_API_KEY_HERE", html)
+
+
 if __name__ == "__main__":
     unittest.main()

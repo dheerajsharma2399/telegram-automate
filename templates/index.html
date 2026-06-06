@@ -2009,11 +2009,26 @@ top: 0;
         }
 
         // API Functions
+        const DASHBOARD_API_KEY = {{ api_key|default('', true)|tojson }};
+
+        function apiHeaders(headers = {}) {
+            const mergedHeaders = { ...headers };
+            if (DASHBOARD_API_KEY) {
+                mergedHeaders['X-API-Key'] = DASHBOARD_API_KEY;
+            }
+            return mergedHeaders;
+        }
+
+        function apiFetch(endpoint, options = {}) {
+            return fetch(endpoint, {
+                ...options,
+                headers: apiHeaders(options.headers || {})
+            });
+        }
+
         async function fetchAPI(endpoint, options = {}) {
             try {
-                options.headers = options.headers || {};
-                options.headers['X-API-Key'] = 'YOUR_API_KEY_HERE'; // Will be injected from env
-                const response = await fetch(endpoint, options);
+                const response = await apiFetch(endpoint, options);
                 if (!response.ok) throw new Error('API Error');
                 return await response.json();
             } catch (error) {
@@ -2488,7 +2503,7 @@ top: 0;
             if (event) event.stopPropagation();
 
             try {
-                const response = await fetch(`/api/dashboard/jobs/${jobId}`, {
+                const response = await apiFetch(`/api/dashboard/jobs/${jobId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: 'archived', archive: true })
@@ -2561,10 +2576,10 @@ top: 0;
             btn.disabled = true;
             btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
             try {
-                const res = await fetch('/api/command', {
+                const res = await apiFetch('/api/command', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command: 'process' })
+                    body: JSON.stringify({ command: '/process' })
                 });
                 const data = await res.json();
                 btn.disabled = false;
@@ -2638,7 +2653,7 @@ top: 0;
 
         async function sendTelegramAuthCode() {
             try {
-                const response = await fetch('/api/telegram/setup', {
+                const response = await apiFetch('/api/telegram/setup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -2666,7 +2681,7 @@ top: 0;
             }
 
             try {
-                const response = await fetch('/api/telegram/signin', {
+                const response = await apiFetch('/api/telegram/signin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code: code, password: password || undefined })
@@ -2703,7 +2718,7 @@ top: 0;
                 return;
             }
             try {
-                const response = await fetch('/api/telegram/clear_session', { method: 'POST' });
+                const response = await apiFetch('/api/telegram/clear_session', { method: 'POST' });
                 if (response.ok) {
                     showToast('Telegram session cleared', 'success');
                     fetchTelegramStatus();
@@ -2767,7 +2782,7 @@ async function fetchMonitoredGroups() {
             const group = document.getElementById('new-group-username').value.trim();
             if (!group) return showToast('Enter group name', 'error');
             try {
-                const res = await fetch('/api/monitored_groups', {
+                const res = await apiFetch('/api/monitored_groups', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ group })
@@ -2786,7 +2801,7 @@ async function fetchMonitoredGroups() {
             const decodedGroup = decodeURIComponent(group);
             if (!confirm(`Remove ${decodedGroup}?`)) return;
             try {
-                const res = await fetch('/api/monitored_groups', {
+                const res = await apiFetch('/api/monitored_groups', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ group: decodedGroup })
@@ -2807,7 +2822,7 @@ async function fetchMonitoredGroups() {
             statusDiv.innerHTML = '<div class="text-info"><div class="spinner inline-block mr-2"></div> Fetching...</div>';
 
             try {
-                const res = await fetch('/api/fetch_historical_messages', {
+                const res = await apiFetch('/api/fetch_historical_messages', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ hours_back: parseFloat(hoursBack) })
@@ -2816,6 +2831,10 @@ async function fetchMonitoredGroups() {
                 if (res.ok && data.status === 'success') {
                     statusDiv.innerHTML = `<div class="text-success">Fetched ${data.fetched_count} messages.</div>`;
                     showToast(`Fetched ${data.fetched_count} new messages`, 'success');
+                } else if (res.ok && data.status === 'no_new_messages') {
+                    const message = data.message || 'No new messages found in the specified time range';
+                    statusDiv.innerHTML = `<div class="text-info">${escapeHtml(message)}</div>`;
+                    showToast(message, 'info');
                 } else {
                     statusDiv.innerHTML = `<div class="text-danger">${escapeHtml(data.error) || escapeHtml(data.status)}</div>`;
                 }
@@ -2827,7 +2846,7 @@ async function fetchMonitoredGroups() {
         async function runAdvancedSync() {
             const days = document.getElementById('syncDaysInput').value;
             try {
-                const res = await fetch('/api/sheets/advanced_sync', {
+                const res = await apiFetch('/api/sheets/advanced_sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ days })
@@ -2842,7 +2861,7 @@ async function fetchMonitoredGroups() {
         async function detectDuplicates() {
             showToast('Detecting duplicates...', 'info');
             try {
-                const res = await fetch('/api/dashboard/detect_duplicates', { method: 'POST' });
+                const res = await apiFetch('/api/dashboard/detect_duplicates', { method: 'POST' });
                 const data = await res.json();
                 showToast(data.message || data.error, res.ok ? 'success' : 'error');
             } catch (e) { showToast(e.message, 'error'); }
@@ -2852,7 +2871,7 @@ async function fetchMonitoredGroups() {
             const days = document.getElementById('archive-days-select').value;
             if (!confirm(`Archive jobs older than ${days} days?`)) return;
             try {
-                const res = await fetch('/api/dashboard/jobs/archive_older_than', {
+                const res = await apiFetch('/api/dashboard/jobs/archive_older_than', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ days: parseInt(days) })
@@ -2867,7 +2886,7 @@ async function fetchMonitoredGroups() {
             const max = prompt("Max jobs to import?", "100");
             if (!max) return;
             try {
-                const res = await fetch('/api/dashboard/import', {
+                const res = await apiFetch('/api/dashboard/import', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sheet_name: 'non-email', max_jobs: parseInt(max) })
