@@ -13,6 +13,8 @@ from database_repositories import (
     BaseRepository,
     TelegramAuthRepository,
     MessageRepository,
+    EventRepository,
+    QueueRepository,
     UnifiedJobRepository,
     ConfigRepository,
     CommandRepository
@@ -76,6 +78,41 @@ def init_database(pool):
             CREATE UNIQUE INDEX IF NOT EXISTS raw_messages_group_message_id_idx ON raw_messages (group_id, message_id);
                 """)
 
+                cursor.execute("""
+            CREATE TABLE IF NOT EXISTS raw_events (
+                id SERIAL PRIMARY KEY,
+                source TEXT NOT NULL CHECK (source IN ('telegram', 'linkedin', 'reddit', 'discord', 'manual')),
+                source_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                metadata JSONB DEFAULT '{}'::jsonb,
+                status TEXT DEFAULT 'unprocessed' CHECK (status IN ('unprocessed', 'processing', 'processed', 'failed', 'skipped')),
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (source, source_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_raw_events_status ON raw_events(status) WHERE status = 'unprocessed';
+            CREATE INDEX IF NOT EXISTS idx_raw_events_source ON raw_events(source);
+            CREATE INDEX IF NOT EXISTS idx_raw_events_metadata_gin ON raw_events USING gin(metadata);
+                """)
+
+                cursor.execute("""
+            CREATE TABLE IF NOT EXISTS processing_queue (
+                id SERIAL PRIMARY KEY,
+                event_id INTEGER REFERENCES raw_events(id) ON DELETE CASCADE,
+                priority INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'claimed', 'done', 'failed')),
+                claimed_by TEXT,
+                retry_count INTEGER DEFAULT 0,
+                max_retries INTEGER DEFAULT 3,
+                next_retry_at TIMESTAMP,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                claimed_at TIMESTAMP,
+                completed_at TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_pq_status_priority ON processing_queue(status, priority DESC) WHERE status = 'pending';
+                """)
+
                 # 2. Unified jobs table
                 cursor.execute("""
             CREATE TABLE IF NOT EXISTS jobs (
@@ -111,6 +148,44 @@ def init_database(pool):
             CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
             CREATE INDEX IF NOT EXISTS idx_jobs_metadata_gin ON jobs USING gin(metadata);
                 """)
+
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS confidence_score FLOAT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS extraction_method TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_fingerprint TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS normalized_role TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS role_category TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS experience_hint TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS location_hint TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS contact_method TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS poster_name TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS poster_url TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS post_url TEXT")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_event_id INTEGER REFERENCES raw_events(id)")
+                cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'jobs' AND column_name = 'search_vector'
+                ) THEN
+                    EXECUTE 'ALTER TABLE jobs DROP COLUMN search_vector';
+                END IF;
+                EXECUTE '
+                    ALTER TABLE jobs
+                    ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
+                        setweight(to_tsvector(''english'', coalesce(company_name, '''')), ''A'') ||
+                        setweight(to_tsvector(''english'', coalesce(job_role, '''')), ''A'') ||
+                        setweight(to_tsvector(''english'', coalesce(normalized_role, '''')), ''B'') ||
+                        setweight(to_tsvector(''english'', coalesce(role_category, '''')), ''B'') ||
+                        setweight(to_tsvector(''english'', coalesce(jd_text, '''')), ''C'')
+                    ) STORED
+                ';
+            END $$;
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING gin(search_vector)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_fingerprint ON jobs(job_fingerprint)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_normalized_role ON jobs(normalized_role)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_confidence ON jobs(confidence_score)")
 
                 # Add apply_runs table
                 cursor.execute("""
@@ -215,6 +290,8 @@ class Database:
         # Instantiate repositories
         self.auth = TelegramAuthRepository(self.pool)
         self.messages = MessageRepository(self.pool)
+        self.events = EventRepository(self.pool)
+        self.queue = QueueRepository(self.pool)
         self.jobs = UnifiedJobRepository(self.pool)
         self.config = ConfigRepository(self.pool)
         self.commands = CommandRepository(self.pool)
