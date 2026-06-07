@@ -252,3 +252,11 @@ class TestAgentExportEndpoint(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def tearDownModule():
+    # Clean up environment variables injected in this module to prevent test pollution
+    for k in _ENV_DEFAULTS:
+        if k in os.environ:
+            del os.environ[k]
+

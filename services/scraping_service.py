@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from historical_message_fetcher import HistoricalMessageFetcher
 from services.telegram_session import TelegramSessionService
@@ -100,3 +100,41 @@ class ScrapingService:
 
     async def fetch_only(self, hours_back: float = 12, client: Any = None) -> Dict[str, Any]:
         return await self.fetch_recent(hours_back=hours_back, client=client)
+
+    def run_historical_fetch_sync(
+        self,
+        hours_back: float,
+        enqueue_process: bool = False,
+    ) -> Dict[str, Any]:
+        """Synchronously execute the historical message fetch, managing its own event loop."""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(
+                self.fetch_historical_messages(
+                    hours_back=hours_back,
+                    enqueue_process=enqueue_process,
+                )
+            )
+        finally:
+            loop.close()
+
+
+def build_scraping_service(
+    db,
+    api_id: Any,
+    api_hash: str,
+    phone: Optional[str] = None,
+    group_usernames: Optional[List[str]] = None,
+) -> ScrapingService:
+    """Factory helper to build ScrapingService with its TelegramSessionService dependency."""
+    session_service = TelegramSessionService(
+        db,
+        api_id,
+        api_hash,
+        phone,
+        group_usernames,
+    )
+    return ScrapingService(db, session_service)
+

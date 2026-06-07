@@ -283,7 +283,7 @@ def test_llm_processor_single_object_json_is_normalized(monkeypatch):
     """A valid single-job JSON object should be treated as a one-item job list."""
     from llm_processor import LLMProcessor
 
-    async def fake_try_pool(self, model_pool, message_text, max_retries, pool_name):
+    async def fake_try_pool(self, *args, **kwargs):
         return {"company_name": "Acme", "job_role": "Python Developer", "email": "hr@example.com", "jd_text": "Acme needs Python Developer hr@example.com"}
 
     monkeypatch.setattr(LLMProcessor, "_try_pool", fake_try_pool)

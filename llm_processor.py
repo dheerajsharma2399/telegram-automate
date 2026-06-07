@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import List, Dict, Optional, Union
 import aiohttp
 import asyncio
-from config import SYSTEM_PROMPT
+from config import SYSTEM_PROMPT, LINKEDIN_SYSTEM_PROMPT
 import os
 from pathlib import Path
 from message_utils import log_execution
+from normalizer import normalize_role, infer_company, extract_location, extract_experience, classify_contact
 
 class LLMProcessor:
 
@@ -28,18 +29,158 @@ class LLMProcessor:
                     self.user_profile = json.load(f)
         except Exception:
             self.user_profile = None
+
+    def _extract_linkedin_post_url(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        match = re.search(
+            r'https?://(?:www\.)?linkedin\.com/(?:feed/update|posts|pulse|activity|share|company)/[^\s)\]]+',
+            text,
+            re.IGNORECASE,
+        )
+        return match.group(0) if match else None
+
+    def _extract_linkedin_profile_url(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        match = re.search(r'https?://(?:www\.)?linkedin\.com/(?:in|company)/[^\s)\]]+', text, re.IGNORECASE)
+        return match.group(0) if match else None
+
+    def _extract_linkedin_poster_name(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+        patterns = [
+            r'(?:posted by|shared by|by|from)\s+([^\n|•·-]{2,80})',
+            r'(?:author|profile)[:\s]+([^\n|•·-]{2,80})',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                candidate = re.sub(r'\s{2,}', ' ', match.group(1).strip())
+                return candidate.rstrip(' .')
+        return None
+
+    def _build_parse_messages(
+        self,
+        message_text: str,
+        source: str = 'telegram',
+        source_metadata: Optional[Dict] = None,
+    ) -> List[Dict]:
+        source = (source or 'telegram').lower().strip()
+        source_metadata = source_metadata or {}
+        source_hint = ''
+        if source == 'linkedin':
+            metadata_lines = []
+            for key in ('poster_name', 'poster_url', 'post_url', 'company_name', 'source_url'):
+                value = source_metadata.get(key)
+                if value:
+                    metadata_lines.append(f'- {key}: {value}')
+            metadata_block = '\n'.join(metadata_lines) if metadata_lines else '- none'
+            source_hint = (
+                'This content came from LinkedIn. Treat posters, reposts, company pages, and recruiter profiles as first-class signals. '
+                'Extract LinkedIn-specific fields when present: poster_name, poster_url, post_url, and contact_method. '
+                'If the post includes an external application URL, preserve it in application_link. '
+                'If the post is a LinkedIn message or recruiter post without email, infer contact_method as linkedin_dm or linkedin_post. '
+                'Use any provided metadata as authoritative hints.\n'
+                f'LinkedIn metadata:\n{metadata_block}'
+            )
+        system_prompt = LINKEDIN_SYSTEM_PROMPT if source == 'linkedin' else SYSTEM_PROMPT
+        return [
+            {'role': 'system', 'content': system_prompt},
+            {
+                'role': 'user',
+                'content': (
+                    f'Source: {source}\n'
+                    f'{source_hint}\n\n'
+                    f'Parse the following message:\n\n{message_text}'
+                ),
+            },
+        ]
+
+    def _apply_linkedin_postprocessing(
+        self,
+        job: Dict,
+        message_text: str,
+        source: str = 'telegram',
+        source_metadata: Optional[Dict] = None,
+    ) -> Dict:
+        source_metadata = source_metadata or {}
+        if (source or '').lower() != 'linkedin' and 'linkedin.com' not in (message_text or '').lower():
+            return job
+
+        poster_name = job.get('poster_name') or source_metadata.get('poster_name') or self._extract_linkedin_poster_name(message_text)
+        poster_url = job.get('poster_url') or source_metadata.get('poster_url') or self._extract_linkedin_profile_url(message_text)
+        post_url = (
+            job.get('post_url')
+            or source_metadata.get('post_url')
+            or source_metadata.get('source_url')
+            or self._extract_linkedin_post_url(message_text)
+        )
+        metadata_company = source_metadata.get('company_name') or source_metadata.get('company')
+
+        if poster_name:
+            job['poster_name'] = poster_name
+            if not job.get('recruiter_name'):
+                job['recruiter_name'] = poster_name
+        if poster_url:
+            job['poster_url'] = poster_url
+        if post_url:
+            job['post_url'] = post_url
+
+        emails = [job.get('email')] if job.get('email') else []
+        links = [job.get('application_link')] if job.get('application_link') else []
+        contact_method = job.get('contact_method') or classify_contact(emails, links, message_text)
+        if contact_method == 'none' and (source or '').lower() == 'linkedin':
+            contact_method = 'linkedin_post' if post_url else 'linkedin_dm'
+        job['contact_method'] = contact_method
+
+        role = job.get('job_role') or job.get('role') or job.get('title')
+        normalized_role = job.get('normalized_role') or normalize_role(role)
+        if normalized_role:
+            job['normalized_role'] = normalized_role
+            if not job.get('role_category'):
+                job['role_category'] = normalized_role
+
+        if not job.get('company_name') or job.get('company_name') in ('Unknown', 'unknown', None):
+            inferred_company = metadata_company or infer_company(poster_name, message_text)
+            if inferred_company:
+                job['company_name'] = inferred_company
+
+        if not job.get('location_hint'):
+            job['location_hint'] = extract_location(job.get('location') or message_text)
+        if not job.get('experience_hint'):
+            job['experience_hint'] = extract_experience(job.get('experience_required') or job.get('eligibility') or message_text)
+
+        if job.get('confidence') is not None and job.get('confidence_score') is None:
+            job['confidence_score'] = job.get('confidence')
+        elif job.get('confidence_score') is None:
+            score = 0.35
+            if role:
+                score += 0.2
+            if job.get('company_name') and job.get('company_name') != 'Unknown':
+                score += 0.15
+            if job.get('email') or job.get('application_link') or job.get('contact_method') in ('dm', 'form'):
+                score += 0.2
+            if job.get('location_hint'):
+                score += 0.1
+            job['confidence_score'] = min(score, 0.95)
+        job['extraction_method'] = job.get('extraction_method') or 'llm_linkedin'
+
+        return job
     
     @log_execution
-    async def parse_jobs(self, message_text: str, max_retries: int = 3) -> List[Dict]:
+    async def parse_jobs(self, message_text: str, max_retries: int = 3, source: str = 'telegram', source_metadata: Optional[Dict] = None) -> List[Dict]:
         """Parse job postings from message using LLM with failover and rotation"""
+        source = (source or 'telegram').lower().strip()
+        source_metadata = source_metadata or {}
 
         # Try primary model pool
-        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary")
+        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary", source=source, source_metadata=source_metadata)
         
         # If failed, try fallback model pool
         if jobs is None and self.fallback_models:
             print(f"  Primary pool failed, trying fallback pool...")
-            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback")
+            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback", source=source, source_metadata=source_metadata)
         
         # If LLM completely failed, use regex fallback
         if jobs is None:
@@ -53,6 +194,9 @@ class LLMProcessor:
         # If jobs were found, ensure each job has jd_text; if missing, try to split
         # the original message into sensible sections and assign per-job jd_text.
         result = jobs or []
+
+        for job in result:
+            self._apply_linkedin_postprocessing(job, message_text, source=source, source_metadata=source_metadata)
         
         # ... (rest of the method remains the same)
         # Helper to find link in text
@@ -228,7 +372,15 @@ class LLMProcessor:
 
         return result
     
-    async def _try_pool(self, model_pool: List[str], message_text: str, max_retries: int, pool_name: str) -> Optional[List[Dict]]:
+    async def _try_pool(
+        self,
+        model_pool: List[str],
+        message_text: str,
+        max_retries: int,
+        pool_name: str,
+        source: str = 'telegram',
+        source_metadata: Optional[Dict] = None,
+    ) -> Optional[List[Dict]]:
         """Try to fetch jobs using a specific model pool with retries and rotation"""
         if not model_pool:
             return None
@@ -243,7 +395,7 @@ class LLMProcessor:
                 return None
 
             try:
-                jobs = await self._call_llm(message_text, model, api_key)
+                jobs = await self._call_llm(message_text, model, api_key, source=source, source_metadata=source_metadata)
                 if jobs is not None:
                     return jobs
             except Exception as e:
@@ -256,7 +408,14 @@ class LLMProcessor:
         return None
 
     @log_execution
-    async def _call_llm(self, message_text: str, model: str, api_key: str) -> Optional[List[Dict]]:
+    async def _call_llm(
+        self,
+        message_text: str,
+        model: str,
+        api_key: str,
+        source: str = 'telegram',
+        source_metadata: Optional[Dict] = None,
+    ) -> Optional[List[Dict]]:
         """Make a single LLM API call"""
 
         headers = {
@@ -268,10 +427,7 @@ class LLMProcessor:
         
         payload = {
             "model": model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Parse the following message:\n\n{message_text}"}
-            ],
+            "messages": self._build_parse_messages(message_text, source=source, source_metadata=source_metadata),
             "temperature": 0.1,
             "max_tokens": 4000
         }
@@ -541,14 +697,25 @@ class LLMProcessor:
 
         # Use the sheet_name provided by the LLM. If missing, let sheets_sync.py determine it.
         sheet_name = job_data.get('sheet_name')  # No fallback - proper routing in sheets_sync.py
+        role_value = job_data.get("job_role") or job_data.get("role") or job_data.get("title")
+        normalized_role = job_data.get("normalized_role") or normalize_role(role_value)
+        location_hint = job_data.get("location_hint") or extract_location(job_data.get("location") or jd_text_val)
+        experience_hint = job_data.get("experience_hint") or extract_experience(job_data.get("experience_required") or job_data.get("eligibility") or jd_text_val)
+        contact_method = job_data.get("contact_method") or classify_contact(
+            [job_data.get("email")] if job_data.get("email") else [],
+            [job_data.get("application_link")] if job_data.get("application_link") else [],
+            jd_text_val,
+        )
+        company_name = job_data.get("company_name") or infer_company(job_data.get("poster_name"), jd_text_val)
+
         return {
             "raw_message_id": raw_message_id,
             "job_id": job_id,
             "first_name": first_name,
             "last_name": last_name,
             "email": job_data.get("email"),
-            "company_name": job_data.get("company_name"),
-            "job_role": job_data.get("job_role"),
+            "company_name": company_name,
+            "job_role": role_value,
             "location": job_data.get("location"),
             "recruiter_name": recruiter_name,
             "eligibility": job_data.get("eligibility"),
@@ -556,6 +723,7 @@ class LLMProcessor:
             "salary": job_data.get("salary"),  # NEW: Salary/Compensation
             "job_relevance": job_data.get("job_relevance"),  # NEW: Job relevance for freshers
             "application_method": application_method,
+            "contact_method": contact_method,
             "application_link": job_data.get("application_link"),  # FIX: Include application link
             "phone": job_data.get("phone"),  # FIX: Include phone number
             "recruiter_name": job_data.get("recruiter_name"),  # FIX: Include recruiter name
@@ -566,6 +734,16 @@ class LLMProcessor:
             "updated_at": datetime.now().isoformat(),
             "is_hidden": False,
             "sheet_name": sheet_name,
+            "confidence_score": job_data.get("confidence_score") or job_data.get("confidence"),
+            "extraction_method": job_data.get("extraction_method"),
+            "normalized_role": normalized_role,
+            "role_category": job_data.get("role_category") or normalized_role,
+            "experience_hint": experience_hint,
+            "location_hint": location_hint,
+            "poster_name": job_data.get("poster_name"),
+            "poster_url": job_data.get("poster_url"),
+            "post_url": job_data.get("post_url"),
+            "source_event_id": source_event_id,
         }
 
     def _extract_job_skills(self, jd_text: str) -> List[str]:

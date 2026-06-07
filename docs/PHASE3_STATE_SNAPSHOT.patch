@@ -1,0 +1,956 @@
+# git status --short
+ M config.py
+ M llm_processor.py
+ M processor_worker.py
+ M services/processing_service.py
+ M tests/test_llm_processor.py
+?? docs/
+?? normalizer.py
+
+# git diff --binary (tracked changes)
+diff --git a/config.py b/config.py
+index 9cdc6ce..7dcf895 100644
+--- a/config.py
++++ b/config.py
+@@ -143,4 +143,51 @@ Example format:
+     "job_relevance": "relevant",
+     "sheet_name": "email"
+   }
+-]"""
+\ No newline at end of file
++]"""
++
++LINKEDIN_SYSTEM_PROMPT = """You are an expert LinkedIn hiring-post parser. Extract ALL concrete job leads from the given LinkedIn post or repost.
++
++Return ONLY valid JSON: an array of LeadCandidate objects. If no concrete job lead exists, return [].
++
++LinkedIn-specific rules:
++- LinkedIn posts may contain multiple roles. Return one object per role/company/contact combination.
++- Preserve recruiter and post context: poster_name, poster_url, post_url when available.
++- Distinguish real hiring posts from engagement bait. Return [] for generic "comment interested", advice, course ads, or vague networking posts unless a concrete role/company/contact is present.
++- DM-only posts are still valid leads. Set contact_method to "dm" or "linkedin_dm" when the candidate must DM/connect/comment.
++- If an external apply URL exists, preserve it exactly in application_link.
++- Extract emails, phone numbers, WhatsApp links, Google Forms, ATS links, and career links without rewriting them.
++- Keep jd_text as the most complete original job-description text available, not a short summary.
++- Use null for missing values. Do not invent company names, salaries, locations, or years of experience.
++
++LeadCandidate schema:
++{
++  "company_name": string | null,
++  "job_role": string | null,
++  "location": string | null,
++  "email": string | null,
++  "phone": string | null,
++  "application_link": string | null,
++  "recruiter_name": string | null,
++  "poster_name": string | null,
++  "poster_url": string | null,
++  "post_url": string | null,
++  "contact_method": "email" | "form" | "link" | "dm" | "linkedin_dm" | "linkedin_post" | "messaging" | "none" | null,
++  "jd_text": string | null,
++  "experience_required": string | null,
++  "salary": string | null,
++  "normalized_role": string | null,
++  "role_category": string | null,
++  "location_hint": string | null,
++  "experience_hint": string | null,
++  "confidence_score": number,
++  "extraction_method": "llm_linkedin",
++  "job_relevance": "relevant" | "irrelevant" | "unclassified",
++  "sheet_name": "email" | "link" | "phone" | "other" | null
++}
++
++Confidence scoring rubric:
++- 0.85-1.00: role + company + contact/apply path + location or experience signal.
++- 0.65-0.84: role + contact/apply path, but company or location is inferred/weak.
++- 0.45-0.64: role exists but only DM/comment contact or weak company evidence.
++- <0.45: ambiguous post; include only if it is still a concrete hiring lead.
++"""
+diff --git a/llm_processor.py b/llm_processor.py
+index 4277622..b12f020 100644
+--- a/llm_processor.py
++++ b/llm_processor.py
+@@ -6,10 +6,11 @@ from datetime import datetime
+ from typing import List, Dict, Optional, Union
+ import aiohttp
+ import asyncio
+-from config import SYSTEM_PROMPT
++from config import SYSTEM_PROMPT, LINKEDIN_SYSTEM_PROMPT
+ import os
+ from pathlib import Path
+ from message_utils import log_execution
++from normalizer import normalize_role, infer_company, extract_location, extract_experience, classify_contact
+ 
+ class LLMProcessor:
+ 
+@@ -28,18 +29,158 @@ class LLMProcessor:
+                     self.user_profile = json.load(f)
+         except Exception:
+             self.user_profile = None
++
++    def _extract_linkedin_post_url(self, text: str) -> Optional[str]:
++        if not text:
++            return None
++        match = re.search(
++            r'https?://(?:www\.)?linkedin\.com/(?:feed/update|posts|pulse|activity|share|company)/[^\s)\]]+',
++            text,
++            re.IGNORECASE,
++        )
++        return match.group(0) if match else None
++
++    def _extract_linkedin_profile_url(self, text: str) -> Optional[str]:
++        if not text:
++            return None
++        match = re.search(r'https?://(?:www\.)?linkedin\.com/(?:in|company)/[^\s)\]]+', text, re.IGNORECASE)
++        return match.group(0) if match else None
++
++    def _extract_linkedin_poster_name(self, text: str) -> Optional[str]:
++        if not text:
++            return None
++        patterns = [
++            r'(?:posted by|shared by|by|from)\s+([^\n|•·-]{2,80})',
++            r'(?:author|profile)[:\s]+([^\n|•·-]{2,80})',
++        ]
++        for pattern in patterns:
++            match = re.search(pattern, text, re.IGNORECASE)
++            if match:
++                candidate = re.sub(r'\s{2,}', ' ', match.group(1).strip())
++                return candidate.rstrip(' .')
++        return None
++
++    def _build_parse_messages(
++        self,
++        message_text: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> List[Dict]:
++        source = (source or 'telegram').lower().strip()
++        source_metadata = source_metadata or {}
++        source_hint = ''
++        if source == 'linkedin':
++            metadata_lines = []
++            for key in ('poster_name', 'poster_url', 'post_url', 'company_name', 'source_url'):
++                value = source_metadata.get(key)
++                if value:
++                    metadata_lines.append(f'- {key}: {value}')
++            metadata_block = '\n'.join(metadata_lines) if metadata_lines else '- none'
++            source_hint = (
++                'This content came from LinkedIn. Treat posters, reposts, company pages, and recruiter profiles as first-class signals. '
++                'Extract LinkedIn-specific fields when present: poster_name, poster_url, post_url, and contact_method. '
++                'If the post includes an external application URL, preserve it in application_link. '
++                'If the post is a LinkedIn message or recruiter post without email, infer contact_method as linkedin_dm or linkedin_post. '
++                'Use any provided metadata as authoritative hints.\n'
++                f'LinkedIn metadata:\n{metadata_block}'
++            )
++        system_prompt = LINKEDIN_SYSTEM_PROMPT if source == 'linkedin' else SYSTEM_PROMPT
++        return [
++            {'role': 'system', 'content': system_prompt},
++            {
++                'role': 'user',
++                'content': (
++                    f'Source: {source}\n'
++                    f'{source_hint}\n\n'
++                    f'Parse the following message:\n\n{message_text}'
++                ),
++            },
++        ]
++
++    def _apply_linkedin_postprocessing(
++        self,
++        job: Dict,
++        message_text: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> Dict:
++        source_metadata = source_metadata or {}
++        if (source or '').lower() != 'linkedin' and 'linkedin.com' not in (message_text or '').lower():
++            return job
++
++        poster_name = job.get('poster_name') or source_metadata.get('poster_name') or self._extract_linkedin_poster_name(message_text)
++        poster_url = job.get('poster_url') or source_metadata.get('poster_url') or self._extract_linkedin_profile_url(message_text)
++        post_url = (
++            job.get('post_url')
++            or source_metadata.get('post_url')
++            or source_metadata.get('source_url')
++            or self._extract_linkedin_post_url(message_text)
++        )
++        metadata_company = source_metadata.get('company_name') or source_metadata.get('company')
++
++        if poster_name:
++            job['poster_name'] = poster_name
++            if not job.get('recruiter_name'):
++                job['recruiter_name'] = poster_name
++        if poster_url:
++            job['poster_url'] = poster_url
++        if post_url:
++            job['post_url'] = post_url
++
++        emails = [job.get('email')] if job.get('email') else []
++        links = [job.get('application_link')] if job.get('application_link') else []
++        contact_method = job.get('contact_method') or classify_contact(emails, links, message_text)
++        if contact_method == 'none' and (source or '').lower() == 'linkedin':
++            contact_method = 'linkedin_post' if post_url else 'linkedin_dm'
++        job['contact_method'] = contact_method
++
++        role = job.get('job_role') or job.get('role') or job.get('title')
++        normalized_role = job.get('normalized_role') or normalize_role(role)
++        if normalized_role:
++            job['normalized_role'] = normalized_role
++            if not job.get('role_category'):
++                job['role_category'] = normalized_role
++
++        if not job.get('company_name') or job.get('company_name') in ('Unknown', 'unknown', None):
++            inferred_company = metadata_company or infer_company(poster_name, message_text)
++            if inferred_company:
++                job['company_name'] = inferred_company
++
++        if not job.get('location_hint'):
++            job['location_hint'] = extract_location(job.get('location') or message_text)
++        if not job.get('experience_hint'):
++            job['experience_hint'] = extract_experience(job.get('experience_required') or job.get('eligibility') or message_text)
++
++        if job.get('confidence') is not None and job.get('confidence_score') is None:
++            job['confidence_score'] = job.get('confidence')
++        elif job.get('confidence_score') is None:
++            score = 0.35
++            if role:
++                score += 0.2
++            if job.get('company_name') and job.get('company_name') != 'Unknown':
++                score += 0.15
++            if job.get('email') or job.get('application_link') or job.get('contact_method') in ('dm', 'form'):
++                score += 0.2
++            if job.get('location_hint'):
++                score += 0.1
++            job['confidence_score'] = min(score, 0.95)
++        job['extraction_method'] = job.get('extraction_method') or 'llm_linkedin'
++
++        return job
+     
+     @log_execution
+-    async def parse_jobs(self, message_text: str, max_retries: int = 3) -> List[Dict]:
++    async def parse_jobs(self, message_text: str, max_retries: int = 3, source: str = 'telegram', source_metadata: Optional[Dict] = None) -> List[Dict]:
+         """Parse job postings from message using LLM with failover and rotation"""
++        source = (source or 'telegram').lower().strip()
++        source_metadata = source_metadata or {}
+ 
+         # Try primary model pool
+-        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary")
++        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary", source=source, source_metadata=source_metadata)
+         
+         # If failed, try fallback model pool
+         if jobs is None and self.fallback_models:
+             print(f"  Primary pool failed, trying fallback pool...")
+-            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback")
++            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback", source=source, source_metadata=source_metadata)
+         
+         # If LLM completely failed, use regex fallback
+         if jobs is None:
+@@ -53,6 +194,9 @@ class LLMProcessor:
+         # If jobs were found, ensure each job has jd_text; if missing, try to split
+         # the original message into sensible sections and assign per-job jd_text.
+         result = jobs or []
++
++        for job in result:
++            self._apply_linkedin_postprocessing(job, message_text, source=source, source_metadata=source_metadata)
+         
+         # ... (rest of the method remains the same)
+         # Helper to find link in text
+@@ -228,7 +372,15 @@ class LLMProcessor:
+ 
+         return result
+     
+-    async def _try_pool(self, model_pool: List[str], message_text: str, max_retries: int, pool_name: str) -> Optional[List[Dict]]:
++    async def _try_pool(
++        self,
++        model_pool: List[str],
++        message_text: str,
++        max_retries: int,
++        pool_name: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> Optional[List[Dict]]:
+         """Try to fetch jobs using a specific model pool with retries and rotation"""
+         if not model_pool:
+             return None
+@@ -243,7 +395,7 @@ class LLMProcessor:
+                 return None
+ 
+             try:
+-                jobs = await self._call_llm(message_text, model, api_key)
++                jobs = await self._call_llm(message_text, model, api_key, source=source, source_metadata=source_metadata)
+                 if jobs is not None:
+                     return jobs
+             except Exception as e:
+@@ -256,7 +408,14 @@ class LLMProcessor:
+         return None
+ 
+     @log_execution
+-    async def _call_llm(self, message_text: str, model: str, api_key: str) -> Optional[List[Dict]]:
++    async def _call_llm(
++        self,
++        message_text: str,
++        model: str,
++        api_key: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> Optional[List[Dict]]:
+         """Make a single LLM API call"""
+ 
+         headers = {
+@@ -268,10 +427,7 @@ class LLMProcessor:
+         
+         payload = {
+             "model": model,
+-            "messages": [
+-                {"role": "system", "content": SYSTEM_PROMPT},
+-                {"role": "user", "content": f"Parse the following message:\n\n{message_text}"}
+-            ],
++            "messages": self._build_parse_messages(message_text, source=source, source_metadata=source_metadata),
+             "temperature": 0.1,
+             "max_tokens": 4000
+         }
+@@ -541,14 +697,25 @@ class LLMProcessor:
+ 
+         # Use the sheet_name provided by the LLM. If missing, let sheets_sync.py determine it.
+         sheet_name = job_data.get('sheet_name')  # No fallback - proper routing in sheets_sync.py
++        role_value = job_data.get("job_role") or job_data.get("role") or job_data.get("title")
++        normalized_role = job_data.get("normalized_role") or normalize_role(role_value)
++        location_hint = job_data.get("location_hint") or extract_location(job_data.get("location") or jd_text_val)
++        experience_hint = job_data.get("experience_hint") or extract_experience(job_data.get("experience_required") or job_data.get("eligibility") or jd_text_val)
++        contact_method = job_data.get("contact_method") or classify_contact(
++            [job_data.get("email")] if job_data.get("email") else [],
++            [job_data.get("application_link")] if job_data.get("application_link") else [],
++            jd_text_val,
++        )
++        company_name = job_data.get("company_name") or infer_company(job_data.get("poster_name"), jd_text_val)
++
+         return {
+             "raw_message_id": raw_message_id,
+             "job_id": job_id,
+             "first_name": first_name,
+             "last_name": last_name,
+             "email": job_data.get("email"),
+-            "company_name": job_data.get("company_name"),
+-            "job_role": job_data.get("job_role"),
++            "company_name": company_name,
++            "job_role": role_value,
+             "location": job_data.get("location"),
+             "recruiter_name": recruiter_name,
+             "eligibility": job_data.get("eligibility"),
+@@ -556,6 +723,7 @@ class LLMProcessor:
+             "salary": job_data.get("salary"),  # NEW: Salary/Compensation
+             "job_relevance": job_data.get("job_relevance"),  # NEW: Job relevance for freshers
+             "application_method": application_method,
++            "contact_method": contact_method,
+             "application_link": job_data.get("application_link"),  # FIX: Include application link
+             "phone": job_data.get("phone"),  # FIX: Include phone number
+             "recruiter_name": job_data.get("recruiter_name"),  # FIX: Include recruiter name
+@@ -566,6 +734,16 @@ class LLMProcessor:
+             "updated_at": datetime.now().isoformat(),
+             "is_hidden": False,
+             "sheet_name": sheet_name,
++            "confidence_score": job_data.get("confidence_score") or job_data.get("confidence"),
++            "extraction_method": job_data.get("extraction_method"),
++            "normalized_role": normalized_role,
++            "role_category": job_data.get("role_category") or normalized_role,
++            "experience_hint": experience_hint,
++            "location_hint": location_hint,
++            "poster_name": job_data.get("poster_name"),
++            "poster_url": job_data.get("poster_url"),
++            "post_url": job_data.get("post_url"),
++            "source_event_id": source_event_id,
+         }
+ 
+     def _extract_job_skills(self, jd_text: str) -> List[str]:
+diff --git a/processor_worker.py b/processor_worker.py
+index 0a4a681..52d4746 100644
+--- a/processor_worker.py
++++ b/processor_worker.py
+@@ -112,7 +112,13 @@ async def process_queue_batch(batch_size: int = BATCH_SIZE, worker_id: str = "pr
+         try:
+             db.events.update_status(event_id, "processing")
+             message_text = event.get("content") or ""
+-            parsed_jobs = await llm_processor.parse_jobs(message_text)
++            event_source = (event.get("source") or "telegram").lower()
++            event_metadata = event.get("metadata") or {}
++            parsed_jobs = await llm_processor.parse_jobs(
++                message_text,
++                source=event_source,
++                source_metadata=event_metadata,
++            )
+ 
+             if not parsed_jobs:
+                 db.events.update_status(event_id, "processed")
+diff --git a/services/processing_service.py b/services/processing_service.py
+index 911ed39..de1f33b 100644
+--- a/services/processing_service.py
++++ b/services/processing_service.py
+@@ -34,7 +34,13 @@ class ProcessingService:
+         self.db.messages.update_message_status(message_id, "processing")
+ 
+         logger.info(f"Sending message {message_id} to LLM...")
+-        parsed_jobs = await self.llm_processor.parse_jobs(message["message_text"])
++        source = (message.get("source") or "telegram").lower()
++        source_metadata = message.get("metadata") or {}
++        parsed_jobs = await self.llm_processor.parse_jobs(
++            message["message_text"],
++            source=source,
++            source_metadata=source_metadata,
++        )
+ 
+         if not parsed_jobs:
+             logger.warning(f"Message {message_id} yielded NO jobs from LLM.")
+diff --git a/tests/test_llm_processor.py b/tests/test_llm_processor.py
+index 1bd5c1d..a88e918 100644
+--- a/tests/test_llm_processor.py
++++ b/tests/test_llm_processor.py
+@@ -109,6 +109,54 @@ class TestLLMProcessor(unittest.IsolatedAsyncioTestCase):
+         self.assertIn('updated_at', result)
+         self.assertEqual(result['raw_message_id'], 123)
+ 
++    def test_linkedin_prompt_dispatch_and_metadata_postprocessing(self):
++        """LinkedIn source uses LinkedIn prompt and preserves source metadata."""
++        from config import LINKEDIN_SYSTEM_PROMPT
++
++        metadata = {
++            'poster_name': 'Acme AI Careers',
++            'poster_url': 'https://www.linkedin.com/company/acme-ai/',
++            'source_url': 'https://www.linkedin.com/activity/1234567890',
++            'company_name': 'Acme AI',
++        }
++        messages = self.processor._build_parse_messages(
++            'Hiring Python Developer. Remote India. 0-2 years.',
++            source='linkedin',
++            source_metadata=metadata,
++        )
++        self.assertEqual(messages[0]['content'], LINKEDIN_SYSTEM_PROMPT)
++        self.assertIn('LinkedIn metadata', messages[1]['content'])
++
++        job = {
++            'job_role': 'Python Developer',
++            'company_name': None,
++            'jd_text': 'Hiring Python Developer. Remote India. 0-2 years.',
++        }
++        processed = self.processor._apply_linkedin_postprocessing(
++            job,
++            'Hiring Python Developer. Remote India. 0-2 years.',
++            source='linkedin',
++            source_metadata=metadata,
++        )
++        self.assertEqual(processed['poster_name'], 'Acme AI Careers')
++        self.assertEqual(processed['poster_url'], 'https://www.linkedin.com/company/acme-ai/')
++        self.assertEqual(processed['post_url'], 'https://www.linkedin.com/activity/1234567890')
++        self.assertEqual(processed['company_name'], 'Acme AI')
++        self.assertEqual(processed['contact_method'], 'linkedin_post')
++        self.assertEqual(processed['normalized_role'], 'python_developer')
++        self.assertEqual(processed['location_hint'], 'remote,india')
++        self.assertEqual(processed['experience_hint'], '0-2 years')
++        self.assertEqual(processed['extraction_method'], 'llm_linkedin')
++        self.assertGreaterEqual(processed['confidence_score'], 0.5)
++
++    def test_linkedin_post_url_activity_and_dm_contact(self):
++        """LinkedIn /activity URLs and DM-only posts are supported."""
++        text = 'Hiring Backend Engineer. Message me on LinkedIn. https://www.linkedin.com/activity/1234567890'
++        job = {'job_role': 'Backend Engineer'}
++        processed = self.processor._apply_linkedin_postprocessing(job, text, source='linkedin')
++        self.assertEqual(processed['post_url'], 'https://www.linkedin.com/activity/1234567890')
++        self.assertEqual(processed['contact_method'], 'linkedin_dm')
++
+ 
+ class TestLLMErrorHandling(unittest.IsolatedAsyncioTestCase):
+     """Test LLM error handling and retry logic"""
+
+# untracked file: normalizer.py
+diff --git a/normalizer.py b/normalizer.py
+new file mode 100644
+index 0000000..e21ea62
+--- /dev/null
++++ b/normalizer.py
+@@ -0,0 +1,147 @@
++"""Normalization helpers for queue-based lead extraction.
++
++These helpers are deterministic post-processing used after LLM extraction. They
++avoid user-specific scoring; the server remains a source-agnostic ingestion and
++normalization engine.
++"""
++from __future__ import annotations
++
++import re
++from typing import Iterable, Optional
++
++
++ROLE_PATTERNS = [
++    ("ai_engineer", ("ai engineer", "artificial intelligence engineer", "genai engineer", "generative ai", "llm engineer", "prompt engineer")),
++    ("ml_engineer", ("machine learning", "ml engineer", "deep learning", "computer vision", "nlp engineer")),
++    ("data_engineer", ("data engineer", "etl", "pipeline engineer", "analytics engineer")),
++    ("data_scientist", ("data scientist", "data science", "ml scientist")),
++    ("python_developer", ("python developer", "python engineer", "django", "fastapi", "flask")),
++    ("backend_developer", ("backend", "back end", "api developer", "server-side", "server side")),
++    ("fullstack_developer", ("full stack", "fullstack", "mern", "mean stack")),
++    ("frontend_developer", ("frontend", "front end", "react", "vue", "angular")),
++    ("software_engineer", ("software engineer", "software developer", "sde", "developer", "programmer")),
++    ("devops_engineer", ("devops", "sre", "site reliability", "cloud engineer", "platform engineer")),
++    ("qa_engineer", ("qa", "quality assurance", "sdet", "test engineer", "testing")),
++    ("intern", ("intern", "internship", "trainee")),
++]
++
++LOCATION_PATTERNS = [
++    ("remote", r"\b(remote|work from home|wfh)\b"),
++    ("india", r"\b(india|bharat|pan india|bangalore|bengaluru|mumbai|delhi|ncr|gurgaon|gurugram|noida|hyderabad|pune|chennai|kolkata|ahmedabad|kochi|coimbatore)\b"),
++    ("us", r"\b(united states|usa|u\.s\.|new york|california|san francisco|texas|seattle)\b"),
++    ("uk", r"\b(united kingdom|uk|london|england)\b"),
++    ("europe", r"\b(europe|eu|germany|france|netherlands|spain|ireland|poland)\b"),
++]
++
++
++COMPANY_STOPWORDS = {
++    "hiring", "looking", "urgent", "immediate", "job", "jobs", "opening", "openings",
++    "recruiter", "talent", "acquisition", "human", "resources", "hr", "team",
++}
++
++
++def _clean_text(value: object) -> str:
++    return re.sub(r"\s+", " ", str(value or "")).strip()
++
++
++def normalize_role(role: object) -> Optional[str]:
++    """Map a free-form job role to a canonical role category."""
++    text = _clean_text(role).lower()
++    if not text:
++        return None
++    for canonical, needles in ROLE_PATTERNS:
++        if any(needle in text for needle in needles):
++            return canonical
++    # Preserve a compact normalized fallback instead of losing the signal.
++    compact = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
++    return compact[:80] or None
++
++
++def infer_company(poster_name: object = None, post_text: object = None) -> Optional[str]:
++    """Infer company from LinkedIn poster metadata or post content.
++
++    Conservative by design: returns None when the signal looks like a person or
++    generic recruiter phrase.
++    """
++    text = _clean_text(post_text)
++    poster = _clean_text(poster_name)
++
++    patterns = [
++        r"(?:company|organisation|organization)\s*[:\-–—]\s*([A-Z][A-Za-z0-9&.,'()\- ]{1,80})",
++        r"(?:at|@)\s+([A-Z][A-Za-z0-9&.,'()\- ]{1,80})\s+(?:is hiring|we are hiring|hiring|has an opening)",
++        r"([A-Z][A-Za-z0-9&.,'()\- ]{1,80})\s+(?:is hiring|we are hiring|hiring for|has an opening)",
++    ]
++    for pattern in patterns:
++        match = re.search(pattern, text)
++        if match:
++            candidate = re.split(r"[\n|•·;]", match.group(1))[0]
++            candidate = re.sub(r"\s+(?:is|are|we)\s*$", "", candidate, flags=re.IGNORECASE).strip(" .,-–—")
++            words = {w.lower() for w in re.findall(r"[A-Za-z]+", candidate)}
++            if candidate and not words.issubset(COMPANY_STOPWORDS):
++                return candidate[:120]
++
++    # Company pages often arrive as poster names. Avoid names that look like a
++    # two-word human name unless they include company suffixes/signals.
++    if poster:
++        lower = poster.lower()
++        if any(sig in lower for sig in (" inc", " ltd", " llp", " pvt", " technologies", " labs", " ai", " software", " solutions")):
++            return poster[:120]
++        if len(poster.split()) >= 3 and not any(w in lower for w in ("recruiter", "talent", "hr")):
++            return poster[:120]
++    return None
++
++
++def extract_location(text: object) -> Optional[str]:
++    """Extract a coarse location hint such as india, remote, us, uk, europe."""
++    value = _clean_text(text).lower()
++    if not value:
++        return None
++    found = []
++    for label, pattern in LOCATION_PATTERNS:
++        if re.search(pattern, value, re.IGNORECASE):
++            found.append(label)
++    if not found:
++        return None
++    # Keep remote+region when both are present.
++    if "remote" in found and len(found) > 1:
++        return "remote," + ",".join(x for x in found if x != "remote")
++    return found[0]
++
++
++def extract_experience(text: object) -> Optional[str]:
++    """Extract years-of-experience requirement from text."""
++    value = _clean_text(text).lower()
++    if not value:
++        return None
++    patterns = [
++        r"(\d{1,2}\s*[-–—+]\s*\d{1,2}\s*(?:years?|yrs?))",
++        r"(\d{1,2}\+?\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|exp)?)",
++        r"(?:experience|exp)\s*[:\-–—]?\s*(\d{1,2}\s*[-–—+]\s*\d{1,2}\s*(?:years?|yrs?)?)",
++        r"\b(fresher|freshers|entry[ -]?level|new grad|graduate)\b",
++    ]
++    for pattern in patterns:
++        match = re.search(pattern, value, re.IGNORECASE)
++        if match:
++            return match.group(1) if match.lastindex else match.group(0)
++    return None
++
++
++def classify_contact(emails: Optional[Iterable[object]] = None, links: Optional[Iterable[object]] = None, text: object = None) -> str:
++    """Classify the best available contact method for an extracted lead."""
++    emails = [str(e).strip() for e in (emails or []) if e]
++    links = [str(l).strip() for l in (links or []) if l]
++    value = _clean_text(text).lower()
++
++    if emails or re.search(r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", value, re.IGNORECASE):
++        return "email"
++    if any(re.search(r"(forms\.gle|docs\.google\.com/forms|airtable|typeform|greenhouse|lever|workday|ashbyhq|wellfound|apply|careers)", link, re.IGNORECASE) for link in links):
++        return "form"
++    if links:
++        return "link"
++    if re.search(r"\b(linkedin post|comment interested|comment your|drop your cv|share your resume)\b", value):
++        return "linkedin_post"
++    if re.search(r"\b(dm|direct message|inmail|message me|connect with me|linkedin dm)\b", value):
++        return "linkedin_dm"
++    if re.search(r"\b(whatsapp|wa\.me|telegram)\b", value):
++        return "messaging"
++    return "none"
+
+# untracked file: docs/PHASE3_HANDOFF.md
+diff --git a/docs/PHASE3_HANDOFF.md b/docs/PHASE3_HANDOFF.md
+new file mode 100644
+index 0000000..f38d35d
+--- /dev/null
++++ b/docs/PHASE3_HANDOFF.md
+@@ -0,0 +1,332 @@
++# Phase 3 Handoff — Telegram Automate
++
++Last updated: 2026-06-07
++Repo: `/home/ubuntu/projects/telegram-automate`
++Branch/state: uncommitted working tree changes. Do not assume committed.
++
++## Current active task list
++
++- `[>] phase3-spec-review` — Run spec compliance review for Phase 3
++- `[ ] phase3-quality-review` — Run code quality review for Phase 3
++- `[ ] phase3-verify` — Run targeted tests/imports and commit Phase 3
++
++## User request that triggered this handoff
++
++User asked: “Create handoff docs. Another llm will review and take work from here. Document all changes till now. Save state till now for this project.”
++
++This file is the handoff. A diff snapshot is also saved at:
++
++- `docs/PHASE3_UNCOMMITTED.diff`
++
++## High-level Phase 3 goal as implemented so far
++
++Phase 3 is focused on LinkedIn-aware extraction/normalization and source metadata propagation through processing paths.
++
++Implemented intent:
++
++1. Add LinkedIn-specific LLM prompt.
++2. Make `LLMProcessor.parse_jobs()` accept source and source metadata.
++3. Route LinkedIn messages to LinkedIn prompt.
++4. Add deterministic normalizers for role/company/location/experience/contact method.
++5. Add LinkedIn post-processing to preserve poster/post metadata and infer contact methods.
++6. Ensure downstream job data includes new extension fields.
++7. Ensure worker/service processing passes source and metadata into `parse_jobs()`.
++8. Add targeted LinkedIn unit tests.
++
++## Files changed or added
++
++Current `git status --short` before handoff:
++
++```text
++ M config.py
++ M llm_processor.py
++ M processor_worker.py
++ M services/processing_service.py
++ M tests/test_llm_processor.py
++?? normalizer.py
++```
++
++Handoff artifacts added:
++
++```text
++?? docs/PHASE3_HANDOFF.md
++?? docs/PHASE3_UNCOMMITTED.diff
++```
++
++## Changes made in detail
++
++### `config.py`
++
++Added `LINKEDIN_SYSTEM_PROMPT`.
++
++Prompt behavior:
++
++- Returns JSON array of `LeadCandidate` objects.
++- Handles multiple roles in one LinkedIn post.
++- Treats DM-only posts as valid leads.
++- Distinguishes concrete hiring posts from engagement bait.
++- Preserves `poster_name`, `poster_url`, `post_url`.
++- Preserves external apply URLs exactly.
++- Includes fields:
++  - `confidence_score`
++  - `extraction_method`
++  - `normalized_role`
++  - `role_category`
++  - `location_hint`
++  - `experience_hint`
++  - `contact_method`
++  - `poster_name`
++  - `poster_url`
++  - `post_url`
++
++### `normalizer.py` — new file
++
++Added deterministic helpers:
++
++- `normalize_role(role)`
++- `infer_company(poster_name=None, post_text=None)`
++- `extract_location(text)`
++- `extract_experience(text)`
++- `classify_contact(emails=None, links=None, text=None)`
++
++Notes:
++
++- Role categories include AI/ML/data/python/backend/fullstack/frontend/software/devops/QA/intern.
++- Location hints include `remote`, `india`, `us`, `uk`, `europe`, and combined `remote,india`.
++- Contact classification supports email, form, link, LinkedIn post, LinkedIn DM, messaging, none.
++
++### `llm_processor.py`
++
++Key additions:
++
++- Imports `LINKEDIN_SYSTEM_PROMPT` and normalizer helpers.
++- Added `_extract_linkedin_post_url()`:
++  - supports LinkedIn URLs under `/feed/update`, `/posts`, `/pulse`, `/activity`, `/share`, `/company`.
++- Added `_extract_linkedin_profile_url()`:
++  - supports `/in/` and `/company/`.
++- Added `_extract_linkedin_poster_name()`.
++- Added `_build_parse_messages(message_text, source='telegram', source_metadata=None)`:
++  - uses `LINKEDIN_SYSTEM_PROMPT` for `source='linkedin'`.
++  - includes LinkedIn metadata hints from `source_metadata`.
++  - keeps Telegram/default behavior using `SYSTEM_PROMPT`.
++- Updated `parse_jobs()` signature:
++  - `parse_jobs(message_text, max_retries=3, source='telegram', source_metadata=None)`.
++- Updated `_try_pool()` signature to accept and pass `source` and `source_metadata` into prompt construction.
++- Added `_apply_linkedin_postprocessing()`:
++  - applies only for `source='linkedin'` or messages containing `linkedin.com`.
++  - preserves metadata from `source_metadata` as authoritative.
++  - fills `poster_name`, `poster_url`, `post_url`.
++  - fills `contact_method` via `classify_contact()`.
++  - fallback for LinkedIn leads with no email/link/contact keywords:
++    - `linkedin_post` if `post_url` exists.
++    - `linkedin_dm` otherwise.
++  - fills `normalized_role`, `role_category`, `company_name`, `location_hint`, `experience_hint`, `confidence_score`, `extraction_method`.
++- Updated processing output from `process_job_data()` to include extension fields:
++  - `confidence_score`
++  - `extraction_method`
++  - `normalized_role`
++  - `role_category`
++  - `experience_hint`
++  - `location_hint`
++  - `contact_method`
++  - `poster_name`
++  - `poster_url`
++  - `post_url`
++  - `source_event_id`
++
++### `processor_worker.py`
++
++Updated queue processing to pass source and metadata:
++
++```python
++event_source = (event.get("source") or "telegram").lower()
++event_metadata = event.get("metadata") or {}
++parsed_jobs = await llm_processor.parse_jobs(
++    message_text,
++    source=event_source,
++    source_metadata=event_metadata,
++)
++```
++
++### `services/processing_service.py`
++
++Updated message processing to pass source and metadata:
++
++```python
++source = (message.get("source") or "telegram").lower()
++source_metadata = message.get("metadata") or {}
++parsed_jobs = await self.llm_processor.parse_jobs(
++    message["message_text"],
++    source=source,
++    source_metadata=source_metadata,
++)
++```
++
++### `tests/test_llm_processor.py`
++
++Added targeted tests:
++
++- `test_linkedin_prompt_dispatch_and_metadata_postprocessing`
++  - verifies LinkedIn prompt dispatch.
++  - verifies source metadata preservation.
++  - verifies inferred normalized fields and contact method.
++- `test_linkedin_post_url_activity_and_dm_contact`
++  - verifies `/activity/` URL extraction.
++  - verifies DM-only LinkedIn post classification.
++
++## Reviews already run
++
++### Spec review attempt 1
++
++A subagent reviewed Phase 3 after latest LinkedIn fixes.
++
++Result: **NOT PASS**.
++
++Reviewer-reported remaining gaps:
++
++```text
++- main.py still contains scraper client setup via get_scraping_service() at lines 52-55, instantiating TelegramSessionService in the entrypoint.
++- web_server.py still contains scraper client setup via get_scraping_service() and keeps the /api/fetch_historical_messages orchestration inside the entrypoint instead of fully delegating it out.
++- Phase 3 asked to move client setup and HistoricalMessageFetcher orchestration out of main.py and web_server.py; that is not fully done yet.
++```
++
++Important nuance:
++
++- The latest active preserved task says Phase 3 review, but the Phase 3 spec used by the reviewer included separation/extraction requirements for scraper client setup and `HistoricalMessageFetcher` orchestration.
++- Existing code already has `services/scraping_service.py` and `services/telegram_session.py`, but `main.py` and `web_server.py` still define `get_scraping_service()` factories in entrypoints.
++- Do not proceed to code quality review until this spec gap is resolved or explicitly ruled out of scope.
++
++## Current known unresolved issue
++
++Need decide/fix Phase 3 separation gap:
++
++### `main.py`
++
++Lines 52-55 currently contain:
++
++```python
++def get_scraping_service():
++    current_db = get_db()
++    session_service = TelegramSessionService(current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
++    return ScrapingService(current_db, session_service)
++```
++
++This instantiates `TelegramSessionService` in the entrypoint.
++
++### `web_server.py`
++
++Lines 44-48 currently contain:
++
++```python
++def get_scraping_service():
++    if db is None:
++        raise RuntimeError("DATABASE_URL is not configured")
++    session_service = TelegramSessionService(db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
++    return ScrapingService(db, session_service)
++```
++
++And `/api/fetch_historical_messages` route around lines 1068-1095 calls `get_scraping_service()` in a nested async function.
++
++Reviewer expects client setup and `HistoricalMessageFetcher` orchestration moved out of entrypoints. Likely next move:
++
++1. Add a factory/helper in service layer, e.g. `services/scraping_service.py`:
++
++```python
++def build_scraping_service(db, api_id, api_hash, phone=None, group_usernames=None) -> ScrapingService:
++    session_service = TelegramSessionService(db, api_id, api_hash, phone, group_usernames)
++    return ScrapingService(db, session_service)
++```
++
++2. Update `main.py` and `web_server.py` to import/use this service factory instead of instantiating `TelegramSessionService` directly.
++3. Consider moving web route orchestration to a service method or route helper outside `web_server.py` if reviewer still fails it.
++4. Add/adjust targeted tests if existing integration tests monkeypatch `web_server.get_scraping_service`.
++
++## Test status
++
++### Targeted LLM tests
++
++Command run in current shell:
++
++```bash
++cd /home/ubuntu/projects/telegram-automate
++python3 -m unittest tests.test_llm_processor -v
++```
++
++Result in current shell: **FAILED** with 8 import errors because required Telegram env vars were not loaded:
++
++```text
++ValueError: TELEGRAM_API_ID and TELEGRAM_API_HASH are required for Telegram API access. Please configure them in .env file.
++```
++
++Earlier in the previous context, this command reportedly passed when run with required env vars loaded. For next agent, run with project env loaded, likely:
++
++```bash
++cd /home/ubuntu/projects/telegram-automate
++set -a
++[ -f .env ] && . ./.env
++[ -f ~/.hermes/.env ] && . ~/.hermes/.env
++set +a
++python3 -m unittest tests.test_llm_processor -v
++```
++
++If sourcing `.env` fails due shell syntax, manually export required vars or use the project’s expected env loader.
++
++## Important commands for next agent
++
++Inspect current changes:
++
++```bash
++cd /home/ubuntu/projects/telegram-automate
++git status --short
++git diff --stat
++git diff -- config.py normalizer.py llm_processor.py processor_worker.py services/processing_service.py tests/test_llm_processor.py
++```
++
++Read unresolved areas:
++
++```bash
++read main.py around lines 44-56
++read web_server.py around lines 44-48 and 1068-1095
++read services/scraping_service.py
++read services/telegram_session.py
++```
++
++Search relevant symbols:
++
++```bash
++search for get_scraping_service, TelegramSessionService, HistoricalMessageFetcher, fetch_historical_messages
++```
++
++Run targeted tests after env is loaded:
++
++```bash
++python3 -m unittest tests.test_llm_processor -v
++python3 -m unittest tests.test_integration -v
++python3 -m py_compile config.py normalizer.py llm_processor.py processor_worker.py services/processing_service.py services/scraping_service.py services/telegram_session.py main.py web_server.py
++```
++
++## Suggested next-step sequence
++
++1. Confirm whether Phase 3 separation requirement is in scope.
++2. If in scope, move scraper factory/client setup out of `main.py` and `web_server.py`.
++3. Re-run spec review subagent with exact original Phase 3 spec and current files.
++4. Only after spec review PASS, run code quality review subagent.
++5. Fix quality blockers if any.
++6. Load env and run targeted tests/imports.
++7. Review full diff.
++8. Commit only after user is ready or task says commit:
++
++```bash
++git add config.py normalizer.py llm_processor.py processor_worker.py services/processing_service.py tests/test_llm_processor.py docs/PHASE3_HANDOFF.md docs/PHASE3_UNCOMMITTED.diff
++# plus any main.py/web_server.py/service factory/test changes made next
++git commit -m "feat: add LinkedIn-aware lead extraction"
++```
++
++## Do not forget
++
++- Spec review is still in progress, not passed.
++- Code quality review has not been run.
++- Phase 3 verify/commit has not been completed.
++- Current changes are uncommitted.
++- `normalizer.py` is untracked and must be added when committing.
++- The handoff diff snapshot may become stale if next agent edits files; refresh `docs/PHASE3_UNCOMMITTED.diff` before final commit if keeping it.

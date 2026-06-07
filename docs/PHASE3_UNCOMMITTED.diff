@@ -1,0 +1,722 @@
+diff --git a/config.py b/config.py
+index 9cdc6ce..7dcf895 100644
+--- a/config.py
++++ b/config.py
+@@ -143,4 +143,51 @@ Example format:
+     "job_relevance": "relevant",
+     "sheet_name": "email"
+   }
+-]"""
+\ No newline at end of file
++]"""
++
++LINKEDIN_SYSTEM_PROMPT = """You are an expert LinkedIn hiring-post parser. Extract ALL concrete job leads from the given LinkedIn post or repost.
++
++Return ONLY valid JSON: an array of LeadCandidate objects. If no concrete job lead exists, return [].
++
++LinkedIn-specific rules:
++- LinkedIn posts may contain multiple roles. Return one object per role/company/contact combination.
++- Preserve recruiter and post context: poster_name, poster_url, post_url when available.
++- Distinguish real hiring posts from engagement bait. Return [] for generic "comment interested", advice, course ads, or vague networking posts unless a concrete role/company/contact is present.
++- DM-only posts are still valid leads. Set contact_method to "dm" or "linkedin_dm" when the candidate must DM/connect/comment.
++- If an external apply URL exists, preserve it exactly in application_link.
++- Extract emails, phone numbers, WhatsApp links, Google Forms, ATS links, and career links without rewriting them.
++- Keep jd_text as the most complete original job-description text available, not a short summary.
++- Use null for missing values. Do not invent company names, salaries, locations, or years of experience.
++
++LeadCandidate schema:
++{
++  "company_name": string | null,
++  "job_role": string | null,
++  "location": string | null,
++  "email": string | null,
++  "phone": string | null,
++  "application_link": string | null,
++  "recruiter_name": string | null,
++  "poster_name": string | null,
++  "poster_url": string | null,
++  "post_url": string | null,
++  "contact_method": "email" | "form" | "link" | "dm" | "linkedin_dm" | "linkedin_post" | "messaging" | "none" | null,
++  "jd_text": string | null,
++  "experience_required": string | null,
++  "salary": string | null,
++  "normalized_role": string | null,
++  "role_category": string | null,
++  "location_hint": string | null,
++  "experience_hint": string | null,
++  "confidence_score": number,
++  "extraction_method": "llm_linkedin",
++  "job_relevance": "relevant" | "irrelevant" | "unclassified",
++  "sheet_name": "email" | "link" | "phone" | "other" | null
++}
++
++Confidence scoring rubric:
++- 0.85-1.00: role + company + contact/apply path + location or experience signal.
++- 0.65-0.84: role + contact/apply path, but company or location is inferred/weak.
++- 0.45-0.64: role exists but only DM/comment contact or weak company evidence.
++- <0.45: ambiguous post; include only if it is still a concrete hiring lead.
++"""
+diff --git a/llm_processor.py b/llm_processor.py
+index 4277622..b12f020 100644
+--- a/llm_processor.py
++++ b/llm_processor.py
+@@ -6,10 +6,11 @@ from datetime import datetime
+ from typing import List, Dict, Optional, Union
+ import aiohttp
+ import asyncio
+-from config import SYSTEM_PROMPT
++from config import SYSTEM_PROMPT, LINKEDIN_SYSTEM_PROMPT
+ import os
+ from pathlib import Path
+ from message_utils import log_execution
++from normalizer import normalize_role, infer_company, extract_location, extract_experience, classify_contact
+ 
+ class LLMProcessor:
+ 
+@@ -28,18 +29,158 @@ class LLMProcessor:
+                     self.user_profile = json.load(f)
+         except Exception:
+             self.user_profile = None
++
++    def _extract_linkedin_post_url(self, text: str) -> Optional[str]:
++        if not text:
++            return None
++        match = re.search(
++            r'https?://(?:www\.)?linkedin\.com/(?:feed/update|posts|pulse|activity|share|company)/[^\s)\]]+',
++            text,
++            re.IGNORECASE,
++        )
++        return match.group(0) if match else None
++
++    def _extract_linkedin_profile_url(self, text: str) -> Optional[str]:
++        if not text:
++            return None
++        match = re.search(r'https?://(?:www\.)?linkedin\.com/(?:in|company)/[^\s)\]]+', text, re.IGNORECASE)
++        return match.group(0) if match else None
++
++    def _extract_linkedin_poster_name(self, text: str) -> Optional[str]:
++        if not text:
++            return None
++        patterns = [
++            r'(?:posted by|shared by|by|from)\s+([^\n|•·-]{2,80})',
++            r'(?:author|profile)[:\s]+([^\n|•·-]{2,80})',
++        ]
++        for pattern in patterns:
++            match = re.search(pattern, text, re.IGNORECASE)
++            if match:
++                candidate = re.sub(r'\s{2,}', ' ', match.group(1).strip())
++                return candidate.rstrip(' .')
++        return None
++
++    def _build_parse_messages(
++        self,
++        message_text: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> List[Dict]:
++        source = (source or 'telegram').lower().strip()
++        source_metadata = source_metadata or {}
++        source_hint = ''
++        if source == 'linkedin':
++            metadata_lines = []
++            for key in ('poster_name', 'poster_url', 'post_url', 'company_name', 'source_url'):
++                value = source_metadata.get(key)
++                if value:
++                    metadata_lines.append(f'- {key}: {value}')
++            metadata_block = '\n'.join(metadata_lines) if metadata_lines else '- none'
++            source_hint = (
++                'This content came from LinkedIn. Treat posters, reposts, company pages, and recruiter profiles as first-class signals. '
++                'Extract LinkedIn-specific fields when present: poster_name, poster_url, post_url, and contact_method. '
++                'If the post includes an external application URL, preserve it in application_link. '
++                'If the post is a LinkedIn message or recruiter post without email, infer contact_method as linkedin_dm or linkedin_post. '
++                'Use any provided metadata as authoritative hints.\n'
++                f'LinkedIn metadata:\n{metadata_block}'
++            )
++        system_prompt = LINKEDIN_SYSTEM_PROMPT if source == 'linkedin' else SYSTEM_PROMPT
++        return [
++            {'role': 'system', 'content': system_prompt},
++            {
++                'role': 'user',
++                'content': (
++                    f'Source: {source}\n'
++                    f'{source_hint}\n\n'
++                    f'Parse the following message:\n\n{message_text}'
++                ),
++            },
++        ]
++
++    def _apply_linkedin_postprocessing(
++        self,
++        job: Dict,
++        message_text: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> Dict:
++        source_metadata = source_metadata or {}
++        if (source or '').lower() != 'linkedin' and 'linkedin.com' not in (message_text or '').lower():
++            return job
++
++        poster_name = job.get('poster_name') or source_metadata.get('poster_name') or self._extract_linkedin_poster_name(message_text)
++        poster_url = job.get('poster_url') or source_metadata.get('poster_url') or self._extract_linkedin_profile_url(message_text)
++        post_url = (
++            job.get('post_url')
++            or source_metadata.get('post_url')
++            or source_metadata.get('source_url')
++            or self._extract_linkedin_post_url(message_text)
++        )
++        metadata_company = source_metadata.get('company_name') or source_metadata.get('company')
++
++        if poster_name:
++            job['poster_name'] = poster_name
++            if not job.get('recruiter_name'):
++                job['recruiter_name'] = poster_name
++        if poster_url:
++            job['poster_url'] = poster_url
++        if post_url:
++            job['post_url'] = post_url
++
++        emails = [job.get('email')] if job.get('email') else []
++        links = [job.get('application_link')] if job.get('application_link') else []
++        contact_method = job.get('contact_method') or classify_contact(emails, links, message_text)
++        if contact_method == 'none' and (source or '').lower() == 'linkedin':
++            contact_method = 'linkedin_post' if post_url else 'linkedin_dm'
++        job['contact_method'] = contact_method
++
++        role = job.get('job_role') or job.get('role') or job.get('title')
++        normalized_role = job.get('normalized_role') or normalize_role(role)
++        if normalized_role:
++            job['normalized_role'] = normalized_role
++            if not job.get('role_category'):
++                job['role_category'] = normalized_role
++
++        if not job.get('company_name') or job.get('company_name') in ('Unknown', 'unknown', None):
++            inferred_company = metadata_company or infer_company(poster_name, message_text)
++            if inferred_company:
++                job['company_name'] = inferred_company
++
++        if not job.get('location_hint'):
++            job['location_hint'] = extract_location(job.get('location') or message_text)
++        if not job.get('experience_hint'):
++            job['experience_hint'] = extract_experience(job.get('experience_required') or job.get('eligibility') or message_text)
++
++        if job.get('confidence') is not None and job.get('confidence_score') is None:
++            job['confidence_score'] = job.get('confidence')
++        elif job.get('confidence_score') is None:
++            score = 0.35
++            if role:
++                score += 0.2
++            if job.get('company_name') and job.get('company_name') != 'Unknown':
++                score += 0.15
++            if job.get('email') or job.get('application_link') or job.get('contact_method') in ('dm', 'form'):
++                score += 0.2
++            if job.get('location_hint'):
++                score += 0.1
++            job['confidence_score'] = min(score, 0.95)
++        job['extraction_method'] = job.get('extraction_method') or 'llm_linkedin'
++
++        return job
+     
+     @log_execution
+-    async def parse_jobs(self, message_text: str, max_retries: int = 3) -> List[Dict]:
++    async def parse_jobs(self, message_text: str, max_retries: int = 3, source: str = 'telegram', source_metadata: Optional[Dict] = None) -> List[Dict]:
+         """Parse job postings from message using LLM with failover and rotation"""
++        source = (source or 'telegram').lower().strip()
++        source_metadata = source_metadata or {}
+ 
+         # Try primary model pool
+-        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary")
++        jobs = await self._try_pool(self.models, message_text, max_retries, "Primary", source=source, source_metadata=source_metadata)
+         
+         # If failed, try fallback model pool
+         if jobs is None and self.fallback_models:
+             print(f"  Primary pool failed, trying fallback pool...")
+-            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback")
++            jobs = await self._try_pool(self.fallback_models, message_text, max_retries, "Fallback", source=source, source_metadata=source_metadata)
+         
+         # If LLM completely failed, use regex fallback
+         if jobs is None:
+@@ -53,6 +194,9 @@ class LLMProcessor:
+         # If jobs were found, ensure each job has jd_text; if missing, try to split
+         # the original message into sensible sections and assign per-job jd_text.
+         result = jobs or []
++
++        for job in result:
++            self._apply_linkedin_postprocessing(job, message_text, source=source, source_metadata=source_metadata)
+         
+         # ... (rest of the method remains the same)
+         # Helper to find link in text
+@@ -228,7 +372,15 @@ class LLMProcessor:
+ 
+         return result
+     
+-    async def _try_pool(self, model_pool: List[str], message_text: str, max_retries: int, pool_name: str) -> Optional[List[Dict]]:
++    async def _try_pool(
++        self,
++        model_pool: List[str],
++        message_text: str,
++        max_retries: int,
++        pool_name: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> Optional[List[Dict]]:
+         """Try to fetch jobs using a specific model pool with retries and rotation"""
+         if not model_pool:
+             return None
+@@ -243,7 +395,7 @@ class LLMProcessor:
+                 return None
+ 
+             try:
+-                jobs = await self._call_llm(message_text, model, api_key)
++                jobs = await self._call_llm(message_text, model, api_key, source=source, source_metadata=source_metadata)
+                 if jobs is not None:
+                     return jobs
+             except Exception as e:
+@@ -256,7 +408,14 @@ class LLMProcessor:
+         return None
+ 
+     @log_execution
+-    async def _call_llm(self, message_text: str, model: str, api_key: str) -> Optional[List[Dict]]:
++    async def _call_llm(
++        self,
++        message_text: str,
++        model: str,
++        api_key: str,
++        source: str = 'telegram',
++        source_metadata: Optional[Dict] = None,
++    ) -> Optional[List[Dict]]:
+         """Make a single LLM API call"""
+ 
+         headers = {
+@@ -268,10 +427,7 @@ class LLMProcessor:
+         
+         payload = {
+             "model": model,
+-            "messages": [
+-                {"role": "system", "content": SYSTEM_PROMPT},
+-                {"role": "user", "content": f"Parse the following message:\n\n{message_text}"}
+-            ],
++            "messages": self._build_parse_messages(message_text, source=source, source_metadata=source_metadata),
+             "temperature": 0.1,
+             "max_tokens": 4000
+         }
+@@ -541,14 +697,25 @@ class LLMProcessor:
+ 
+         # Use the sheet_name provided by the LLM. If missing, let sheets_sync.py determine it.
+         sheet_name = job_data.get('sheet_name')  # No fallback - proper routing in sheets_sync.py
++        role_value = job_data.get("job_role") or job_data.get("role") or job_data.get("title")
++        normalized_role = job_data.get("normalized_role") or normalize_role(role_value)
++        location_hint = job_data.get("location_hint") or extract_location(job_data.get("location") or jd_text_val)
++        experience_hint = job_data.get("experience_hint") or extract_experience(job_data.get("experience_required") or job_data.get("eligibility") or jd_text_val)
++        contact_method = job_data.get("contact_method") or classify_contact(
++            [job_data.get("email")] if job_data.get("email") else [],
++            [job_data.get("application_link")] if job_data.get("application_link") else [],
++            jd_text_val,
++        )
++        company_name = job_data.get("company_name") or infer_company(job_data.get("poster_name"), jd_text_val)
++
+         return {
+             "raw_message_id": raw_message_id,
+             "job_id": job_id,
+             "first_name": first_name,
+             "last_name": last_name,
+             "email": job_data.get("email"),
+-            "company_name": job_data.get("company_name"),
+-            "job_role": job_data.get("job_role"),
++            "company_name": company_name,
++            "job_role": role_value,
+             "location": job_data.get("location"),
+             "recruiter_name": recruiter_name,
+             "eligibility": job_data.get("eligibility"),
+@@ -556,6 +723,7 @@ class LLMProcessor:
+             "salary": job_data.get("salary"),  # NEW: Salary/Compensation
+             "job_relevance": job_data.get("job_relevance"),  # NEW: Job relevance for freshers
+             "application_method": application_method,
++            "contact_method": contact_method,
+             "application_link": job_data.get("application_link"),  # FIX: Include application link
+             "phone": job_data.get("phone"),  # FIX: Include phone number
+             "recruiter_name": job_data.get("recruiter_name"),  # FIX: Include recruiter name
+@@ -566,6 +734,16 @@ class LLMProcessor:
+             "updated_at": datetime.now().isoformat(),
+             "is_hidden": False,
+             "sheet_name": sheet_name,
++            "confidence_score": job_data.get("confidence_score") or job_data.get("confidence"),
++            "extraction_method": job_data.get("extraction_method"),
++            "normalized_role": normalized_role,
++            "role_category": job_data.get("role_category") or normalized_role,
++            "experience_hint": experience_hint,
++            "location_hint": location_hint,
++            "poster_name": job_data.get("poster_name"),
++            "poster_url": job_data.get("poster_url"),
++            "post_url": job_data.get("post_url"),
++            "source_event_id": source_event_id,
+         }
+ 
+     def _extract_job_skills(self, jd_text: str) -> List[str]:
+diff --git a/main.py b/main.py
+index 68a900f..c477232 100644
+--- a/main.py
++++ b/main.py
+@@ -16,8 +16,7 @@ from sheets_sync import GoogleSheetsSync
+ from monitor import TelegramMonitor
+ from message_utils import log_execution
+ from services.processing_service import ProcessingService
+-from services.scraping_service import ScrapingService
+-from services.telegram_session import TelegramSessionService
++from services.scraping_service import ScrapingService, build_scraping_service
+ 
+ # --- Logging Setup ---
+ log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+@@ -50,9 +49,7 @@ _processing_service = None
+ 
+ 
+ def get_scraping_service():
+-    current_db = get_db()
+-    session_service = TelegramSessionService(current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
+-    return ScrapingService(current_db, session_service)
++    return build_scraping_service(get_db(), TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
+ 
+ 
+ 
+diff --git a/processor_worker.py b/processor_worker.py
+index 0a4a681..52d4746 100644
+--- a/processor_worker.py
++++ b/processor_worker.py
+@@ -112,7 +112,13 @@ async def process_queue_batch(batch_size: int = BATCH_SIZE, worker_id: str = "pr
+         try:
+             db.events.update_status(event_id, "processing")
+             message_text = event.get("content") or ""
+-            parsed_jobs = await llm_processor.parse_jobs(message_text)
++            event_source = (event.get("source") or "telegram").lower()
++            event_metadata = event.get("metadata") or {}
++            parsed_jobs = await llm_processor.parse_jobs(
++                message_text,
++                source=event_source,
++                source_metadata=event_metadata,
++            )
+ 
+             if not parsed_jobs:
+                 db.events.update_status(event_id, "processed")
+diff --git a/services/processing_service.py b/services/processing_service.py
+index 911ed39..de1f33b 100644
+--- a/services/processing_service.py
++++ b/services/processing_service.py
+@@ -34,7 +34,13 @@ class ProcessingService:
+         self.db.messages.update_message_status(message_id, "processing")
+ 
+         logger.info(f"Sending message {message_id} to LLM...")
+-        parsed_jobs = await self.llm_processor.parse_jobs(message["message_text"])
++        source = (message.get("source") or "telegram").lower()
++        source_metadata = message.get("metadata") or {}
++        parsed_jobs = await self.llm_processor.parse_jobs(
++            message["message_text"],
++            source=source,
++            source_metadata=source_metadata,
++        )
+ 
+         if not parsed_jobs:
+             logger.warning(f"Message {message_id} yielded NO jobs from LLM.")
+diff --git a/services/scraping_service.py b/services/scraping_service.py
+index 529896c..f3042b7 100644
+--- a/services/scraping_service.py
++++ b/services/scraping_service.py
+@@ -3,7 +3,7 @@
+ from __future__ import annotations
+ 
+ import logging
+-from typing import Any, Dict, Optional
++from typing import Any, Dict, Optional, List
+ 
+ from historical_message_fetcher import HistoricalMessageFetcher
+ from services.telegram_session import TelegramSessionService
+@@ -100,3 +100,41 @@ class ScrapingService:
+ 
+     async def fetch_only(self, hours_back: float = 12, client: Any = None) -> Dict[str, Any]:
+         return await self.fetch_recent(hours_back=hours_back, client=client)
++
++    def run_historical_fetch_sync(
++        self,
++        hours_back: float,
++        enqueue_process: bool = False,
++    ) -> Dict[str, Any]:
++        """Synchronously execute the historical message fetch, managing its own event loop."""
++        import asyncio
++        loop = asyncio.new_event_loop()
++        asyncio.set_event_loop(loop)
++        try:
++            return loop.run_until_complete(
++                self.fetch_historical_messages(
++                    hours_back=hours_back,
++                    enqueue_process=enqueue_process,
++                )
++            )
++        finally:
++            loop.close()
++
++
++def build_scraping_service(
++    db,
++    api_id: Any,
++    api_hash: str,
++    phone: Optional[str] = None,
++    group_usernames: Optional[List[str]] = None,
++) -> ScrapingService:
++    """Factory helper to build ScrapingService with its TelegramSessionService dependency."""
++    session_service = TelegramSessionService(
++        db,
++        api_id,
++        api_hash,
++        phone,
++        group_usernames,
++    )
++    return ScrapingService(db, session_service)
++
+diff --git a/telegram_worker.py b/telegram_worker.py
+index c2f735c..b745d3f 100644
+--- a/telegram_worker.py
++++ b/telegram_worker.py
+@@ -24,8 +24,7 @@ from config import (
+ )
+ from database import Database, init_database
+ from monitor import TelegramMonitor
+-from services.scraping_service import ScrapingService
+-from services.telegram_session import TelegramSessionService
++from services.scraping_service import ScrapingService, build_scraping_service
+ 
+ logging.basicConfig(
+     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+@@ -51,11 +50,13 @@ def get_db() -> Database:
+ 
+ 
+ def get_scraping_service() -> ScrapingService:
+-    current_db = get_db()
+-    session_service = TelegramSessionService(
+-        current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, TELEGRAM_GROUP_USERNAMES
++    return build_scraping_service(
++        get_db(),
++        TELEGRAM_API_ID,
++        TELEGRAM_API_HASH,
++        TELEGRAM_PHONE,
++        TELEGRAM_GROUP_USERNAMES,
+     )
+-    return ScrapingService(current_db, session_service)
+ 
+ 
+ def request_shutdown(*_args):
+diff --git a/tests/test_agent_export.py b/tests/test_agent_export.py
+index 2b945a3..56bf9d8 100644
+--- a/tests/test_agent_export.py
++++ b/tests/test_agent_export.py
+@@ -252,3 +252,11 @@ class TestAgentExportEndpoint(unittest.TestCase):
+ 
+ if __name__ == "__main__":
+     unittest.main()
++
++
++def tearDownModule():
++    # Clean up environment variables injected in this module to prevent test pollution
++    for k in _ENV_DEFAULTS:
++        if k in os.environ:
++            del os.environ[k]
++
+diff --git a/tests/test_config.py b/tests/test_config.py
+index b73bf56..e5abf8b 100644
+--- a/tests/test_config.py
++++ b/tests/test_config.py
+@@ -28,8 +28,8 @@ class TestConfigValidation(unittest.TestCase):
+         os.environ.clear()
+         os.environ.update(self.original_env)
+     
+-    def test_missing_database_url_raises_error(self):
+-        """Test that missing DATABASE_URL raises ValueError"""
++    def test_missing_database_url_logs_warning(self):
++        """Test that missing DATABASE_URL logs a warning"""
+         # Remove DATABASE_URL from environment
+         if 'DATABASE_URL' in os.environ:
+             del os.environ['DATABASE_URL']
+@@ -41,13 +41,14 @@ class TestConfigValidation(unittest.TestCase):
+         os.environ['GOOGLE_CREDENTIALS_JSON'] = 'test.json'
+         os.environ['SPREADSHEET_ID'] = 'test_id'
+         
+-        with self.assertRaises(ValueError) as context:
+-            # Import config module (triggers validation)
+-            import importlib
+-            import config
++        import importlib
++        import config
++
++        with self.assertLogs('config', level='WARNING') as log_ctx:
+             importlib.reload(config)
+         
+-        self.assertIn('DATABASE_URL', str(context.exception))
++        warning_messages = ' '.join(log_ctx.output)
++        self.assertIn('DATABASE_URL', warning_messages)
+     
+     def test_missing_telegram_api_raises_error(self):
+         """Test that missing Telegram API credentials raise ValueError"""
+diff --git a/tests/test_integration.py b/tests/test_integration.py
+index 9edb650..50cb4d5 100644
+--- a/tests/test_integration.py
++++ b/tests/test_integration.py
+@@ -283,7 +283,7 @@ def test_llm_processor_single_object_json_is_normalized(monkeypatch):
+     """A valid single-job JSON object should be treated as a one-item job list."""
+     from llm_processor import LLMProcessor
+ 
+-    async def fake_try_pool(self, model_pool, message_text, max_retries, pool_name):
++    async def fake_try_pool(self, *args, **kwargs):
+         return {"company_name": "Acme", "job_role": "Python Developer", "email": "hr@example.com", "jd_text": "Acme needs Python Developer hr@example.com"}
+ 
+     monkeypatch.setattr(LLMProcessor, "_try_pool", fake_try_pool)
+diff --git a/tests/test_llm_processor.py b/tests/test_llm_processor.py
+index 1bd5c1d..849492e 100644
+--- a/tests/test_llm_processor.py
++++ b/tests/test_llm_processor.py
+@@ -4,6 +4,11 @@ Unit tests for LLM processor
+ Tests job parsing, timeout handling, and API error handling.
+ """
+ 
++import sys
++import types
++if "aiohttp" in sys.modules and not isinstance(sys.modules["aiohttp"], types.ModuleType):
++    del sys.modules["aiohttp"]
++
+ import unittest
+ from unittest.mock import Mock, patch, AsyncMock, MagicMock
+ import asyncio
+@@ -109,6 +114,54 @@ class TestLLMProcessor(unittest.IsolatedAsyncioTestCase):
+         self.assertIn('updated_at', result)
+         self.assertEqual(result['raw_message_id'], 123)
+ 
++    def test_linkedin_prompt_dispatch_and_metadata_postprocessing(self):
++        """LinkedIn source uses LinkedIn prompt and preserves source metadata."""
++        from config import LINKEDIN_SYSTEM_PROMPT
++
++        metadata = {
++            'poster_name': 'Acme AI Careers',
++            'poster_url': 'https://www.linkedin.com/company/acme-ai/',
++            'source_url': 'https://www.linkedin.com/activity/1234567890',
++            'company_name': 'Acme AI',
++        }
++        messages = self.processor._build_parse_messages(
++            'Hiring Python Developer. Remote India. 0-2 years.',
++            source='linkedin',
++            source_metadata=metadata,
++        )
++        self.assertEqual(messages[0]['content'], LINKEDIN_SYSTEM_PROMPT)
++        self.assertIn('LinkedIn metadata', messages[1]['content'])
++
++        job = {
++            'job_role': 'Python Developer',
++            'company_name': None,
++            'jd_text': 'Hiring Python Developer. Remote India. 0-2 years.',
++        }
++        processed = self.processor._apply_linkedin_postprocessing(
++            job,
++            'Hiring Python Developer. Remote India. 0-2 years.',
++            source='linkedin',
++            source_metadata=metadata,
++        )
++        self.assertEqual(processed['poster_name'], 'Acme AI Careers')
++        self.assertEqual(processed['poster_url'], 'https://www.linkedin.com/company/acme-ai/')
++        self.assertEqual(processed['post_url'], 'https://www.linkedin.com/activity/1234567890')
++        self.assertEqual(processed['company_name'], 'Acme AI')
++        self.assertEqual(processed['contact_method'], 'linkedin_post')
++        self.assertEqual(processed['normalized_role'], 'python_developer')
++        self.assertEqual(processed['location_hint'], 'remote,india')
++        self.assertEqual(processed['experience_hint'], '0-2 years')
++        self.assertEqual(processed['extraction_method'], 'llm_linkedin')
++        self.assertGreaterEqual(processed['confidence_score'], 0.5)
++
++    def test_linkedin_post_url_activity_and_dm_contact(self):
++        """LinkedIn /activity URLs and DM-only posts are supported."""
++        text = 'Hiring Backend Engineer. Message me on LinkedIn. https://www.linkedin.com/activity/1234567890'
++        job = {'job_role': 'Backend Engineer'}
++        processed = self.processor._apply_linkedin_postprocessing(job, text, source='linkedin')
++        self.assertEqual(processed['post_url'], 'https://www.linkedin.com/activity/1234567890')
++        self.assertEqual(processed['contact_method'], 'linkedin_dm')
++
+ 
+ class TestLLMErrorHandling(unittest.IsolatedAsyncioTestCase):
+     """Test LLM error handling and retry logic"""
+diff --git a/web_server.py b/web_server.py
+index e38fa83..42e1b78 100644
+--- a/web_server.py
++++ b/web_server.py
+@@ -28,8 +28,7 @@ from config import (
+     TELEGRAM_PHONE, ADDITIONAL_SPREADSHEET_IDS
+ )
+ from sheets_sync import MultiSheetSync
+-from services.scraping_service import ScrapingService
+-from services.telegram_session import TelegramSessionService
++from services.scraping_service import ScrapingService, build_scraping_service
+ 
+ # Initialize Flask app
+ app = Flask(__name__)
+@@ -44,8 +43,7 @@ _sheets_lock = threading.Lock()
+ def get_scraping_service():
+     if db is None:
+         raise RuntimeError("DATABASE_URL is not configured")
+-    session_service = TelegramSessionService(db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
+-    return ScrapingService(db, session_service)
++    return build_scraping_service(db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
+ 
+ 
+ def get_sheets_sync():
+@@ -1085,18 +1083,26 @@ def fetch_historical_messages():
+         if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
+             return jsonify({"error": "Telegram API credentials not configured"}), 500
+ 
+-        async def run_historical_fetch():
++        scraping_service = get_scraping_service()
++        if hasattr(scraping_service, "run_historical_fetch_sync"):
++            result = scraping_service.run_historical_fetch_sync(
++                hours_back=hours_back,
++                enqueue_process=enqueue_process,
++            )
++        else:
++            # Fallback for mock/test classes that only implement async fetch_historical_messages
++            loop = asyncio.new_event_loop()
++            asyncio.set_event_loop(loop)
+             try:
+-                scraping_service = get_scraping_service()
+-                result = await scraping_service.fetch_historical_messages(
+-                    hours_back=hours_back,
+-                    enqueue_process=enqueue_process,
++                result = loop.run_until_complete(
++                    scraping_service.fetch_historical_messages(
++                        hours_back=hours_back,
++                        enqueue_process=enqueue_process,
++                    )
+                 )
+-                logging.info(f"Historical message fetch complete: {result}")
+-                return result
+             except Exception as e:
+-                logging.error(f"Error in historical fetch: {e}")
+-                return {
++                logging.error(f"Error in historical fetch fallback: {e}")
++                result = {
+                     "fetched_count": 0,
+                     "storage_mode": "events",
+                     "processing_enqueued": False,
+@@ -1104,17 +1110,12 @@ def fetch_historical_messages():
+                     "status": "error",
+                     "error": str(e)
+                 }
++            finally:
++                loop.close()
+ 
+-        # Run the async function
+-        loop = asyncio.new_event_loop()
+-        asyncio.set_event_loop(loop)
+-        try:
+-            result = loop.run_until_complete(run_historical_fetch())
+-            # Ensure request parameters are always in the result for the frontend
+-            result['hours_back'] = hours_back
+-            result['enqueue_process'] = enqueue_process
+-        finally:
+-            loop.close()
++        # Ensure request parameters are always in the result for the frontend
++        result['hours_back'] = hours_back
++        result['enqueue_process'] = enqueue_process
+ 
+         http_status = 500 if result.get("status") == "error" else 200
+         return jsonify(result), http_status

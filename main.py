@@ -16,8 +16,7 @@ from sheets_sync import GoogleSheetsSync
 from monitor import TelegramMonitor
 from message_utils import log_execution
 from services.processing_service import ProcessingService
-from services.scraping_service import ScrapingService
-from services.telegram_session import TelegramSessionService
+from services.scraping_service import ScrapingService, build_scraping_service
 
 # --- Logging Setup ---
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
@@ -50,9 +49,7 @@ _processing_service = None
 
 
 def get_scraping_service():
-    current_db = get_db()
-    session_service = TelegramSessionService(current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
-    return ScrapingService(current_db, session_service)
+    return build_scraping_service(get_db(), TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
 
 
 

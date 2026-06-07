@@ -4,6 +4,11 @@ Unit tests for LLM processor
 Tests job parsing, timeout handling, and API error handling.
 """
 
+import sys
+import types
+if "aiohttp" in sys.modules and not isinstance(sys.modules["aiohttp"], types.ModuleType):
+    del sys.modules["aiohttp"]
+
 import unittest
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 import asyncio
@@ -108,6 +113,54 @@ class TestLLMProcessor(unittest.IsolatedAsyncioTestCase):
         self.assertIn('raw_message_id', result)
         self.assertIn('updated_at', result)
         self.assertEqual(result['raw_message_id'], 123)
+
+    def test_linkedin_prompt_dispatch_and_metadata_postprocessing(self):
+        """LinkedIn source uses LinkedIn prompt and preserves source metadata."""
+        from config import LINKEDIN_SYSTEM_PROMPT
+
+        metadata = {
+            'poster_name': 'Acme AI Careers',
+            'poster_url': 'https://www.linkedin.com/company/acme-ai/',
+            'source_url': 'https://www.linkedin.com/activity/1234567890',
+            'company_name': 'Acme AI',
+        }
+        messages = self.processor._build_parse_messages(
+            'Hiring Python Developer. Remote India. 0-2 years.',
+            source='linkedin',
+            source_metadata=metadata,
+        )
+        self.assertEqual(messages[0]['content'], LINKEDIN_SYSTEM_PROMPT)
+        self.assertIn('LinkedIn metadata', messages[1]['content'])
+
+        job = {
+            'job_role': 'Python Developer',
+            'company_name': None,
+            'jd_text': 'Hiring Python Developer. Remote India. 0-2 years.',
+        }
+        processed = self.processor._apply_linkedin_postprocessing(
+            job,
+            'Hiring Python Developer. Remote India. 0-2 years.',
+            source='linkedin',
+            source_metadata=metadata,
+        )
+        self.assertEqual(processed['poster_name'], 'Acme AI Careers')
+        self.assertEqual(processed['poster_url'], 'https://www.linkedin.com/company/acme-ai/')
+        self.assertEqual(processed['post_url'], 'https://www.linkedin.com/activity/1234567890')
+        self.assertEqual(processed['company_name'], 'Acme AI')
+        self.assertEqual(processed['contact_method'], 'linkedin_post')
+        self.assertEqual(processed['normalized_role'], 'python_developer')
+        self.assertEqual(processed['location_hint'], 'remote,india')
+        self.assertEqual(processed['experience_hint'], '0-2 years')
+        self.assertEqual(processed['extraction_method'], 'llm_linkedin')
+        self.assertGreaterEqual(processed['confidence_score'], 0.5)
+
+    def test_linkedin_post_url_activity_and_dm_contact(self):
+        """LinkedIn /activity URLs and DM-only posts are supported."""
+        text = 'Hiring Backend Engineer. Message me on LinkedIn. https://www.linkedin.com/activity/1234567890'
+        job = {'job_role': 'Backend Engineer'}
+        processed = self.processor._apply_linkedin_postprocessing(job, text, source='linkedin')
+        self.assertEqual(processed['post_url'], 'https://www.linkedin.com/activity/1234567890')
+        self.assertEqual(processed['contact_method'], 'linkedin_dm')
 
 
 class TestLLMErrorHandling(unittest.IsolatedAsyncioTestCase):

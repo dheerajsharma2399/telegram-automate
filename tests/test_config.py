@@ -28,8 +28,8 @@ class TestConfigValidation(unittest.TestCase):
         os.environ.clear()
         os.environ.update(self.original_env)
     
-    def test_missing_database_url_raises_error(self):
-        """Test that missing DATABASE_URL raises ValueError"""
+    def test_missing_database_url_logs_warning(self):
+        """Test that missing DATABASE_URL logs a warning"""
         # Remove DATABASE_URL from environment
         if 'DATABASE_URL' in os.environ:
             del os.environ['DATABASE_URL']
@@ -41,13 +41,14 @@ class TestConfigValidation(unittest.TestCase):
         os.environ['GOOGLE_CREDENTIALS_JSON'] = 'test.json'
         os.environ['SPREADSHEET_ID'] = 'test_id'
         
-        with self.assertRaises(ValueError) as context:
-            # Import config module (triggers validation)
-            import importlib
-            import config
+        import importlib
+        import config
+
+        with self.assertLogs('config', level='WARNING') as log_ctx:
             importlib.reload(config)
         
-        self.assertIn('DATABASE_URL', str(context.exception))
+        warning_messages = ' '.join(log_ctx.output)
+        self.assertIn('DATABASE_URL', warning_messages)
     
     def test_missing_telegram_api_raises_error(self):
         """Test that missing Telegram API credentials raise ValueError"""

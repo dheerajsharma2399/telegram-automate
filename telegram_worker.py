@@ -24,8 +24,7 @@ from config import (
 )
 from database import Database, init_database
 from monitor import TelegramMonitor
-from services.scraping_service import ScrapingService
-from services.telegram_session import TelegramSessionService
+from services.scraping_service import ScrapingService, build_scraping_service
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -51,11 +50,13 @@ def get_db() -> Database:
 
 
 def get_scraping_service() -> ScrapingService:
-    current_db = get_db()
-    session_service = TelegramSessionService(
-        current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, TELEGRAM_GROUP_USERNAMES
+    return build_scraping_service(
+        get_db(),
+        TELEGRAM_API_ID,
+        TELEGRAM_API_HASH,
+        TELEGRAM_PHONE,
+        TELEGRAM_GROUP_USERNAMES,
     )
-    return ScrapingService(current_db, session_service)
 
 
 def request_shutdown(*_args):

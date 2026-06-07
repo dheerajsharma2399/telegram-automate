@@ -34,7 +34,13 @@ class ProcessingService:
         self.db.messages.update_message_status(message_id, "processing")
 
         logger.info(f"Sending message {message_id} to LLM...")
-        parsed_jobs = await self.llm_processor.parse_jobs(message["message_text"])
+        source = (message.get("source") or "telegram").lower()
+        source_metadata = message.get("metadata") or {}
+        parsed_jobs = await self.llm_processor.parse_jobs(
+            message["message_text"],
+            source=source,
+            source_metadata=source_metadata,
+        )
 
         if not parsed_jobs:
             logger.warning(f"Message {message_id} yielded NO jobs from LLM.")

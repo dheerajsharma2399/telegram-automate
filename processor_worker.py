@@ -112,7 +112,13 @@ async def process_queue_batch(batch_size: int = BATCH_SIZE, worker_id: str = "pr
         try:
             db.events.update_status(event_id, "processing")
             message_text = event.get("content") or ""
-            parsed_jobs = await llm_processor.parse_jobs(message_text)
+            event_source = (event.get("source") or "telegram").lower()
+            event_metadata = event.get("metadata") or {}
+            parsed_jobs = await llm_processor.parse_jobs(
+                message_text,
+                source=event_source,
+                source_metadata=event_metadata,
+            )
 
             if not parsed_jobs:
                 db.events.update_status(event_id, "processed")

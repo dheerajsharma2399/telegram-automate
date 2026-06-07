@@ -28,8 +28,7 @@ from config import (
     TELEGRAM_PHONE, ADDITIONAL_SPREADSHEET_IDS
 )
 from sheets_sync import MultiSheetSync
-from services.scraping_service import ScrapingService
-from services.telegram_session import TelegramSessionService
+from services.scraping_service import ScrapingService, build_scraping_service
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -44,8 +43,7 @@ _sheets_lock = threading.Lock()
 def get_scraping_service():
     if db is None:
         raise RuntimeError("DATABASE_URL is not configured")
-    session_service = TelegramSessionService(db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
-    return ScrapingService(db, session_service)
+    return build_scraping_service(db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
 
 
 def get_sheets_sync():
@@ -1085,18 +1083,26 @@ def fetch_historical_messages():
         if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
             return jsonify({"error": "Telegram API credentials not configured"}), 500
 
-        async def run_historical_fetch():
+        scraping_service = get_scraping_service()
+        if hasattr(scraping_service, "run_historical_fetch_sync"):
+            result = scraping_service.run_historical_fetch_sync(
+                hours_back=hours_back,
+                enqueue_process=enqueue_process,
+            )
+        else:
+            # Fallback for mock/test classes that only implement async fetch_historical_messages
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
-                scraping_service = get_scraping_service()
-                result = await scraping_service.fetch_historical_messages(
-                    hours_back=hours_back,
-                    enqueue_process=enqueue_process,
+                result = loop.run_until_complete(
+                    scraping_service.fetch_historical_messages(
+                        hours_back=hours_back,
+                        enqueue_process=enqueue_process,
+                    )
                 )
-                logging.info(f"Historical message fetch complete: {result}")
-                return result
             except Exception as e:
-                logging.error(f"Error in historical fetch: {e}")
-                return {
+                logging.error(f"Error in historical fetch fallback: {e}")
+                result = {
                     "fetched_count": 0,
                     "storage_mode": "events",
                     "processing_enqueued": False,
@@ -1104,17 +1110,12 @@ def fetch_historical_messages():
                     "status": "error",
                     "error": str(e)
                 }
+            finally:
+                loop.close()
 
-        # Run the async function
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            result = loop.run_until_complete(run_historical_fetch())
-            # Ensure request parameters are always in the result for the frontend
-            result['hours_back'] = hours_back
-            result['enqueue_process'] = enqueue_process
-        finally:
-            loop.close()
+        # Ensure request parameters are always in the result for the frontend
+        result['hours_back'] = hours_back
+        result['enqueue_process'] = enqueue_process
 
         http_status = 500 if result.get("status") == "error" else 200
         return jsonify(result), http_status
