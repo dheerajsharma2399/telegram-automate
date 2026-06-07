@@ -130,7 +130,7 @@ class TestMcpToolRouting(unittest.TestCase):
         mock_api_request.assert_called_once_with(
             "POST",
             "/api/fetch_historical_messages",
-            body={"hours_back": 6},
+            body={"hours_back": 6, "enqueue_process": True},
         )
 
     @patch("mcp_server.api_request")

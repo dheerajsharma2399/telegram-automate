@@ -1,2 +1,4 @@
-web: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --log-level info web_server:app
-worker: python main.py
+web: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 web_server:app
+scraper: python scraper_worker.py
+telegram: python telegram_worker.py
+processor: python processor_worker.py

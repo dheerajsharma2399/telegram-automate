@@ -194,7 +194,8 @@ class EventRepository(BaseRepository):
                     cursor.execute("""
                         INSERT INTO raw_events (source, source_id, content, metadata)
                         VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (source, source_id) DO NOTHING
+                        ON CONFLICT (source, source_id) DO UPDATE
+                        SET metadata = raw_events.metadata
                         RETURNING id
                     """, (source, source_id, content, Json(metadata)))
                     result = cursor.fetchone()
@@ -287,6 +288,16 @@ class QueueRepository(BaseRepository):
         with self.get_connection() as conn:
             try:
                 with conn.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT id FROM processing_queue
+                        WHERE event_id = %s
+                        ORDER BY id ASC
+                        LIMIT 1
+                    """, (event_id,))
+                    result = cursor.fetchone()
+                    if result:
+                        conn.commit()
+                        return result['id']
                     cursor.execute("""
                         INSERT INTO processing_queue (event_id, priority)
                         VALUES (%s, %s)

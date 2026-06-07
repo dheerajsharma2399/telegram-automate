@@ -46,6 +46,10 @@ class LLMProcessor:
             print("  LLM failed, using regex fallback")
             jobs = self._regex_fallback(message_text)
         
+        # Normalize valid single-object JSON into a one-item job list.
+        if isinstance(jobs, dict):
+            jobs = [jobs]
+
         # If jobs were found, ensure each job has jd_text; if missing, try to split
         # the original message into sensible sections and assign per-job jd_text.
         result = jobs or []
@@ -486,7 +490,13 @@ class LLMProcessor:
         match = re.search(pattern, text)
         return match.group(0) if match else None
     
-    def process_job_data(self, job_data: Dict, raw_message_id: int, generate_email: bool = False) -> Dict:
+    def process_job_data(
+        self,
+        job_data: Dict,
+        raw_message_id: Optional[int],
+        generate_email: bool = False,
+        source_event_id: Optional[int] = None,
+    ) -> Dict:
         """Processes and enriches raw job data extracted by the LLM.
         
         Args:
@@ -494,9 +504,11 @@ class LLMProcessor:
             raw_message_id: ID of the raw message
             generate_email: If True, generate email body during processing.
                            If False (default), leave email_body as None for later generation.
+            source_event_id: Optional raw_events.id used for newer queue-based ingestion.
         """
         
-        job_id = f"job_{raw_message_id}_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        job_seed = source_event_id if source_event_id is not None else raw_message_id
+        job_id = f"job_{job_seed}_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         recruiter_name = job_data.get("recruiter_name", "")
         first_name, last_name = self._split_name(recruiter_name)
         

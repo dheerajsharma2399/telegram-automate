@@ -24,10 +24,13 @@ logger = logging.getLogger(__name__)
 from message_utils import extract_message_text, should_process_message, log_execution
 
 class HistoricalMessageFetcher:
-    def __init__(self, db: Database, client: TelegramClient):
+    def __init__(self, db: Database, client: TelegramClient, storage_mode: str = "messages"):
         self.db = db
         self.client = client
         self.batch_size = 100  # Process messages in batches of 100
+        if storage_mode not in {"messages", "events"}:
+            raise ValueError("storage_mode must be 'messages' or 'events'")
+        self.storage_mode = storage_mode
     
     async def connect_client(self):
         """
@@ -85,6 +88,30 @@ class HistoricalMessageFetcher:
         if not messages:
             return 0
         
+        if self.storage_mode == "events":
+            saved = 0
+            try:
+                for message in messages:
+                    message_text = extract_message_text(message)
+                    if not (message_text and should_process_message(message)):
+                        continue
+                    source_id = f"{group_id}:{message.id}"
+                    metadata = {
+                        "message_id": message.id,
+                        "group_id": group_id,
+                        "sender_id": message.sender_id if message.sender_id else None,
+                        "sent_at": message.date.isoformat() if getattr(message, "date", None) else None,
+                    }
+                    event_id = self.db.events.add_event("telegram", source_id, message_text, metadata)
+                    if event_id:
+                        self.db.queue.enqueue(event_id, priority=0)
+                        saved += 1
+                logger.info(f"✅ Saved batch of {saved} Telegram raw_events and enqueued them")
+                return saved
+            except Exception as e:
+                logger.error(f"Failed to save event batch: {e}")
+                return 0
+
         sql = """
             INSERT INTO raw_messages 
                 (message_id, message_text, sender_id, group_id, sent_at, status)
@@ -96,12 +123,9 @@ class HistoricalMessageFetcher:
         try:
             with self.db.get_connection() as conn:
                 with conn.cursor() as cursor:
-                    # Prepare batch data
                     batch_data = []
                     for message in messages:
                         message_text = extract_message_text(message)
-                        
-                        # Only add messages that should be processed
                         if message_text and should_process_message(message):
                             batch_data.append((
                                 message.id,
@@ -110,17 +134,12 @@ class HistoricalMessageFetcher:
                                 group_id,
                                 message.date
                             ))
-                    
                     if not batch_data:
                         return 0
-                    
-                    # Execute batch insert - MUCH faster than individual inserts
                     execute_batch(cursor, sql, batch_data, page_size=100)
                     conn.commit()
-                    
                     logger.info(f"✅ Saved batch of {len(batch_data)} messages to database")
                     return len(batch_data)
-
         except Exception as e:
             logger.error(f"Failed to save message batch: {e}")
             return 0
@@ -289,56 +308,8 @@ class HistoricalMessageFetcher:
 
     @log_execution
     async def fetch_and_process_historical_messages(self, hours_back: int = 12) -> dict:
-        """
-        Enhanced method: Fetch historical messages AND queue them for processing
-
-        Args:
-            hours_back: Number of hours to look back (default: 12)
-
-        Returns:
-            Dictionary with fetch results and processing status
-        """
-        try:
-            logger.info(f"🚀 Starting enhanced historical fetch for {hours_back} hours")
-
-            # Step 1: Fetch messages using efficient batch processing
-            fetched_count = await self.fetch_historical_messages(hours_back)
-
-            if fetched_count == 0:
-                return {
-                    "fetched_count": 0,
-                    "status": "no_new_messages",
-                    "processing_enqueued": False,
-                    "message": "No new messages found in the specified time range"
-                }
-
-            # Step 2: Get statistics about unprocessed messages
-            unprocessed_count = self.db.messages.get_unprocessed_count()
-
-            # Step 3: Trigger the standard job processor to handle the newly added messages
-            # We enqueue a command for the main bot to run the processor
-            command_id = self.db.commands.enqueue_command("/process")
-            logger.info(f"📤 Enqueued '/process' command (ID: {command_id}) to handle {fetched_count} newly fetched messages")
-
-            return {
-                "fetched_count": fetched_count,
-                "unprocessed_count": unprocessed_count,
-                "status": "success",
-                "processing_enqueued": True,
-                "command_id": command_id,
-                "message": f"Successfully fetched {fetched_count} new messages. Processing command enqueued.",
-                "detail": f"Total unprocessed messages in queue: {unprocessed_count}"
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Error in enhanced historical fetch: {e}")
-            return {
-                "fetched_count": 0,
-                "status": "error",
-                "processing_enqueued": False,
-                "error": str(e),
-                "message": "Failed to fetch historical messages"
-            }
+        """Compatibility wrapper that fetches only and reports queue state."""
+        return await self.fetch_only_result(hours_back)
     
     def get_database_stats(self) -> dict:
         """Get statistics about messages in the database"""

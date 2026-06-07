@@ -63,10 +63,9 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 
 # Validate critical environment variables
 if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is required but not set. "
-        "Please configure it in .env file with format: "
-        "postgresql://user:password@host:port/database"
+    import logging as _logging
+    _logging.getLogger(__name__).warning(
+        "DATABASE_URL environment variable is not set; database-backed entrypoints will fail until configured."
     )
 
 if not TELEGRAM_API_ID or not TELEGRAM_API_HASH:

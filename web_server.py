@@ -271,7 +271,8 @@ def api_logs():
 @require_api_key
 def api_command():
     """API endpoint to send a command to the bot."""
-    command = request.json.get("command")
+    payload = request.get_json(silent=True) or {}
+    command = payload.get("command")
     if not command:
         return jsonify({"error": "Command not specified"}), 400
     # Enqueue command in database for the bot process to pick up
@@ -913,17 +914,10 @@ def _signal_handler(signum, frame):
                     db.enqueue_command('/stop')
             except Exception:
                 pass
-            # Force exit to ensure Ctrl+C stops the process completely
-            try:
-                os._exit(0)
-            except Exception:
-                pass
+            raise SystemExit(0)
     except Exception as e:
         logging.error(f"Unexpected error in signal handler while shutting down: {e}")
-        try:
-            os._exit(0)
-        except Exception:
-            pass
+        raise SystemExit(0)
 
 
 # Register signal handlers for graceful shutdown
@@ -1068,7 +1062,10 @@ def fetch_historical_messages():
     """Fetch historical messages from Telegram groups, optionally enqueueing processing."""
     try:
         data = request.get_json(force=True) or {}
-        hours_back = data.get('hours_back', 12)  # Default to 12 hours
+        try:
+            hours_back = float(data.get('hours_back', 12))  # Default to 12 hours
+        except (TypeError, ValueError):
+            return jsonify({"error": "hours_back must be a number between 0.1 and 168"}), 400
         enqueue_process = data.get('enqueue_process', True)
 
         if hours_back < 0.1 or hours_back > 168:
@@ -1080,8 +1077,6 @@ def fetch_historical_messages():
         import sys
         import os
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-        from historical_message_fetcher import HistoricalMessageFetcher
 
         # Initialize fetcher
         if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
@@ -1100,15 +1095,20 @@ def fetch_historical_messages():
                 if not await client.is_user_authorized():
                     raise ConnectionError("Telegram session is invalid or expired.")
 
-                fetcher = HistoricalMessageFetcher(db, client)
+                fetcher = HistoricalMessageFetcher(db, client, storage_mode="events")
                 # Connect to Telegram
                 if await fetcher.connect_client():
                     logging.info("Connected to Telegram for historical message fetch")
 
-                    if enqueue_process:
-                        result = await fetcher.fetch_and_process_historical_messages(hours_back)
-                    else:
-                        result = await fetcher.fetch_only_result(hours_back)
+                    result = await fetcher.fetch_only_result(hours_back)
+                    if enqueue_process and result.get("fetched_count", 0) > 0:
+                        command_id = db.commands.enqueue_command("/process")
+                        result["processing_enqueued"] = True
+                        result["command_id"] = command_id
+                        result["message"] = (
+                            f"Successfully fetched {result.get('fetched_count', 0)} new messages. "
+                            f"Processing command enqueued."
+                        )
 
                     logging.info(f"Historical message fetch complete: {result}")
                     return result
