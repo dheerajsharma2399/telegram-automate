@@ -31,6 +31,7 @@ class HistoricalMessageFetcher:
         if storage_mode not in {"messages", "events"}:
             raise ValueError("storage_mode must be 'messages' or 'events'")
         self.storage_mode = storage_mode
+        self.last_errors = []
     
     async def connect_client(self):
         """
@@ -155,10 +156,13 @@ class HistoricalMessageFetcher:
         Returns:
             Total number of messages fetched and stored
         """
+        self.last_errors = []
         try:
             # Ensure client is connected before proceeding
             if not await self.connect_client():
-                logger.error("Cannot fetch historical messages, client connection failed.")
+                message = "Cannot fetch historical messages, client connection failed."
+                logger.error(message)
+                self.last_errors.append(message)
                 return 0
 
             # Calculate time range
@@ -171,7 +175,9 @@ class HistoricalMessageFetcher:
             # Get monitored groups
             groups = await self.get_monitored_groups()
             if not groups:
-                logger.error("❌ No monitored groups found")
+                message = "No monitored groups found"
+                logger.error("❌ %s", message)
+                self.last_errors.append(message)
                 return 0
             
             logger.info(f"📋 Monitoring {len(groups)} group(s)")
@@ -244,10 +250,14 @@ class HistoricalMessageFetcher:
                     logger.info(f"   Duplicates Skipped: {total_scanned - total_saved}")
                     
                 except (ValueError, TypeError) as e:
-                    logger.error(f"❌ Failed to fetch from group {group}: {e}")
+                    message = f"Failed to fetch from group {group}: {e}"
+                    logger.error(f"❌ {message}")
+                    self.last_errors.append(message)
                     continue
                 except Exception as e:
-                    logger.error(f"❌ Unexpected error fetching from group {group}: {e}")
+                    message = f"Unexpected error fetching from group {group}: {e}"
+                    logger.error(f"❌ {message}")
+                    self.last_errors.append(message)
                     continue
             
             logger.info(f"\n{'='*70}")
@@ -258,7 +268,9 @@ class HistoricalMessageFetcher:
             return total_fetched
             
         except Exception as e:
-            logger.error(f"❌ Failed to fetch historical messages: {e}")
+            message = f"Failed to fetch historical messages: {e}"
+            logger.error(f"❌ {message}")
+            self.last_errors.append(message)
             return 0
 
     @log_execution
@@ -279,6 +291,15 @@ class HistoricalMessageFetcher:
             unprocessed_count = self.db.messages.get_unprocessed_count()
 
             if fetched_count == 0:
+                if self.last_errors:
+                    return {
+                        "fetched_count": 0,
+                        "unprocessed_count": unprocessed_count,
+                        "status": "error",
+                        "processing_enqueued": False,
+                        "error": "; ".join(self.last_errors),
+                        "message": "Failed to fetch historical messages",
+                    }
                 return {
                     "fetched_count": 0,
                     "unprocessed_count": unprocessed_count,

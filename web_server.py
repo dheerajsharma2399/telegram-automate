@@ -28,6 +28,8 @@ from config import (
     TELEGRAM_PHONE, ADDITIONAL_SPREADSHEET_IDS
 )
 from sheets_sync import MultiSheetSync
+from services.scraping_service import ScrapingService
+from services.telegram_session import TelegramSessionService
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -38,6 +40,13 @@ db = Database(DATABASE_URL) if DATABASE_URL else None
 llm_processor = LLMProcessor(OPENROUTER_API_KEYS, OPENROUTER_MODELS, OPENROUTER_FALLBACK_MODELS) if OPENROUTER_API_KEYS else None
 sheets_sync = None
 _sheets_lock = threading.Lock()
+
+def get_scraping_service():
+    if db is None:
+        raise RuntimeError("DATABASE_URL is not configured")
+    session_service = TelegramSessionService(db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
+    return ScrapingService(db, session_service)
+
 
 def get_sheets_sync():
     global sheets_sync
@@ -914,10 +923,10 @@ def _signal_handler(signum, frame):
                     db.enqueue_command('/stop')
             except Exception:
                 pass
-            raise SystemExit(0)
+            os._exit(0)
     except Exception as e:
         logging.error(f"Unexpected error in signal handler while shutting down: {e}")
-        raise SystemExit(0)
+        os._exit(0)
 
 
 # Register signal handlers for graceful shutdown
@@ -1073,69 +1082,28 @@ def fetch_historical_messages():
         if not isinstance(enqueue_process, bool):
             return jsonify({"error": "enqueue_process must be a boolean"}), 400
 
-        # Import the historical message fetcher
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-        # Initialize fetcher
         if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
             return jsonify({"error": "Telegram API credentials not configured"}), 500
 
         async def run_historical_fetch():
-            client = None
             try:
-                # Create a temporary client for this operation
-                session_string = db.auth.get_telegram_session()
-                if not session_string:
-                    raise ConnectionError("No active Telegram session found. Please authenticate first.")
-
-                client = TelegramClient(StringSession(session_string), int(TELEGRAM_API_ID), TELEGRAM_API_HASH)
-                await client.connect()
-                if not await client.is_user_authorized():
-                    raise ConnectionError("Telegram session is invalid or expired.")
-
-                fetcher = HistoricalMessageFetcher(db, client, storage_mode="events")
-                # Connect to Telegram
-                if await fetcher.connect_client():
-                    logging.info("Connected to Telegram for historical message fetch")
-
-                    result = await fetcher.fetch_only_result(hours_back)
-                    if enqueue_process and result.get("fetched_count", 0) > 0:
-                        command_id = db.commands.enqueue_command("/process")
-                        result["processing_enqueued"] = True
-                        result["command_id"] = command_id
-                        result["message"] = (
-                            f"Successfully fetched {result.get('fetched_count', 0)} new messages. "
-                            f"Processing command enqueued."
-                        )
-
-                    logging.info(f"Historical message fetch complete: {result}")
-                    return result
-                else:
-                    logging.error("Failed to connect to Telegram for historical fetch")
-                    return {
-                        "fetched_count": 0,
-                        "processed_count": 0,
-                        "duplicates_found": 0,
-                        "duplicates_removed": 0,
-                        "processing_enqueued": False,
-                        "status": "connection_failed"
-                    }
+                scraping_service = get_scraping_service()
+                result = await scraping_service.fetch_historical_messages(
+                    hours_back=hours_back,
+                    enqueue_process=enqueue_process,
+                )
+                logging.info(f"Historical message fetch complete: {result}")
+                return result
             except Exception as e:
                 logging.error(f"Error in historical fetch: {e}")
                 return {
                     "fetched_count": 0,
-                    "processed_count": 0,
-                    "duplicates_found": 0,
-                    "duplicates_removed": 0,
+                    "storage_mode": "events",
                     "processing_enqueued": False,
+                    "command_id": None,
                     "status": "error",
                     "error": str(e)
                 }
-            finally:
-                if client and client.is_connected():
-                    await client.disconnect()
 
         # Run the async function
         loop = asyncio.new_event_loop()
@@ -1148,7 +1116,8 @@ def fetch_historical_messages():
         finally:
             loop.close()
 
-        return jsonify(result)
+        http_status = 500 if result.get("status") == "error" else 200
+        return jsonify(result), http_status
 
     except Exception as e:
         logging.error(f"Failed to fetch historical messages: {e}")

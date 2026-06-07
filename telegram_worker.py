@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Telegram ingestion worker.
 
-Fetches Telegram messages into raw_events and processing_queue only. No LLM
+Fetches Telegram messages into raw_events/processing_queue only. No LLM
 processing and no Google Sheets sync happen here.
 """
 from __future__ import annotations
@@ -13,14 +13,19 @@ from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import (
-    DATABASE_URL, FETCH_INTERVAL_MINUTES, FETCH_LOOKBACK_MINUTES, LOG_LEVEL,
-    TELEGRAM_API_HASH, TELEGRAM_API_ID, TELEGRAM_GROUP_USERNAMES, TELEGRAM_PHONE,
+    DATABASE_URL,
+    FETCH_INTERVAL_MINUTES,
+    FETCH_LOOKBACK_MINUTES,
+    LOG_LEVEL,
+    TELEGRAM_API_HASH,
+    TELEGRAM_API_ID,
+    TELEGRAM_GROUP_USERNAMES,
+    TELEGRAM_PHONE,
 )
 from database import Database, init_database
-from historical_message_fetcher import HistoricalMessageFetcher
 from monitor import TelegramMonitor
-from telethon import TelegramClient
-from telethon.sessions import StringSession
+from services.scraping_service import ScrapingService
+from services.telegram_session import TelegramSessionService
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -45,47 +50,34 @@ def get_db() -> Database:
     return db
 
 
+def get_scraping_service() -> ScrapingService:
+    current_db = get_db()
+    session_service = TelegramSessionService(
+        current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, TELEGRAM_GROUP_USERNAMES
+    )
+    return ScrapingService(current_db, session_service)
+
+
 def request_shutdown(*_args):
     logger.info("Shutdown requested for telegram_worker")
     shutdown_event.set()
 
 
-async def ensure_connected_client(monitor: TelegramMonitor) -> bool:
-    db = get_db()
-    session_string = db.auth.get_telegram_session()
-    if not session_string:
-        logger.warning("No Telegram session found; ingestion skipped.")
-        db.config.set_config("monitoring_status", "stopped")
-        db.auth.set_telegram_login_status("not_authenticated")
-        return False
-
-    if not monitor.client or not monitor.client.is_connected():
-        logger.info("Connecting Telegram client for ingestion fetch...")
-        monitor.client = TelegramClient(StringSession(session_string), monitor.api_id, monitor.api_hash)
-        await monitor.client.connect()
-
-    if not await monitor.client.is_user_authorized():
-        logger.error("Telegram session invalid/expired. Marking not authenticated.")
-        db.config.set_config("monitoring_status", "stopped")
-        db.auth.set_telegram_login_status("not_authenticated")
-        db.auth.set_telegram_session("")
-        return False
-    return True
-
-
 async def scheduled_fetch(monitor: TelegramMonitor) -> int:
-    db = get_db()
-    status = db.config.get_config("monitoring_status")
+    current_db = get_db()
+    status = current_db.config.get_config("monitoring_status")
     if status != "running":
         logger.info("Monitoring is paused (Status: %s). Skipping Telegram fetch.", status)
         return 0
-    if not await ensure_connected_client(monitor):
-        return 0
 
     hours_back = FETCH_LOOKBACK_MINUTES / 60.0
-    fetcher = HistoricalMessageFetcher(db, monitor.client, storage_mode="events")
-    fetched_count = await fetcher.fetch_historical_messages(hours_back=hours_back)
-    logger.info("Telegram fetch ingested %s raw_events.", fetched_count)
+    result = await get_scraping_service().fetch_recent(hours_back=hours_back, client=monitor.client)
+    fetched_count = int(result.get("fetched_count") or 0)
+    logger.info("Telegram fetch result: %s", result)
+    if result.get("status") == "error":
+        raise RuntimeError(result.get("error") or "Telegram fetch failed")
+    if result.get("status") == "not_authenticated":
+        logger.warning("Telegram fetch skipped: not authenticated")
     return fetched_count
 
 
@@ -94,11 +86,12 @@ async def main() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, request_shutdown)
 
+    current_db = get_db()
     monitor = TelegramMonitor(
-        TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, TELEGRAM_GROUP_USERNAMES, db
+        TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, TELEGRAM_GROUP_USERNAMES, current_db
     )
-    if db.config.get_config("monitoring_status") != "running":
-        db.config.set_config("monitoring_status", "running")
+    if current_db.config.get_config("monitoring_status") != "running":
+        current_db.config.set_config("monitoring_status", "running")
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

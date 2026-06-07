@@ -246,47 +246,26 @@ def test_fetch_historical_messages_accepts_string_hours_back(monkeypatch):
     monkeypatch.setattr(web_server, "TELEGRAM_API_HASH", "hash")
     monkeypatch.setattr(web_server, "TELEGRAM_PHONE", "+1000")
 
-    class FakeAuth:
-        def get_telegram_session(self):
-            return "session"
+    class FakeScrapingService:
+        async def fetch_historical_messages(self, hours_back=12, enqueue_process=False):
+            return {
+                "status": "no_new_messages",
+                "fetched_count": 0,
+                "storage_mode": "events",
+                "processing_enqueued": False,
+                "command_id": None,
+                "error": None,
+            }
 
-    class FakeCommands:
-        def enqueue_command(self, command):
-            return 42
-
-    class FakeDB:
-        auth = FakeAuth()
-        commands = FakeCommands()
-
-    class FakeClient:
-        def __init__(self, *args, **kwargs):
-            self._connected = True
-        async def connect(self):
-            return None
-        async def is_user_authorized(self):
-            return True
-        def is_connected(self):
-            return self._connected
-        async def disconnect(self):
-            self._connected = False
-
-    class FakeFetcher:
-        def __init__(self, db, client, storage_mode="messages"):
-            self.storage_mode = storage_mode
-        async def connect_client(self):
-            return True
-        async def fetch_only_result(self, hours_back):
-            return {"fetched_count": 0, "processed_count": 0, "duplicates_found": 0, "duplicates_removed": 0}
-
-    monkeypatch.setattr(web_server, "db", FakeDB())
-    monkeypatch.setattr(web_server, "TelegramClient", FakeClient)
-    monkeypatch.setattr(web_server, "HistoricalMessageFetcher", FakeFetcher, raising=False)
+    monkeypatch.setattr(web_server, "db", object())
+    monkeypatch.setattr(web_server, "get_scraping_service", lambda: FakeScrapingService())
 
     client = web_server.app.test_client()
     resp = client.post("/api/fetch_historical_messages", json={"hours_back": "6", "enqueue_process": False}, headers={"X-API-Key": "test"})
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["hours_back"] == 6.0
+    assert data["status"] == "no_new_messages"
 
 
 def test_fetch_historical_messages_rejects_invalid_hours_back(monkeypatch):
@@ -313,3 +292,37 @@ def test_llm_processor_single_object_json_is_normalized(monkeypatch):
     assert isinstance(jobs, list)
     assert len(jobs) == 1
     assert jobs[0]["company_name"] == "Acme"
+
+
+def test_fetch_historical_messages_returns_500_on_service_error(monkeypatch):
+    import database
+    monkeypatch.setattr(database, "Database", lambda *args, **kwargs: None)
+    import importlib, web_server
+    web_server = importlib.reload(web_server)
+
+    monkeypatch.setattr(web_server, "TELEGRAM_API_ID", "123")
+    monkeypatch.setattr(web_server, "TELEGRAM_API_HASH", "hash")
+    monkeypatch.setattr(web_server, "TELEGRAM_PHONE", "+1000")
+
+    class FakeDB:
+        pass
+
+    class FakeScrapingService:
+        async def fetch_historical_messages(self, hours_back=12, enqueue_process=False):
+            return {
+                "status": "error",
+                "fetched_count": 0,
+                "storage_mode": "events",
+                "processing_enqueued": False,
+                "command_id": None,
+                "error": "backend failed",
+            }
+
+    monkeypatch.setattr(web_server, "db", FakeDB())
+    monkeypatch.setattr(web_server, "get_scraping_service", lambda: FakeScrapingService())
+
+    client = web_server.app.test_client()
+    resp = client.post("/api/fetch_historical_messages", json={"hours_back": "6"}, headers={"X-API-Key": "test"})
+
+    assert resp.status_code == 500
+    assert resp.get_json()["status"] == "error"

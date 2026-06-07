@@ -13,10 +13,11 @@ from datetime import datetime
 from database import Database, init_database
 from llm_processor import LLMProcessor
 from sheets_sync import GoogleSheetsSync
-from historical_message_fetcher import HistoricalMessageFetcher
 from monitor import TelegramMonitor
 from message_utils import log_execution
 from services.processing_service import ProcessingService
+from services.scraping_service import ScrapingService
+from services.telegram_session import TelegramSessionService
 
 # --- Logging Setup ---
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
@@ -46,6 +47,13 @@ llm_processor = None
 scheduler = AsyncIOScheduler()
 sheets_sync = None
 _processing_service = None
+
+
+def get_scraping_service():
+    current_db = get_db()
+    session_service = TelegramSessionService(current_db, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE)
+    return ScrapingService(current_db, session_service)
+
 
 
 def get_db():
@@ -119,15 +127,12 @@ def cleanup_bot_instance():
 @log_execution
 async def safety_net_fetch(monitor, context):
     """Hourly check for missed messages"""
-    from historical_message_fetcher import HistoricalMessageFetcher
-
     current_db = get_db()
-    # Your monitor's client
-    fetcher = HistoricalMessageFetcher(current_db, monitor.client, storage_mode="events")
-    result = await fetcher.fetch_historical_messages(hours_back=6)
+    scraper = get_scraping_service()
+    result = await scraper.fetch_historical_messages(hours_back=6, enqueue_process=False, client=monitor.client)
 
-    if result > 0:
-        logger.warning(f"⚠️ Safety net caught {result} missed messages!")
+    if result.get("fetched_count", 0) > 0:
+        logger.warning(f"⚠️ Safety net caught {result.get('fetched_count', 0)} missed messages!")
 
 @log_execution
 async def daily_deep_fetch(monitor, context):
@@ -137,19 +142,18 @@ async def daily_deep_fetch(monitor, context):
     Any duplicates will be handled by the database constraint (ON CONFLICT DO NOTHING),
     so this is safe to run repeatedly.
     """
-    
-    logger.info("🕵️ Starting daily downtime recovery fetch (Last 72 hours)...")
-    
-    current_db = get_db()
-    # Your monitor's client
-    fetcher = HistoricalMessageFetcher(current_db, monitor.client, storage_mode="events")
-    
-    # 72 hours = 3 days coverage
-    result = await fetcher.fetch_historical_messages(hours_back=72)
 
-    logger.info(f"✅ Daily recovery fetch complete. Retrieved {result} messages.")
-    
-    if result > 0:
+    logger.info("🕵️ Starting daily downtime recovery fetch (Last 72 hours)...")
+
+    current_db = get_db()
+    scraper = get_scraping_service()
+
+    # 72 hours = 3 days coverage
+    result = await scraper.fetch_historical_messages(hours_back=72, enqueue_process=False, client=monitor.client)
+
+    logger.info(f"✅ Daily recovery fetch complete. Retrieved {result.get('fetched_count', 0)} messages.")
+
+    if result.get("fetched_count", 0) > 0:
         logger.info("Recovered messages were ingested as raw_events for processor_worker.")
 
 @log_execution
@@ -169,7 +173,6 @@ async def scheduled_fetch_and_process(monitor):
     Replaces continuous monitoring with robust polling.
     """
     current_db = get_db()
-    # Check if monitoring is enabled
     status = current_db.config.get_config('monitoring_status')
     if status != 'running':
         logger.info(f"⏸️ Monitoring is paused (Status: {status}). Skipping scheduled fetch.")
@@ -177,40 +180,13 @@ async def scheduled_fetch_and_process(monitor):
 
     logger.info("🕒 Starting scheduled fetch cycle...")
 
-    # 1. Fetch recent messages (last 10 minutes to be safe)
     try:
-        session_string = current_db.auth.get_telegram_session()
-        if not session_string:
-            logger.warning("No Telegram session found. Skipping fetch.")
-            # Ensure DB reflects reality
-            current_db.config.set_config('monitoring_status', 'stopped')
-            current_db.auth.set_telegram_login_status('not_authenticated')
-            
-            return
-
-        if not monitor.client or not monitor.client.is_connected():
-            logger.info("Connecting Telegram client for scheduled fetch...")
-            from telethon import TelegramClient
-            from telethon.sessions import StringSession
-            monitor.client = TelegramClient(StringSession(session_string), monitor.api_id, monitor.api_hash)
-            await monitor.client.connect()
-
-        if not await monitor.client.is_user_authorized():
-            logger.error("Telegram session invalid/expired. Updating database to reflect dropped auth.")
-            current_db.config.set_config('monitoring_status', 'stopped')
-            current_db.auth.set_telegram_login_status('not_authenticated')
-            current_db.auth.set_telegram_session('')
-            
-            return
-
+        scraper = get_scraping_service()
         logger.info("Fetching messages from last 10 minutes...")
-        # Fetch last N minutes (configured)
         hours_back = FETCH_LOOKBACK_MINUTES / 60.0
         logger.info(f"Fetching messages from last {FETCH_LOOKBACK_MINUTES} minutes ({hours_back:.2f} hours)...")
-        fetcher = HistoricalMessageFetcher(current_db, monitor.client, storage_mode="events")
-        fetched_count = await fetcher.fetch_historical_messages(hours_back=hours_back)
-        logger.info(f"✅ Scheduled fetch retrieved {fetched_count} messages.")
-
+        result = await scraper.fetch_historical_messages(hours_back=hours_back, enqueue_process=False, client=monitor.client)
+        logger.info(f"✅ Scheduled fetch retrieved {result.get('fetched_count', 0)} messages.")
     except Exception as e:
         logger.error(f"❌ Error during scheduled fetch: {e}", exc_info=True)
 
