@@ -55,7 +55,8 @@ def get_db_connection(pool):
         logging.error(f"Database connection error: {e}")
         raise
     finally:
-        pool.putconn(connection)
+        if connection is not None:
+            pool.putconn(connection)
 
 def init_database(pool):
     """Initialize all required tables in Supabase"""

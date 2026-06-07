@@ -16,11 +16,11 @@ def verify():
         cur = conn.cursor()
         for table in ['raw_events', 'processing_queue', 'jobs']:
             cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name=%s)", (table,))
-            exists = cur.fetchone()[0]
+            exists = cur.fetchone()['exists']
             logger.info(f"Table {table}: {'✓' if exists else '✗ MISSING'}")
         for col in ['confidence_score', 'job_fingerprint', 'normalized_role', 'search_vector', 'source_event_id']:
             cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='jobs' AND column_name=%s)", (col,))
-            exists = cur.fetchone()[0]
+            exists = cur.fetchone()['exists']
             logger.info(f" jobs.{col}: {'✓' if exists else '✗ MISSING'}")
         cur.close()
     finally:

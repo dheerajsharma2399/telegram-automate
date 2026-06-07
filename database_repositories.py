@@ -5,6 +5,7 @@ Refactored to use UnifiedJobRepository for the unified 'jobs' table.
 """
 import logging
 import json
+import hashlib
 from contextlib import contextmanager
 from typing import List, Dict, Optional, Union
 import psycopg2
@@ -477,8 +478,23 @@ class UnifiedJobRepository(BaseRepository):
         if 'sheet_name' in job_data:
             metadata['original_sheet'] = job_data['sheet_name']
 
+        job_id = job_data.get('job_id')
+        if not job_id:
+            if job_data.get('message_id'):
+                job_id = f"{source}_{job_data.get('message_id')}"
+            elif job_data.get('source_event_id'):
+                job_id = f"{source}_event_{job_data.get('source_event_id')}"
+            elif job_data.get('job_fingerprint'):
+                job_id = f"{source}_fingerprint_{job_data.get('job_fingerprint')}"
+            else:
+                fingerprint_source = "|".join(str(job_data.get(key) or "") for key in (
+                    'company_name', 'job_role', 'application_link', 'jd_text'
+                ))
+                digest = hashlib.sha256(fingerprint_source.encode('utf-8')).hexdigest()[:16]
+                job_id = f"{source}_generated_{digest}"
+
         values = (
-            job_data.get('job_id'),
+            job_id,
             source,
             job_data.get('status', 'not_applied' if source == 'manual' else 'pending'),
             job_data.get('company_name'),
