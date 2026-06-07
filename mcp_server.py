@@ -141,9 +141,13 @@ def get_new_jobs(
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True})
-def fetch_historical_messages(hours_back: float = 12) -> Dict[str, Any]:
-    """Fetch recent Telegram messages through the API and process them into jobs."""
-    return api_request("POST", "/api/fetch_historical_messages", body={"hours_back": hours_back})
+def fetch_historical_messages(hours_back: float = 12, enqueue_process: bool = True) -> Dict[str, Any]:
+    """Fetch recent Telegram messages through the API, optionally enqueueing processing."""
+    return api_request(
+        "POST",
+        "/api/fetch_historical_messages",
+        body={"hours_back": hours_back, "enqueue_process": enqueue_process},
+    )
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True})

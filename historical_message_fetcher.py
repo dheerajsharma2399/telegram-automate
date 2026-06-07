@@ -243,13 +243,58 @@ class HistoricalMessageFetcher:
             return 0
 
     @log_execution
+    async def fetch_only_result(self, hours_back: int = 12) -> dict:
+        """
+        Fetch historical messages without enqueueing downstream processing.
+
+        Args:
+            hours_back: Number of hours to look back (default: 12)
+
+        Returns:
+            Dictionary with fetch results and queue status.
+        """
+        try:
+            logger.info(f"🚀 Starting historical fetch-only run for {hours_back} hours")
+
+            fetched_count = await self.fetch_historical_messages(hours_back)
+            unprocessed_count = self.db.messages.get_unprocessed_count()
+
+            if fetched_count == 0:
+                return {
+                    "fetched_count": 0,
+                    "unprocessed_count": unprocessed_count,
+                    "status": "no_new_messages",
+                    "processing_enqueued": False,
+                    "message": "No new messages found in the specified time range",
+                }
+
+            return {
+                "fetched_count": fetched_count,
+                "unprocessed_count": unprocessed_count,
+                "status": "success",
+                "processing_enqueued": False,
+                "message": f"Successfully fetched {fetched_count} new messages.",
+                "detail": f"Total unprocessed messages in queue: {unprocessed_count}",
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error in historical fetch-only run: {e}")
+            return {
+                "fetched_count": 0,
+                "status": "error",
+                "processing_enqueued": False,
+                "error": str(e),
+                "message": "Failed to fetch historical messages",
+            }
+
+    @log_execution
     async def fetch_and_process_historical_messages(self, hours_back: int = 12) -> dict:
         """
         Enhanced method: Fetch historical messages AND queue them for processing
-        
+
         Args:
             hours_back: Number of hours to look back (default: 12)
-            
+
         Returns:
             Dictionary with fetch results and processing status
         """
@@ -263,6 +308,7 @@ class HistoricalMessageFetcher:
                 return {
                     "fetched_count": 0,
                     "status": "no_new_messages",
+                    "processing_enqueued": False,
                     "message": "No new messages found in the specified time range"
                 }
 
@@ -278,6 +324,7 @@ class HistoricalMessageFetcher:
                 "fetched_count": fetched_count,
                 "unprocessed_count": unprocessed_count,
                 "status": "success",
+                "processing_enqueued": True,
                 "command_id": command_id,
                 "message": f"Successfully fetched {fetched_count} new messages. Processing command enqueued.",
                 "detail": f"Total unprocessed messages in queue: {unprocessed_count}"
@@ -288,6 +335,7 @@ class HistoricalMessageFetcher:
             return {
                 "fetched_count": 0,
                 "status": "error",
+                "processing_enqueued": False,
                 "error": str(e),
                 "message": "Failed to fetch historical messages"
             }

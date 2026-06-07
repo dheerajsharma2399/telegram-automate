@@ -1065,33 +1065,36 @@ def api_telegram_status():
 @app.route("/api/fetch_historical_messages", methods=["POST"])
 @require_api_key
 def fetch_historical_messages():
-    """Fetch historical messages from Telegram groups AND process them with duplicate removal"""
+    """Fetch historical messages from Telegram groups, optionally enqueueing processing."""
     try:
         data = request.get_json(force=True) or {}
         hours_back = data.get('hours_back', 12)  # Default to 12 hours
-        
+        enqueue_process = data.get('enqueue_process', True)
+
         if hours_back < 0.1 or hours_back > 168:
             return jsonify({"error": "hours_back must be between 0.1 and 168"}), 400
-        
+        if not isinstance(enqueue_process, bool):
+            return jsonify({"error": "enqueue_process must be a boolean"}), 400
+
         # Import the historical message fetcher
         import sys
         import os
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-        
+
         from historical_message_fetcher import HistoricalMessageFetcher
-        
+
         # Initialize fetcher
         if not all([TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE]):
             return jsonify({"error": "Telegram API credentials not configured"}), 500
-        
-        async def run_enhanced_fetch():
+
+        async def run_historical_fetch():
             client = None
             try:
                 # Create a temporary client for this operation
                 session_string = db.auth.get_telegram_session()
                 if not session_string:
                     raise ConnectionError("No active Telegram session found. Please authenticate first.")
-                
+
                 client = TelegramClient(StringSession(session_string), int(TELEGRAM_API_ID), TELEGRAM_API_HASH)
                 await client.connect()
                 if not await client.is_user_authorized():
@@ -1100,29 +1103,33 @@ def fetch_historical_messages():
                 fetcher = HistoricalMessageFetcher(db, client)
                 # Connect to Telegram
                 if await fetcher.connect_client():
-                    logging.info("Connected to Telegram for enhanced historical message fetch")
-                    
-                    # Fetch, process, and deduplicate messages
-                    result = await fetcher.fetch_and_process_historical_messages(hours_back)
-                    
-                    logging.info(f"Enhanced historical message process complete: {result}")
+                    logging.info("Connected to Telegram for historical message fetch")
+
+                    if enqueue_process:
+                        result = await fetcher.fetch_and_process_historical_messages(hours_back)
+                    else:
+                        result = await fetcher.fetch_only_result(hours_back)
+
+                    logging.info(f"Historical message fetch complete: {result}")
                     return result
                 else:
-                    logging.error("Failed to connect to Telegram for enhanced historical fetch")
+                    logging.error("Failed to connect to Telegram for historical fetch")
                     return {
                         "fetched_count": 0,
                         "processed_count": 0,
                         "duplicates_found": 0,
                         "duplicates_removed": 0,
+                        "processing_enqueued": False,
                         "status": "connection_failed"
                     }
             except Exception as e:
-                logging.error(f"Error in enhanced historical fetch: {e}")
+                logging.error(f"Error in historical fetch: {e}")
                 return {
                     "fetched_count": 0,
                     "processed_count": 0,
                     "duplicates_found": 0,
                     "duplicates_removed": 0,
+                    "processing_enqueued": False,
                     "status": "error",
                     "error": str(e)
                 }
@@ -1134,9 +1141,10 @@ def fetch_historical_messages():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(run_enhanced_fetch())
-            # Ensure hours_back is always in the result for the frontend
+            result = loop.run_until_complete(run_historical_fetch())
+            # Ensure request parameters are always in the result for the frontend
             result['hours_back'] = hours_back
+            result['enqueue_process'] = enqueue_process
         finally:
             loop.close()
 
