@@ -7,7 +7,7 @@ so authorization, validation, and business rules remain centralized there.
 """
 import json
 import os
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from urllib import error, parse, request
 
 from fastmcp import FastMCP
@@ -98,6 +98,7 @@ def list_jobs(
     include_archived: bool = False,
     sort_by: SortBy = "created_at",
     sort_order: SortOrder = "DESC",
+    source: Optional[str] = None,
 ) -> Dict[str, Any]:
     """List dashboard jobs with pagination and filters."""
     return api_request(
@@ -113,6 +114,7 @@ def list_jobs(
             "include_archived": _bool_param(include_archived),
             "sort_by": sort_by,
             "sort_order": sort_order,
+            "source": source,
         },
     )
 
@@ -123,6 +125,7 @@ def get_new_jobs(
     has_email: Optional[bool] = None,
     status: Optional[str] = None,
     relevance: Optional[JobRelevance] = None,
+    source: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Fetch the newest dashboard jobs, sorted by updated_at descending."""
     return api_request(
@@ -136,8 +139,83 @@ def get_new_jobs(
             "has_email": _bool_param(has_email),
             "sort_by": "updated_at",
             "sort_order": "DESC",
+            "source": source,
         },
     )
+
+
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+def search_leads(
+    role: Optional[str] = None,
+    role_category: Optional[str] = None,
+    source: Optional[str] = None,
+    has_email: Optional[bool] = None,
+    has_link: Optional[bool] = None,
+    location_hint: Optional[str] = None,
+    confidence_min: Optional[float] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    keywords: Optional[str] = None,
+    limit: int = 50,
+    page: int = 1,
+) -> Dict[str, Any]:
+    """Search parsed leads with filters and full-text search keywords."""
+    return api_request(
+        "GET",
+        "/api/leads/search",
+        {
+            "keywords": keywords,
+            "source": source,
+            "role": role,
+            "role_category": role_category,
+            "has_email": _bool_param(has_email),
+            "has_link": _bool_param(has_link),
+            "location_hint": location_hint,
+            "confidence_min": confidence_min,
+            "date_from": date_from,
+            "date_to": date_to,
+            "page": page,
+            "page_size": limit,
+        },
+    )
+
+
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+def get_lead(lead_id: str) -> Dict[str, Any]:
+    """Get full detail for a single lead."""
+    return api_request("GET", f"/api/leads/{lead_id}")
+
+
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+def get_stats() -> Dict[str, Any]:
+    """Leads by source, by role, by date. No user-specific data."""
+    return api_request("GET", "/api/leads/stats")
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True})
+def scrape_linkedin(roles: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Trigger LinkedIn scraper. Returns enqueued action details."""
+    import typing
+    return api_request("POST", "/api/scraper/trigger", body={"action": "scrape_linkedin", "roles": roles})
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True})
+def fetch_telegram(hours_back: float = 12) -> Dict[str, Any]:
+    """Fetch recent Telegram messages. Returns enqueued action details."""
+    return api_request("POST", "/api/scraper/trigger", body={"action": "fetch_telegram", "hours_back": hours_back})
+
+
+@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+def get_queue_status() -> Dict[str, Any]:
+    """raw_events pending, processing, failed counts."""
+    stats = api_request("GET", "/api/leads/stats")
+    return stats.get("queue_status", {})
+
+
+@mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True})
+def retry_failed(limit: int = 10) -> Dict[str, Any]:
+    """Re-queue failed events for retry."""
+    return api_request("POST", "/api/queue/retry_failed", body={"limit": limit})
 
 
 @mcp.tool(annotations={"readOnlyHint": False, "idempotentHint": False, "openWorldHint": True})

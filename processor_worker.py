@@ -135,14 +135,21 @@ async def process_queue_batch(batch_size: int = BATCH_SIZE, worker_id: str = "pr
                 processed_data["source_event_id"] = event_id
                 processed_data["raw_message_id"] = None
 
-                duplicate_job = db.jobs.find_duplicate_processed_job(
-                    processed_data.get("company_name"),
-                    processed_data.get("job_role"),
-                    processed_data.get("email"),
-                )
+                from deduper import DedupAgent, make_fingerprint, simhash
+                dedup_agent = DedupAgent(db)
+                if not processed_data.get("job_fingerprint"):
+                    processed_data["job_fingerprint"] = make_fingerprint(
+                        processed_data.get("company_name"),
+                        processed_data.get("job_role"),
+                        processed_data.get("location"),
+                    )
+                if processed_data.get("jd_text"):
+                    processed_data["simhash"] = simhash(processed_data["jd_text"])
+                duplicate_job, dedup_method = dedup_agent.find_duplicate(processed_data)
                 if duplicate_job:
                     logger.info(
-                        "Duplicate job found for '%s' - '%s'. Original job ID: %s. Skipping.",
+                        "Duplicate job found via %s for '%s' - '%s'. Original job ID: %s. Skipping.",
+                        dedup_method,
                         processed_data.get("company_name"),
                         processed_data.get("job_role"),
                         duplicate_job.get("job_id"),
@@ -193,6 +200,36 @@ async def poll_commands_loop() -> None:
                             await get_processing_service().sync_sheets_automatically()
                             executed_ok = True
                             result_text = "Sync triggered successfully"
+                        elif text.startswith("/scrape_linkedin"):
+                            def scrape_task():
+                                from scrapers.linkedin.cdp_client import CDPClient
+                                from scrapers.linkedin.post_scraper import LinkedInPostScraper
+                                from scrapers.linkedin.job_scraper import LinkedInJobScraper
+                                cdp = CDPClient()
+                                cdp.connect()
+                                try:
+                                    post_scraper = LinkedInPostScraper(cdp, db)
+                                    post_scraper.scrape()
+                                    job_scraper = LinkedInJobScraper(cdp, db)
+                                    job_scraper.scrape()
+                                finally:
+                                    cdp.close()
+                            await asyncio.to_thread(scrape_task)
+                            executed_ok = True
+                            result_text = "LinkedIn scraping triggered successfully"
+                        elif text.startswith("/fetch_telegram"):
+                            from services.scraping_service import build_scraping_service
+                            from config import TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE, TELEGRAM_GROUP_USERNAMES
+                            scraping_service = build_scraping_service(
+                                db,
+                                TELEGRAM_API_ID,
+                                TELEGRAM_API_HASH,
+                                TELEGRAM_PHONE,
+                                TELEGRAM_GROUP_USERNAMES
+                            )
+                            res = await scraping_service.fetch_recent(hours_back=12)
+                            executed_ok = res.get("status") != "error"
+                            result_text = f"Telegram fetch completed: {res.get('fetched_count', 0)} messages. Status: {res.get('status')}"
                         elif text.startswith("/export"):
                             executed_ok = True
                             result_text = "Export handled via API"

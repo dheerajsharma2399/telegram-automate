@@ -53,14 +53,21 @@ class ProcessingService:
         for job_data in parsed_jobs:
             try:
                 processed_data = self.llm_processor.process_job_data(job_data, message_id)
-                duplicate_job = self.db.jobs.find_duplicate_processed_job(
-                    processed_data.get("company_name"),
-                    processed_data.get("job_role"),
-                    processed_data.get("email"),
-                )
+                from deduper import DedupAgent, make_fingerprint, simhash
+                dedup_agent = DedupAgent(self.db)
+                if not processed_data.get("job_fingerprint"):
+                    processed_data["job_fingerprint"] = make_fingerprint(
+                        processed_data.get("company_name"),
+                        processed_data.get("job_role"),
+                        processed_data.get("location"),
+                    )
+                if processed_data.get("jd_text"):
+                    processed_data["simhash"] = simhash(processed_data["jd_text"])
+                duplicate_job, dedup_method = dedup_agent.find_duplicate(processed_data)
                 if duplicate_job:
                     logger.info(
-                        "Duplicate job found for '%s' - '%s'. Original job ID: %s. Skipping.",
+                        "Duplicate job found via %s for '%s' - '%s'. Original job ID: %s. Skipping.",
+                        dedup_method,
                         processed_data.get("company_name"),
                         processed_data.get("job_role"),
                         duplicate_job["job_id"],

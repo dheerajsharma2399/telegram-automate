@@ -162,6 +162,7 @@ def init_database(pool):
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS poster_url TEXT")
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS post_url TEXT")
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_event_id INTEGER REFERENCES raw_events(id)")
+                cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS simhash BIGINT")
                 cursor.execute("""
             DO $$
             BEGIN
@@ -196,6 +197,7 @@ def init_database(pool):
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_fingerprint ON jobs(job_fingerprint)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_normalized_role ON jobs(normalized_role)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_confidence ON jobs(confidence_score)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_jobs_simhash ON jobs(simhash)")
 
                 # Add apply_runs table
                 cursor.execute("""

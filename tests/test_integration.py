@@ -54,6 +54,8 @@ class TestMessageProcessingPipeline(unittest.TestCase):
         mock_db.messages.reset_stuck_processing_messages.return_value = 0
         mock_db.messages.update_message_status.return_value = None
         mock_db.jobs.find_duplicate_processed_job.return_value = None
+        mock_db.jobs.search_by_fingerprint.return_value = None
+        mock_db.jobs.search_by_email.return_value = None
         mock_db.jobs.add_processed_job.return_value = 'test_123'
         mock_db.jobs.get_unsynced_jobs.return_value = []
 
@@ -237,6 +239,7 @@ def test_processor_worker_sync_sheets_command_marks_done(monkeypatch):
 
 def test_fetch_historical_messages_accepts_string_hours_back(monkeypatch):
     """API accepts JSON numeric strings for hours_back and reports coerced value."""
+    monkeypatch.setenv("API_KEY", "test")
     import database
     monkeypatch.setattr(database, "Database", lambda *args, **kwargs: None)
     import importlib, web_server
@@ -269,6 +272,7 @@ def test_fetch_historical_messages_accepts_string_hours_back(monkeypatch):
 
 
 def test_fetch_historical_messages_rejects_invalid_hours_back(monkeypatch):
+    monkeypatch.setenv("API_KEY", "test")
     import database
     monkeypatch.setattr(database, "Database", lambda *args, **kwargs: None)
     import importlib, web_server
@@ -295,6 +299,7 @@ def test_llm_processor_single_object_json_is_normalized(monkeypatch):
 
 
 def test_fetch_historical_messages_returns_500_on_service_error(monkeypatch):
+    monkeypatch.setenv("API_KEY", "test")
     import database
     monkeypatch.setattr(database, "Database", lambda *args, **kwargs: None)
     import importlib, web_server

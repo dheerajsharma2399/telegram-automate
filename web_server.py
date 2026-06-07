@@ -482,9 +482,11 @@ def api_advanced_sheets_sync():
 # ===============================================
 
 @app.route("/api/dashboard/jobs", methods=["GET"])
+@require_api_key
 def get_dashboard_jobs():
     """Get all dashboard jobs with optional filtering"""
     try:
+        source_filter = request.args.get('source')
         status_filter = request.args.get('status')
         relevance_filter = request.args.get('relevance')
         job_role_filter = request.args.get('job_role')
@@ -503,6 +505,7 @@ def get_dashboard_jobs():
         
         # Correctly call the repository method
         result = db.jobs.get_dashboard_jobs(
+            source=source_filter,
             status_filter=status_filter,
             relevance_filter=relevance_filter,
             job_role_filter=job_role_filter,
@@ -1122,6 +1125,144 @@ def fetch_historical_messages():
 
     except Exception as e:
         logging.error(f"Failed to fetch historical messages: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/leads/search", methods=["GET"])
+@require_api_key
+def api_leads_search():
+    """Search parsed leads with full-text search and filters."""
+    try:
+        keywords = request.args.get("keywords")
+        page = request.args.get("page", 1, type=int)
+        page_size = request.args.get("page_size", 50, type=int)
+        
+        has_email = None
+        if request.args.get("has_email"):
+            has_email = request.args.get("has_email").lower() == "true"
+            
+        has_link = None
+        if request.args.get("has_link"):
+            has_link = request.args.get("has_link").lower() == "true"
+            
+        filters = {
+            "source": request.args.get("source"),
+            "role_category": request.args.get("role_category") or request.args.get("role"),
+            "has_email": has_email,
+            "has_link": has_link,
+            "location_hint": request.args.get("location_hint"),
+            "confidence_min": request.args.get("confidence_min", type=float),
+            "date_from": request.args.get("date_from"),
+            "date_to": request.args.get("date_to"),
+        }
+        
+        result = db.jobs.search_fulltext(
+            query=keywords,
+            filters=filters,
+            page=page,
+            page_size=page_size
+        )
+        return jsonify(result)
+    except Exception as e:
+        logging.error(f"Leads search endpoint failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/leads/<string:lead_id>", methods=["GET"])
+@require_api_key
+def api_get_lead(lead_id):
+    """Retrieve details for a single lead."""
+    try:
+        # Convert numeric ID to int if appropriate, otherwise keep string (e.g. linkedin_123)
+        try:
+            val_id = int(lead_id)
+        except ValueError:
+            val_id = lead_id
+            
+        lead = db.jobs.get_job_by_id(val_id)
+        if not lead:
+            return jsonify({"error": "Lead not found"}), 404
+        return jsonify(lead)
+    except Exception as e:
+        logging.error(f"Retrieve lead failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/leads/stats", methods=["GET"])
+@require_api_key
+def api_leads_stats():
+    """Retrieve aggregate statistics about leads."""
+    try:
+        base_stats = db.jobs.get_stats()
+        
+        # Add source statistics breakdown
+        with db.get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT source, COUNT(*) as count 
+                    FROM jobs 
+                    WHERE is_hidden = FALSE 
+                    GROUP BY source
+                """)
+                source_counts = {row["source"] or "unknown": row["count"] for row in cursor.fetchall()}
+                
+                # Add queue stats
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) FILTER (WHERE status = 'unprocessed') as pending_events,
+                        COUNT(*) FILTER (WHERE status = 'processing') as processing_events,
+                        COUNT(*) FILTER (WHERE status = 'failed') as failed_events
+                    FROM raw_events
+                """)
+                queue_row = cursor.fetchone()
+                queue_stats = {
+                    "pending": queue_row["pending_events"] or 0,
+                    "processing": queue_row["processing_events"] or 0,
+                    "failed": queue_row["failed_events"] or 0,
+                }
+                
+        base_stats["by_source"] = source_counts
+        base_stats["queue_status"] = queue_stats
+        return jsonify(base_stats)
+    except Exception as e:
+        logging.error(f"Stats retrieval failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/scraper/trigger", methods=["POST"])
+@require_api_key
+def api_scraper_trigger():
+    """Trigger background LinkedIn or Telegram scraping tasks."""
+    try:
+        data = request.get_json(force=True) or {}
+        action = data.get("action")
+        if not action:
+            return jsonify({"error": "Missing 'action' parameter"}), 400
+            
+        if action == "scrape_linkedin":
+            cmd_id = db.commands.enqueue_command("/scrape_linkedin")
+            return jsonify({"status": "enqueued", "command_id": cmd_id, "message": "LinkedIn scraper queued"})
+        elif action == "fetch_telegram":
+            cmd_id = db.commands.enqueue_command("/fetch_telegram")
+            return jsonify({"status": "enqueued", "command_id": cmd_id, "message": "Telegram fetch queued"})
+        else:
+            return jsonify({"error": f"Unsupported action: {action}"}), 400
+    except Exception as e:
+        logging.error(f"Scraper trigger failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/queue/retry_failed", methods=["POST"])
+@require_api_key
+def api_queue_retry_failed():
+    """Retry failed queue items up to limit."""
+    try:
+        data = request.get_json(force=True) or {}
+        limit = data.get("limit", 10)
+        retried_count = db.queue.retry_failed(limit)
+        return jsonify({"status": "success", "retried_count": retried_count})
+    except Exception as e:
+        logging.error(f"Queue retry failed endpoint failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 

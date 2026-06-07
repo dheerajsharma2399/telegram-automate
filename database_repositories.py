@@ -452,8 +452,8 @@ class UnifiedJobRepository(BaseRepository):
                 is_hidden, is_duplicate, duplicate_of_id, confidence_score, extraction_method,
                 job_fingerprint, normalized_role, role_category, experience_hint, location_hint,
                 contact_method, poster_name, poster_url, post_url, source_event_id, job_relevance,
-                metadata, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                metadata, simhash, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             ON CONFLICT (job_id) DO UPDATE SET
                 status = EXCLUDED.status,
                 company_name = COALESCE(EXCLUDED.company_name, jobs.company_name),
@@ -480,6 +480,7 @@ class UnifiedJobRepository(BaseRepository):
                 source_event_id = COALESCE(EXCLUDED.source_event_id, jobs.source_event_id),
                 job_relevance = COALESCE(EXCLUDED.job_relevance, jobs.job_relevance),
                 metadata = jobs.metadata || EXCLUDED.metadata,
+                simhash = COALESCE(EXCLUDED.simhash, jobs.simhash),
                 updated_at = NOW()
             RETURNING id
         """
@@ -535,7 +536,8 @@ class UnifiedJobRepository(BaseRepository):
             job_data.get('post_url'),
             job_data.get('source_event_id'),
             job_data.get('job_relevance', 'relevant'),
-            Json(metadata)
+            Json(metadata),
+            job_data.get('simhash')
         )
 
         if cursor:
@@ -809,13 +811,18 @@ class UnifiedJobRepository(BaseRepository):
                 result = cursor.fetchone()
                 return dict(result) if result else None
 
-    def search_fulltext(self, query: str, filters=None, page: int = 1, page_size: int = 50) -> Dict:
+    def search_fulltext(self, query: Optional[str] = None, filters=None, page: int = 1, page_size: int = 50) -> Dict:
         """Full-text search over jobs."""
         filters = filters or {}
         with self.get_connection() as conn:
             with conn.cursor() as cursor:
-                where_clauses = ["search_vector @@ plainto_tsquery('english', %s)"]
-                params = [query]
+                where_clauses = []
+                params = []
+                if query:
+                    where_clauses.append("search_vector @@ plainto_tsquery('english', %s)")
+                    params.append(query)
+                else:
+                    where_clauses.append("1=1")
                 if filters.get('source'):
                     where_clauses.append("source = %s")
                     params.append(filters['source'])
@@ -826,6 +833,10 @@ class UnifiedJobRepository(BaseRepository):
                     where_clauses.append("email IS NOT NULL AND email != ''")
                 elif filters.get('has_email') is False:
                     where_clauses.append("(email IS NULL OR email = '')")
+                if filters.get('has_link') is True:
+                    where_clauses.append("application_link IS NOT NULL AND application_link != ''")
+                elif filters.get('has_link') is False:
+                    where_clauses.append("(application_link IS NULL OR application_link = '')")
                 if filters.get('location_hint'):
                     where_clauses.append("location_hint ILIKE %s")
                     params.append(f"%{filters['location_hint']}%")
@@ -903,8 +914,10 @@ class UnifiedJobRepository(BaseRepository):
         
         # New: Support filtering by email presence
         has_email = kwargs.get('has_email')
+        source = kwargs.get('source')
 
         return self.get_jobs(
+            source=source,
             status=status_filter,
             relevance=relevance_filter,
             job_role=job_role_filter,

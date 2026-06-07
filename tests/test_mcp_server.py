@@ -54,12 +54,20 @@ class TestFastMcpServerRegistration(unittest.TestCase):
         self.assertIn("process_queue", tool_names)
         self.assertIn("sync_sheets", tool_names)
         self.assertIn("get_status", tool_names)
+        self.assertIn("search_leads", tool_names)
+        self.assertIn("get_lead", tool_names)
+        self.assertIn("get_stats", tool_names)
+        self.assertIn("scrape_linkedin", tool_names)
+        self.assertIn("fetch_telegram", tool_names)
+        self.assertIn("get_queue_status", tool_names)
+        self.assertIn("retry_failed", tool_names)
 
     def test_read_tools_have_read_only_annotations(self):
         tools = {tool["name"]: tool for tool in self.mcp_server.mcp.registered_tools}
 
         self.assertTrue(tools["get_new_jobs"]["kwargs"]["annotations"]["readOnlyHint"])
         self.assertTrue(tools["list_jobs"]["kwargs"]["annotations"]["readOnlyHint"])
+        self.assertTrue(tools["search_leads"]["kwargs"]["annotations"]["readOnlyHint"])
         self.assertFalse(tools["fetch_historical_messages"]["kwargs"]["annotations"]["readOnlyHint"])
 
 
@@ -71,7 +79,7 @@ class TestMcpToolRouting(unittest.TestCase):
     def test_get_new_jobs_routes_to_dashboard_jobs_sorted_by_updated_at(self, mock_api_request):
         mock_api_request.return_value = {"jobs": []}
 
-        result = self.mcp_server.get_new_jobs(limit=25, has_email=False)
+        result = self.mcp_server.get_new_jobs(limit=25, has_email=False, source="linkedin")
 
         self.assertEqual(result, {"jobs": []})
         mock_api_request.assert_called_once_with(
@@ -85,6 +93,7 @@ class TestMcpToolRouting(unittest.TestCase):
                 "has_email": "false",
                 "sort_by": "updated_at",
                 "sort_order": "DESC",
+                "source": "linkedin",
             },
         )
 
@@ -102,6 +111,7 @@ class TestMcpToolRouting(unittest.TestCase):
             include_archived=True,
             sort_by="company_name",
             sort_order="ASC",
+            source="telegram",
         )
 
         mock_api_request.assert_called_once_with(
@@ -117,8 +127,63 @@ class TestMcpToolRouting(unittest.TestCase):
                 "include_archived": "true",
                 "sort_by": "company_name",
                 "sort_order": "ASC",
+                "source": "telegram",
             },
         )
+
+    @patch("mcp_server.api_request")
+    def test_search_leads_routes_correctly(self, mock_api_request):
+        mock_api_request.return_value = {"jobs": []}
+        self.mcp_server.search_leads(
+            role="AI Engineer",
+            source="linkedin",
+            has_email=True,
+            keywords="python fastmcp",
+            limit=20,
+            page=1
+        )
+        mock_api_request.assert_called_once_with(
+            "GET",
+            "/api/leads/search",
+            {
+                "keywords": "python fastmcp",
+                "source": "linkedin",
+                "role": "AI Engineer",
+                "role_category": None,
+                "has_email": "true",
+                "has_link": None,
+                "location_hint": None,
+                "confidence_min": None,
+                "date_from": None,
+                "date_to": None,
+                "page": 1,
+                "page_size": 20,
+            }
+        )
+
+    @patch("mcp_server.api_request")
+    def test_get_lead_routes_correctly(self, mock_api_request):
+        mock_api_request.return_value = {"id": 1}
+        self.mcp_server.get_lead("123")
+        mock_api_request.assert_called_once_with("GET", "/api/leads/123")
+
+    @patch("mcp_server.api_request")
+    def test_get_stats_routes_correctly(self, mock_api_request):
+        mock_api_request.return_value = {}
+        self.mcp_server.get_stats()
+        mock_api_request.assert_called_once_with("GET", "/api/leads/stats")
+
+    @patch("mcp_server.api_request")
+    def test_scrape_linkedin_routes_correctly(self, mock_api_request):
+        mock_api_request.return_value = {}
+        self.mcp_server.scrape_linkedin(roles=["AI Engineer"])
+        mock_api_request.assert_called_once_with("POST", "/api/scraper/trigger", body={"action": "scrape_linkedin", "roles": ["AI Engineer"]})
+
+    @patch("mcp_server.api_request")
+    def test_retry_failed_routes_correctly(self, mock_api_request):
+        mock_api_request.return_value = {}
+        self.mcp_server.retry_failed(limit=15)
+        mock_api_request.assert_called_once_with("POST", "/api/queue/retry_failed", body={"limit": 15})
 
     @patch("mcp_server.api_request")
     def test_fetch_historical_messages_routes_to_existing_control_endpoint(self, mock_api_request):
