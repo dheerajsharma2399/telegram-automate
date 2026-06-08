@@ -165,6 +165,14 @@ class HistoricalMessageFetcher:
                 self.last_errors.append(message)
                 return 0
 
+            # Prime Telethon's entity cache to resolve group IDs (critical for StringSession)
+            try:
+                logger.info("Priming Telethon entity cache by fetching dialogs...")
+                await self.client.get_dialogs(limit=100)
+                logger.info("Telethon entity cache primed successfully.")
+            except Exception as e:
+                logger.warning(f"Failed to prime Telethon entity cache: {e}")
+
             # Calculate time range
             end_time = datetime.now(timezone.utc)
             start_time = end_time - timedelta(hours=hours_back)

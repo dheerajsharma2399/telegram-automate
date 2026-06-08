@@ -94,7 +94,7 @@ def test_endpoint():
 @app.route("/logs")
 def logs_page():
     """Serve the logs viewer page."""
-    return render_template("logs.html")
+    return render_template("logs.html", api_key=os.getenv("API_KEY", ""))
 
 
 def _werkzeug_shutdown():

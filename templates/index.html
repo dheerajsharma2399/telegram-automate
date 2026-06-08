@@ -2069,7 +2069,7 @@ top: 0;
             if (!container) return;
             
             try {
-                const response = await fetch('/api/dashboard/jobs');
+                const response = await apiFetch('/api/dashboard/jobs');
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
                     throw new Error(error.error || `HTTP ${response.status}`);
@@ -2148,7 +2148,7 @@ top: 0;
                 // Add search query if present (searches job_role and company_name)
                 if (searchQuery) url.searchParams.append('job_role', searchQuery);
 
-                const response = await fetch(url);
+                const response = await apiFetch(url);
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
                     throw new Error(error.error || `HTTP ${response.status}`);
@@ -2366,7 +2366,7 @@ top: 0;
                     contentDiv.innerHTML = '<div style="text-align: center;"><div class="spinner"></div></div>';
 
                     try {
-                        const response = await fetch(`/api/dashboard/jobs/${jobId}/message`);
+                        const response = await apiFetch(`/api/dashboard/jobs/${jobId}/message`);
                         const data = await response.json();
 
                         if (data.original_job) {
@@ -2430,7 +2430,7 @@ top: 0;
             showLoading('queue-table', 'Loading queue...');
             
             try {
-                const response = await fetch('/api/queue');
+                const response = await apiFetch('/api/queue');
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
                     throw new Error(error.error || `HTTP ${response.status}`);
@@ -2472,7 +2472,7 @@ top: 0;
 
         async function loadAnalyticsData() {
             try {
-                const response = await fetch('/api/dashboard/stats');
+                const response = await apiFetch('/api/dashboard/stats');
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
                     throw new Error(error.error || `HTTP ${response.status}`);
@@ -2732,7 +2732,7 @@ top: 0;
 
 async function fetchTelegramStatus() {
   try {
-    const response = await fetch('/api/telegram/status');
+    const response = await apiFetch('/api/telegram/status');
     const data = await response.json();
     const alert = document.getElementById('telegram-status-alert');
     const status = data.login_status || 'unknown';
@@ -2758,7 +2758,7 @@ async function fetchTelegramStatus() {
 // Monitored Groups
 async function fetchMonitoredGroups() {
   try {
-    const response = await fetch('/api/monitored_groups');
+    const response = await apiFetch('/api/monitored_groups');
     const data = await response.json();
     const list = document.getElementById('monitored-groups-list');
     if (data.groups && data.groups.length > 0) {
@@ -2899,7 +2899,7 @@ async function fetchMonitoredGroups() {
 
         async function fetchPendingCommands() {
             try {
-                const res = await fetch('/api/pending_commands');
+                const res = await apiFetch('/api/pending_commands');
                 const data = await res.json();
                 const tbody = document.getElementById('pending-commands-body');
                 if (Array.isArray(data) && data.length > 0) {

@@ -16,9 +16,10 @@ logger = logging.getLogger(__name__)
 class CDPClient:
     """CDP Client to communicate with Chrome remote debugger."""
     
-    def __init__(self, port: int = 9222, host: str = "127.0.0.1"):
-        self.port = port
-        self.host = host
+    def __init__(self, port: Optional[int] = None, host: Optional[str] = None):
+        import os
+        self.port = port if port is not None else int(os.getenv("CHROME_PORT", "9222"))
+        self.host = host if host is not None else os.getenv("CHROME_HOST", "127.0.0.1")
         self.ws_url: Optional[str] = None
         self.ws: Optional[websocket.WebSocket] = None
         self.call_id = 0
@@ -31,7 +32,8 @@ class CDPClient:
         try:
             version_url = f"http://{self.host}:{self.port}/json/version"
             logger.info("Fetching browser info from %s", version_url)
-            resp = requests.get(version_url, timeout=10)
+            headers = {"Host": "localhost"}
+            resp = requests.get(version_url, headers=headers, timeout=10)
             resp.raise_for_status()
             browser_info = resp.json()
             browser_ws_url = browser_info.get("webSocketDebuggerUrl")
@@ -41,9 +43,18 @@ class CDPClient:
         if not browser_ws_url:
             raise RuntimeError("No browser debugger websocket URL found in /json/version")
 
+        # Reconstruct browser_ws_url to use correct host:port
+        from urllib.parse import urlparse, urlunparse
+        try:
+            parsed = urlparse(browser_ws_url)
+            netloc = f"{self.host}:{self.port}"
+            browser_ws_url = urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+        except Exception as e:
+            logger.warning("Could not rewrite browser WebSocket URL host: %s", e)
+
         logger.info("Connecting to browser debugger at %s to create target", browser_ws_url)
         try:
-            browser_ws = websocket.create_connection(browser_ws_url, timeout=20)
+            browser_ws = websocket.create_connection(browser_ws_url, timeout=20, header=["Host: localhost"])
             self.call_id += 1
             create_payload = {
                 "id": self.call_id,
@@ -66,7 +77,7 @@ class CDPClient:
 
         self.ws_url = f"ws://{self.host}:{self.port}/devtools/page/{self.target_id}"
         logger.info("Connecting to newly created target page ID %s at %s", self.target_id, self.ws_url)
-        self.ws = websocket.create_connection(self.ws_url, timeout=20)
+        self.ws = websocket.create_connection(self.ws_url, timeout=20, header=["Host: localhost"])
         self.ws.settimeout(20)
         self.call_id = 0
         self.response_buffer = {}
@@ -153,10 +164,20 @@ class CDPClient:
         if getattr(self, "target_id", None):
             try:
                 version_url = f"http://{self.host}:{self.port}/json/version"
-                browser_info = requests.get(version_url, timeout=10).json()
+                headers = {"Host": "localhost"}
+                browser_info = requests.get(version_url, headers=headers, timeout=10).json()
                 browser_ws_url = browser_info.get("webSocketDebuggerUrl")
                 if browser_ws_url:
-                    browser_ws = websocket.create_connection(browser_ws_url, timeout=10)
+                    # Reconstruct browser_ws_url to use correct host:port
+                    from urllib.parse import urlparse, urlunparse
+                    try:
+                        parsed = urlparse(browser_ws_url)
+                        netloc = f"{self.host}:{self.port}"
+                        browser_ws_url = urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+                    except Exception as e:
+                        logger.warning("Could not rewrite browser WebSocket URL host in close(): %s", e)
+
+                    browser_ws = websocket.create_connection(browser_ws_url, timeout=10, header=["Host: localhost"])
                     self.call_id += 1
                     close_payload = {
                         "id": self.call_id,

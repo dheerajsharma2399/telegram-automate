@@ -421,7 +421,7 @@ class LLMProcessor:
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://job.mooh.me",  # Required by OpenRouter
+            "HTTP-Referer": "https://job.yaml.codes",  # Required by OpenRouter
             "X-Title": "Telegram Job Scraper"      # Required by OpenRouter
         }
         
@@ -487,7 +487,7 @@ class LLMProcessor:
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://job.mooh.me",
+            "HTTP-Referer": "https://job.yaml.codes",
             "X-Title": "telegram-automate-apply"
         }
         payload = {

@@ -119,7 +119,7 @@ def init_database(pool):
             CREATE TABLE IF NOT EXISTS jobs (
                 id SERIAL PRIMARY KEY,
                 job_id TEXT UNIQUE NOT NULL,
-                source TEXT NOT NULL CHECK (source IN ('telegram', 'manual')),
+                source TEXT NOT NULL CHECK (source IN ('telegram', 'manual', 'linkedin')),
                 status TEXT DEFAULT 'not_applied' CHECK (status IN ('not_applied', 'pending', 'applied', 'interview', 'rejected', 'offer', 'archived')),
                 company_name TEXT,
                 job_role TEXT,
@@ -149,6 +149,10 @@ def init_database(pool):
             CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
             CREATE INDEX IF NOT EXISTS idx_jobs_metadata_gin ON jobs USING gin(metadata);
                 """)
+
+                # Update check constraint on existing database
+                cursor.execute("ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_source_check")
+                cursor.execute("ALTER TABLE jobs ADD CONSTRAINT jobs_source_check CHECK (source IN ('telegram', 'manual', 'linkedin'))")
 
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS confidence_score FLOAT")
                 cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS extraction_method TEXT")

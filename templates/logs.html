@@ -363,6 +363,23 @@ padding: 0.5rem 0.75rem;
     </div>
 
     <script>
+        const DASHBOARD_API_KEY = {{ api_key|default('', true)|tojson }};
+
+        function apiHeaders(headers = {}) {
+            const mergedHeaders = { ...headers };
+            if (DASHBOARD_API_KEY) {
+                mergedHeaders['X-API-Key'] = DASHBOARD_API_KEY;
+            }
+            return mergedHeaders;
+        }
+
+        function apiFetch(endpoint, options = {}) {
+            return fetch(endpoint, {
+                ...options,
+                headers: apiHeaders(options.headers || {})
+            });
+        }
+
         let autoScroll = true;
         let lastLogContent = "";
         const logContent = document.getElementById('logContent');
@@ -419,7 +436,7 @@ padding: 0.5rem 0.75rem;
         async function fetchLogs() {
             try {
                 // Fetch last 200 lines to keep it performant
-                const response = await fetch('/api/logs?lines=200');
+                const response = await apiFetch('/api/logs?lines=200');
                 const data = await response.json();
 
                 if (data.app_logs) {

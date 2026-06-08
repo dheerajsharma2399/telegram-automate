@@ -11,6 +11,10 @@ services:
       # Connect to the 'postgres-db' container on the dokploy-network
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres-db:5432/${POSTGRES_DB:-telegram_bot}
 
+      # Chrome Remote Debugger for LinkedIn Scraper
+      - CHROME_HOST=browser-chromium-1
+      - CHROME_PORT=9223
+
       # App Configuration
       - CONTAINER_TYPE=all
       - PORT=9501
@@ -38,13 +42,13 @@ services:
       - "traefik.docker.network=dokploy-network"
 
       # --- ROUTER: PUBLIC APP (Everything Accessible) ---
-      - "traefik.http.routers.telegram-job-app.rule=Host(`job.mooh.me`)"
+      - "traefik.http.routers.telegram-job-app.rule=Host(`job.yaml.codes`)"
       - "traefik.http.routers.telegram-job-app.entrypoints=websecure"
       - "traefik.http.routers.telegram-job-app.tls.certresolver=letsencrypt"
       - "traefik.http.routers.telegram-job-app.service=telegram-job-service"
 
       # --- HTTP Redirect ---
-      - "traefik.http.routers.telegram-job-http.rule=Host(`job.mooh.me`)"
+      - "traefik.http.routers.telegram-job-http.rule=Host(`job.yaml.codes`)"
       - "traefik.http.routers.telegram-job-http.entrypoints=web"
       - "traefik.http.routers.telegram-job-http.middlewares=redirect-to-https@file"
 
