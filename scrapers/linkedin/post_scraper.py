@@ -77,16 +77,18 @@ class LinkedInPostScraper:
 
                 # Extract post elements
                 extract_expr = """
-                JSON.stringify(Array.from(document.querySelectorAll('div[role="listitem"]')).map(function(el){
-                    var postText = el.innerText || '';
+                JSON.stringify(Array.from(document.querySelectorAll('div[role="listitem"], .reusable-search__result-container, [class*="search-result"]')).map(function(el){
+                    var descEl = el.querySelector('.feed-shared-update-v2__description, .update-components-text, [class*="update-v2__description"], [class*="update-components-text"], .feed-shared-text, .feed-shared-inline-show-more-text');
+                    var postText = descEl ? descEl.innerText : (el.innerText || '');
+                    
                     var links = Array.from(el.querySelectorAll('a')).map(function(a){return a.href}).filter(Boolean);
                     var emails = postText.match(/[\\w\\.-]+@[\\w\\.-]+\\.\\w+/g) || [];
                     
-                    var posterLink = Array.from(el.querySelectorAll('a[href*="/in/"], a[href*="/company/"]'))[0];
-                    var posterName = posterLink && posterLink.innerText ? posterLink.innerText.trim().split('\\n')[0] : '';
+                    var posterLink = el.querySelector('a[href*="/in/"], a[href*="/company/"]');
+                    var posterName = posterLink && posterLink.innerText ? posterLink.innerText.trim().split('\\n')[0].trim() : '';
                     var posterUrl = posterLink ? posterLink.href : '';
                     
-                    var postA = el.querySelector('a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"]');
+                    var postA = el.querySelector('a[href*="/feed/update/urn:li:activity:"], a[href*="/posts/"], a[href*="/detail/recent-activity/shares/"]');
                     var postUrl = postA ? postA.href : '';
 
                     return {
@@ -97,7 +99,7 @@ class LinkedInPostScraper:
                         emails: Array.from(new Set(emails)),
                         links: Array.from(new Set(links))
                     };
-                }))
+                }).filter(function(p){return p.postText && p.postText.trim().length > 50;}))
                 """
                 extracted_data_raw = self.cdp.eval_js(extract_expr, timeout=15)
                 posts = []

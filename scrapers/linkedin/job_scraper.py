@@ -92,18 +92,27 @@ class LinkedInJobScraper:
 
                 # Extract all job cards
                 extract_cards_expr = """
-                JSON.stringify([...document.querySelectorAll('.job-card-container')].map(function(el){
-                    var a = el.querySelector('a[href*="/jobs/view/"]');
+                JSON.stringify([...document.querySelectorAll('[data-occludable-job-id], .job-card-container, .jobs-search-two-pane__job-card-container, .job-card-list__container')].map(function(el){
+                    var a = el.querySelector('a[href*="/jobs/view/"], .job-card-list__title, a.job-card-container__link');
                     if(!a) return null;
-                    var title = el.querySelector('strong');
-                    var company = el.querySelector('.job-card-container__primary-description');
-                    var loc = el.querySelector('.job-card-container__metadata-item');
-                    var t = el.querySelector('time');
+                    
+                    var titleEl = el.querySelector('strong, .job-card-list__title, [class*="title"]');
+                    var title = titleEl ? titleEl.innerText.trim().split('\\n')[0].trim() : '';
+                    
+                    var companyEl = el.querySelector('.job-card-container__primary-description, .job-card-container__company-name, [class*="company-name"], [class*="primary-description"]');
+                    var company = companyEl ? companyEl.innerText.trim().split('\\n')[0].trim() : '';
+                    
+                    var locEl = el.querySelector('.job-card-container__metadata-item, .job-card-container__metadata-item--one-line, [class*="metadata-item"]');
+                    var location = locEl ? locEl.innerText.trim().split('\\n')[0].trim() : '';
+                    
+                    var tEl = el.querySelector('time, [class*="posted-time"]');
+                    var posted_time = tEl ? tEl.innerText.trim().split('\\n')[0].trim() : '';
+                    
                     return {
-                        title: title ? title.innerText.trim() : '',
-                        company: company ? company.innerText.trim() : '',
-                        location: loc ? loc.innerText.trim() : '',
-                        posted_time: t ? t.innerText.trim() : '',
+                        title: title,
+                        company: company,
+                        location: location,
+                        posted_time: posted_time,
                         url: a.href
                     };
                 }).filter(function(j){return j && j.url;}))
@@ -145,9 +154,9 @@ class LinkedInJobScraper:
                     # Click card to open detail pane
                     click_expr = (
                         f"(function(){{"
-                        f"  var cards = document.querySelectorAll('.job-card-container');"
+                        f"  var cards = document.querySelectorAll('[data-occludable-job-id], .job-card-container, .jobs-search-two-pane__job-card-container, .job-card-list__container');"
                         f"  if(cards.length > {ci}){{"
-                        f"    var btn = cards[{ci}].querySelector('a[href*=\"/jobs/view/\"]');"
+                        f"    var btn = cards[{ci}].querySelector('a[href*=\"/jobs/view/\"], .job-card-list__title, a.job-card-container__link');"
                         f"    if(btn){{ btn.click(); return 'clicked'; }}"
                         f"  }}"
                         f"  return 'not found';"
@@ -165,17 +174,17 @@ class LinkedInJobScraper:
                     # Extract detail pane content
                     detail_expr = """
                     (function(){
-                        var detail = document.querySelector('.jobs-search__job-details--container, [class*="job-details"], .jobs-details__main-content');
+                        var detail = document.querySelector('.jobs-search__job-details--container, [class*="job-details"], .jobs-details__main-content, .jobs-details');
                         if(!detail) return null;
-                        var desc = detail.querySelector('.jobs-description__content, .jobs-description, [class*="description"], #job-details');
+                        var desc = detail.querySelector('.jobs-description__content, .jobs-description, [class*="description"], #job-details, .job-details-module, .jobs-box__html-content');
                         var jdText = desc ? desc.innerText : '';
                         
-                        var easyBtn = detail.querySelector('button.jobs-apply-button, .jobs-apply-button--top-card, button[aria-label*="Easy Apply"]');
+                        var easyBtn = detail.querySelector('button.jobs-apply-button, .jobs-apply-button--top-card, button[aria-label*="Easy Apply"], button[class*="apply-button"]');
                         var applyType = easyBtn ? 'easy_apply' : 'external_apply';
                         
                         var extUrl = '';
                         if(!easyBtn){
-                            var extBtn = detail.querySelector('a[data-tracking-control-name="public_jobs_apply-link"], a[href*="/jobs/apply/"], a[class*="apply"]');
+                            var extBtn = detail.querySelector('a[data-tracking-control-name="public_jobs_apply-link"], a[href*="/jobs/apply/"], a[class*="apply"], [class*="apply-link"]');
                             extUrl = extBtn ? extBtn.href : '';
                         }
                         return {
