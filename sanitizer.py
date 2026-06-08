@@ -241,11 +241,21 @@ def clean_location(location: Optional[str]) -> str:
     return cleaned.strip(" .,:;–—-_🔹•▪📍📌🌍💰🏢💻⏳📋✉️")
 
 def clean_jd_text(text: Optional[str]) -> str:
-    """Removes unnecessary LinkedIn/social metadata, reaction counts, and action buttons from the JD."""
+    """Removes unnecessary LinkedIn/social metadata, reaction counts, and action buttons from the JD.
+    
+    To prevent trimming critical information in the middle of a job posting,
+    cleaning is only applied to the top 12 lines and the bottom 12 lines of the text.
+    """
     if not text:
         return ""
         
     lines = text.splitlines()
+    n_lines = len(lines)
+    
+    # Sanitization limits (number of lines at top and bottom to clean)
+    top_limit = 12
+    bottom_limit = 12
+    
     cleaned_lines = []
     
     # Compile regexes for matching unwanted lines
@@ -280,37 +290,45 @@ def clean_jd_text(text: Optional[str]) -> str:
     # Match strings containing applicant stats (e.g. "6 applicants", "over 100 people clicked apply")
     applicant_stats = re.compile(r"(\b\d+\s+applicants?\b|\b\d+\s+people clicked apply\b|\bover\s+\d+\s+people clicked apply\b)", re.IGNORECASE)
     
-    for line in lines:
+    for idx, line in enumerate(lines):
         line_strip = line.strip()
         if not line_strip:
             cleaned_lines.append("")
             continue
             
-        line_lower = line_strip.lower()
+        # Only clean lines in the top or bottom zones. Preserve middle lines completely.
+        is_in_sanitization_zone = (
+            n_lines <= (top_limit + bottom_limit) or
+            idx < top_limit or
+            idx >= (n_lines - bottom_limit)
+        )
+        
+        if is_in_sanitization_zone:
+            line_lower = line_strip.lower()
             
-        # Check against patterns
-        if social_buttons.match(line_strip):
-            continue
-        if metrics_patterns.match(line_strip):
-            continue
-        if number_only.match(line_strip):
-            continue
-        if time_posted.match(line_strip):
-            continue
-            
-        # Check substring matches
-        if any(sub in line_lower for sub in unwanted_substrings):
-            continue
-            
-        # Check time ago strings in short metadata lines
-        if time_ago.search(line_strip) and len(line_strip) < 80:
-            continue
-            
-        if applicant_stats.search(line_strip):
-            # Skip if the entire metadata line is relatively short
-            if len(line_strip) < 100:
+            # Check against patterns
+            if social_buttons.match(line_strip):
+                continue
+            if metrics_patterns.match(line_strip):
+                continue
+            if number_only.match(line_strip):
+                continue
+            if time_posted.match(line_strip):
                 continue
                 
+            # Check substring matches
+            if any(sub in line_lower for sub in unwanted_substrings):
+                continue
+                
+            # Check time ago strings in short metadata lines
+            if time_ago.search(line_strip) and len(line_strip) < 80:
+                continue
+                
+            if applicant_stats.search(line_strip):
+                # Skip if the entire metadata line is relatively short
+                if len(line_strip) < 100:
+                    continue
+                    
         cleaned_lines.append(line)
         
     # Reconstruct text and trim extra blank lines

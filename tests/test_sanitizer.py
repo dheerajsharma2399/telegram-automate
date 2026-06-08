@@ -116,6 +116,33 @@ class TestSanitizer(unittest.TestCase):
         )
         self.assertEqual(clean_jd_text(raw_jd), expected)
 
+    def test_clean_jd_text_middle_preserved(self):
+        # Long JD with 26 lines total.
+        # Top 12 lines and bottom 12 lines are sanitised.
+        # Lines 13 and 14 (indices 12 and 13) are middle lines and should be preserved.
+        lines = [
+            "Follow", # Top line - should be cleaned
+            "We are hiring!",
+            "Line 3", "Line 4", "Line 5", "Line 6", "Line 7", "Line 8", "Line 9", "Line 10", "Line 11", "Line 12",
+            "This is a middle line that contains the word like and apply.", # Index 12 - should NOT be cleaned
+            "Another middle line with comment and repost.", # Index 13 - should NOT be cleaned
+            "Line 15", "Line 16", "Line 17", "Line 18", "Line 19", "Line 20", "Line 21", "Line 22", "Line 23", "Line 24",
+            "Try Premium free", # Bottom line - should be cleaned
+            "Like" # Bottom line - should be cleaned
+        ]
+        raw_jd = "\n".join(lines)
+        cleaned = clean_jd_text(raw_jd)
+        
+        # Verify that "Follow", "Try Premium free", and "Like" were removed
+        self.assertNotIn("Follow", cleaned)
+        self.assertNotIn("Try Premium free", cleaned)
+        self.assertNotIn("Like", cleaned)
+        
+        # Verify that the middle lines containing "like", "apply", "comment" were preserved intact
+        self.assertIn("This is a middle line that contains the word like and apply.", cleaned)
+        self.assertIn("Another middle line with comment and repost.", cleaned)
+
+
     def test_infer_company_from_layout(self):
         jd1 = (
             "Engineering challenges? Apply here 👇\n"
