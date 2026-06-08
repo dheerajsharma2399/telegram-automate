@@ -11,6 +11,7 @@ from typing import List, Dict, Optional, Union
 import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 from psycopg2.pool import ThreadedConnectionPool
+from sanitizer import sanitize_job_record
 
 class BaseRepository:
     def __init__(self, pool):
@@ -445,6 +446,7 @@ class UnifiedJobRepository(BaseRepository):
             source: 'telegram' or 'manual'
             cursor: Optional cursor for transaction handling
         """
+        job_data = sanitize_job_record(dict(job_data))
         sql = """
             INSERT INTO jobs (
                 job_id, source, status, company_name, job_role, location, eligibility, salary,
