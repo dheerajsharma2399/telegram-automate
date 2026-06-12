@@ -47,8 +47,8 @@ services:
       - "traefik.http.routers.telegram-job-app.tls.certresolver=letsencrypt"
       - "traefik.http.routers.telegram-job-app.service=telegram-job-service"
       
-      # --- ROUTER: MCP SERVER (SSE & Messages) ---
-      - "traefik.http.routers.telegram-job-mcp.rule=Host(`job.yaml.codes`) && (PathPrefix(`/sse`) || PathPrefix(`/messages`))"
+      # --- ROUTER: MCP SERVER (SSE & Messages & Streamable HTTP) ---
+      - "traefik.http.routers.telegram-job-mcp.rule=Host(`job.yaml.codes`) && (PathPrefix(`/sse`) || PathPrefix(`/messages`) || PathPrefix(`/mcp`))"
       - "traefik.http.routers.telegram-job-mcp.entrypoints=websecure"
       - "traefik.http.routers.telegram-job-mcp.tls.certresolver=letsencrypt"
       - "traefik.http.routers.telegram-job-mcp.service=telegram-job-mcp-service"

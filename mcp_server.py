@@ -264,10 +264,14 @@ def get_telegram_status() -> Dict[str, Any]:
 if __name__ == "__main__":
     import sys
     transport = os.getenv("MCP_TRANSPORT", "stdio")
-    if "sse" in sys.argv or transport == "sse":
+    is_sse = "sse" in sys.argv or transport == "sse"
+    is_http = "streamable-http" in sys.argv or "http" in sys.argv or transport in ["streamable-http", "http"]
+    
+    if is_sse or is_http:
         port = int(os.getenv("MCP_PORT", "9502"))
         host = os.getenv("MCP_HOST", "0.0.0.0")
-        print(f"Starting FastMCP SSE server on {host}:{port}", flush=True)
+        selected_transport = "sse" if is_sse else "streamable-http"
+        print(f"Starting FastMCP server with transport '{selected_transport}' on {host}:{port}", flush=True)
         
         from starlette.middleware import Middleware
         from starlette.requests import Request
@@ -282,7 +286,7 @@ if __name__ == "__main__":
                     request = Request(scope, receive)
                     path = request.url.path
                     
-                    if path.startswith("/sse") or path.startswith("/messages"):
+                    if path.startswith("/sse") or path.startswith("/messages") or path.startswith("/mcp"):
                         api_key = request.headers.get("x-api-key") or request.query_params.get("api_key") or request.query_params.get("apiKey")
                         expected_key = os.getenv("API_KEY")
                         
@@ -318,6 +322,6 @@ if __name__ == "__main__":
                 await self.app(scope, receive, send)
 
         middleware = [Middleware(ApiKeyMiddleware)]
-        mcp.run(transport="sse", host=host, port=port, middleware=middleware)
+        mcp.run(transport=selected_transport, host=host, port=port, middleware=middleware)
     else:
         mcp.run()
