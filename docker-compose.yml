@@ -46,14 +46,21 @@ services:
       - "traefik.http.routers.telegram-job-app.entrypoints=websecure"
       - "traefik.http.routers.telegram-job-app.tls.certresolver=letsencrypt"
       - "traefik.http.routers.telegram-job-app.service=telegram-job-service"
+      
+      # --- ROUTER: MCP SERVER (SSE & Messages) ---
+      - "traefik.http.routers.telegram-job-mcp.rule=Host(`job.yaml.codes`) && (PathPrefix(`/sse`) || PathPrefix(`/messages`))"
+      - "traefik.http.routers.telegram-job-mcp.entrypoints=websecure"
+      - "traefik.http.routers.telegram-job-mcp.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.telegram-job-mcp.service=telegram-job-mcp-service"
 
       # --- HTTP Redirect ---
       - "traefik.http.routers.telegram-job-http.rule=Host(`job.yaml.codes`)"
       - "traefik.http.routers.telegram-job-http.entrypoints=web"
       - "traefik.http.routers.telegram-job-http.middlewares=redirect-to-https@file"
 
-      # --- Service Definition ---
+      # --- Service Definitions ---
       - "traefik.http.services.telegram-job-service.loadbalancer.server.port=9501"
+      - "traefik.http.services.telegram-job-mcp-service.loadbalancer.server.port=9502"
 
     deploy:
       resources:

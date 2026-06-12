@@ -33,7 +33,10 @@ class ApiError(Exception):
 
 
 def _headers() -> Dict[str, str]:
-    headers = {"Accept": "application/json"}
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     if API_KEY:
         headers["X-API-Key"] = API_KEY
     return headers
@@ -259,4 +262,62 @@ def get_telegram_status() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    import sys
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    if "sse" in sys.argv or transport == "sse":
+        port = int(os.getenv("MCP_PORT", "9502"))
+        host = os.getenv("MCP_HOST", "0.0.0.0")
+        print(f"Starting FastMCP SSE server on {host}:{port}", flush=True)
+        
+        from starlette.middleware import Middleware
+        from starlette.requests import Request
+        from starlette.responses import Response
+
+        class ApiKeyMiddleware:
+            def __init__(self, app):
+                self.app = app
+
+            async def __call__(self, scope, receive, send):
+                if scope["type"] == "http":
+                    request = Request(scope, receive)
+                    path = request.url.path
+                    
+                    if path.startswith("/sse") or path.startswith("/messages"):
+                        api_key = request.headers.get("x-api-key") or request.query_params.get("api_key") or request.query_params.get("apiKey")
+                        expected_key = os.getenv("API_KEY")
+                        
+                        if not expected_key:
+                            expected_key = "dash1234"
+                            
+                        if not api_key or api_key != expected_key:
+                            response = Response("Unauthorized: Invalid or missing API Key", status_code=401)
+                            await response(scope, receive, send)
+                            return
+                            
+                        # Intercept SSE connection response to propagate api_key to client POST uri
+                        if path.startswith("/sse") and api_key:
+                            async def custom_send(message):
+                                if message.get("type") == "http.response.body":
+                                    body = message.get("body", b"")
+                                    if b"event: endpoint" in body:
+                                        text = body.decode("utf-8", errors="replace")
+                                        import re
+                                        match = re.search(r"data:\s*(\S+)", text)
+                                        if match:
+                                            original_url = match.group(1)
+                                            if "api_key=" not in original_url and "apiKey=" not in original_url:
+                                                separator = "&" if "?" in original_url else "?"
+                                                new_url = f"{original_url}{separator}api_key={api_key}"
+                                                text = text.replace(original_url, new_url)
+                                                message["body"] = text.encode("utf-8")
+                                await send(message)
+                            
+                            await self.app(scope, receive, custom_send)
+                            return
+                            
+                await self.app(scope, receive, send)
+
+        middleware = [Middleware(ApiKeyMiddleware)]
+        mcp.run(transport="sse", host=host, port=port, middleware=middleware)
+    else:
+        mcp.run()

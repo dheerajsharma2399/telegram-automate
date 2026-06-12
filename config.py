@@ -32,7 +32,7 @@ AUTHORIZED_USER_IDS = _parse_user_ids()
 ADMIN_USER_ID = os.getenv('ADMIN_USER_ID')
 
 # OpenRouter Configuration
-_api_keys_str = os.getenv('OPENROUTER_API_KEY', '')
+_api_keys_str = os.getenv('OPENROUTER_API_KEYS') or os.getenv('OPENROUTER_API_KEY', '')
 OPENROUTER_API_KEYS = [k.strip() for k in _api_keys_str.split(',') if k.strip()]
 # Fallback for single key usage if needed elsewhere, though we should transition to list
 OPENROUTER_API_KEY = OPENROUTER_API_KEYS[0] if OPENROUTER_API_KEYS else None

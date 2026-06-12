@@ -31,7 +31,7 @@ ENV CONTAINER_TYPE=all
 ENV DATABASE_TYPE=postgresql
 
 # Expose port
-EXPOSE 9501
+EXPOSE 9501 9502
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
