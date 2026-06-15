@@ -168,7 +168,7 @@ class HistoricalMessageFetcher:
             # Prime Telethon's entity cache to resolve group IDs (critical for StringSession)
             try:
                 logger.info("Priming Telethon entity cache by fetching dialogs...")
-                await self.client.get_dialogs(limit=100)
+                await self.client.get_dialogs(limit=None)
                 logger.info("Telethon entity cache primed successfully.")
             except Exception as e:
                 logger.warning(f"Failed to prime Telethon entity cache: {e}")
