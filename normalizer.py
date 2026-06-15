@@ -145,3 +145,133 @@ def classify_contact(emails: Optional[Iterable[object]] = None, links: Optional[
     if re.search(r"\b(whatsapp|wa\.me|telegram)\b", value):
         return "messaging"
     return "none"
+
+
+import urllib.request
+import urllib.error
+import urllib.parse
+import ssl
+import time
+
+ssl_ctx = ssl.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl.CERT_NONE
+
+USER_AGENT = "Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+
+AGGREGATOR_DOMAINS = {
+    'techjobs360.com', 'jobsrmine.com', 'remoteyeah.com', 'onnetpulse.com',
+    'fresherscall.com', 'careerten.com', 'hirist.com', 'naukri.com',
+    'shine.com', 'monster.com', 'timesjobs.com', 'updazz.com',
+    'linkedin.com'
+}
+
+def extract_hrefs(html: str) -> set[str]:
+    """Extract all href URLs from HTML that look like real links."""
+    urls = set()
+    for m in re.finditer(r'href="(https?://[^"]+)"', html, re.IGNORECASE):
+        u = m.group(1)
+        if not any(skip in u for skip in ['static.licdn.com', 'linkedin.com/help', 'linkedin.com/scds']):
+            urls.add(u)
+    return urls
+
+def resolve_lnkd_url(url: str, max_retries: int = 2) -> Optional[str]:
+    """Resolve a LinkedIn short URL by fetching the interstitial page."""
+    req = urllib.request.Request(url, headers={
+        'User-Agent': USER_AGENT,
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+    })
+    for attempt in range(max_retries):
+        try:
+            resp = urllib.request.urlopen(req, timeout=15, context=ssl_ctx)
+            html = resp.read().decode('utf-8', errors='replace')
+            meta = re.search(r'meta\s+http-equiv="refresh"\s+content="\d+;url=\'([^\']+)\'"', html, re.IGNORECASE)
+            if meta:
+                return meta.group(1)
+            
+            hrefs = extract_hrefs(html)
+            external = [h for h in hrefs if not h.startswith('https://www.linkedin.com') and 'linkedin.com/help' not in h]
+            if external:
+                return external[-1]
+            
+            li_pages = [h for h in hrefs if h.startswith('https://www.linkedin.com')]
+            if li_pages:
+                for h in li_pages:
+                    if '/jobs/view/' in h or '/jobs/' in h:
+                        return h
+                return li_pages[0]
+            
+            return None
+            
+        except (urllib.error.HTTPError, urllib.error.URLError) as e:
+            if attempt < max_retries - 1:
+                time.sleep(1)
+                continue
+            return f"ERROR: {e}"
+    return None
+
+def resolve_direct_url(url: str) -> str:
+    """Follow redirects for a direct (non-lnkd.in) URL."""
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+        resp = urllib.request.urlopen(req, timeout=10, context=ssl_ctx)
+        return resp.geturl()
+    except Exception:
+        return url
+
+def categorize_url(final_url: str) -> tuple[str, str]:
+    """Categorize the resolved URL. Returns (category, final_url)."""
+    if not final_url or final_url.startswith('ERROR'):
+        return 'unresolvable', final_url
+    
+    parsed = urllib.parse.urlparse(final_url)
+    domain = parsed.netloc.lower()
+    path = parsed.path.lower()
+    full_url = final_url.lower()
+    
+    if 't.me' in domain or 'telegram' in domain:
+        return 'telegram', final_url
+    
+    if any(fd in full_url for fd in ['forms.gle', 'docs.google.com/forms', 'typeform.com', 'jotform.com']):
+        return 'form', final_url
+    
+    if domain in ('www.linkedin.com', 'linkedin.com') and '/jobs/view/' in path:
+        qs = urllib.parse.parse_qs(parsed.query)
+        if 'easyApply' in qs:
+            return 'linkedin_easy_apply', final_url
+        return 'linkedin_job_view', final_url
+    
+    if domain in ('www.linkedin.com', 'linkedin.com') and ('/posts/' in path or '/feed/' in path):
+        return 'linkedin_post', final_url
+    
+    if domain in ('www.linkedin.com', 'linkedin.com'):
+        return 'linkedin_page', final_url
+    
+    if domain in AGGREGATOR_DOMAINS:
+        return 'aggregator', final_url
+    
+    aggregator_patterns = ['fresherscall', 'careerten', 'hirist', 'timesjobs', 'updazz']
+    if any(p in domain for p in aggregator_patterns):
+        return 'aggregator', final_url
+    
+    return 'external_apply', final_url
+
+def resolve_and_categorize_link(url: str) -> tuple[str, str]:
+    """Resolves any shortlinks and categorizes the URL. Returns (category, resolved_url)."""
+    if not url or url == '-':
+        return 'no_link', ''
+    
+    is_lnkd = 'lnkd.in' in url
+    resolved = None
+    
+    if is_lnkd:
+        resolved = resolve_lnkd_url(url)
+    else:
+        resolved = resolve_direct_url(url)
+    
+    if not resolved:
+        resolved = url
+        
+    return categorize_url(resolved)
+

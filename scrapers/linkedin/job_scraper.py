@@ -179,18 +179,44 @@ class LinkedInJobScraper:
                         var desc = detail.querySelector('.jobs-description__content, .jobs-description, [class*="description"], #job-details, .job-details-module, .jobs-box__html-content');
                         var jdText = desc ? desc.innerText : '';
                         
-                        var easyBtn = detail.querySelector('button.jobs-apply-button, .jobs-apply-button--top-card, button[aria-label*="Easy Apply"], button[class*="apply-button"]');
-                        var applyType = easyBtn ? 'easy_apply' : 'external_apply';
-                        
+                        var applyBtns = detail.querySelectorAll('.jobs-apply-button, [class*="apply-button"], a[href*="/jobs/apply/"], a[data-tracking-control-name="public_jobs_apply-link"]');
+                        var applyType = 'unknown';
                         var extUrl = '';
-                        if(!easyBtn){
-                            var extBtn = detail.querySelector('a[data-tracking-control-name="public_jobs_apply-link"], a[href*="/jobs/apply/"], a[class*="apply"], [class*="apply-link"]');
-                            extUrl = extBtn ? extBtn.href : '';
+                        var clickedAsync = false;
+                        
+                        for (var i = 0; i < applyBtns.length; i++) {
+                            var btn = applyBtns[i];
+                            var text = (btn.innerText || '').trim().toLowerCase();
+                            var aria = (btn.getAttribute('aria-label') || '').toLowerCase();
+                            
+                            if (text.includes('easy apply') || aria.includes('easy apply') || btn.querySelector('.job-s-apply-icon')) {
+                                applyType = 'easy_apply';
+                                extUrl = ''; // Easy apply doesn't have an external URL
+                                break;
+                            } else if (text.includes('apply') || aria.includes('apply')) {
+                                applyType = 'external_apply';
+                                if (btn.tagName === 'A' && btn.href) {
+                                    extUrl = btn.href;
+                                } else if (btn.tagName === 'BUTTON') {
+                                    window._intercepted_url = null;
+                                    if (!window._originalOpen) {
+                                        window._originalOpen = window.open;
+                                    }
+                                    window.open = function(url) {
+                                        window._intercepted_url = url;
+                                        return null;
+                                    };
+                                    btn.click();
+                                    clickedAsync = true;
+                                }
+                            }
                         }
+
                         return {
                             description: jdText,
                             apply_mode: applyType,
-                            external_url: extUrl
+                            external_url: extUrl,
+                            clicked_async: clickedAsync
                         };
                     })()
                     """
@@ -203,6 +229,17 @@ class LinkedInJobScraper:
                     jd_text = detail.get("description", "")
                     apply_mode = detail.get("apply_mode", "unknown")
                     external_url = detail.get("external_url", "")
+                    clicked_async = detail.get("clicked_async", False)
+
+                    if apply_mode == "external_apply" and clicked_async and not external_url:
+                        # Wait a bit for the async click to trigger window.open
+                        import time
+                        time.sleep(1.5)
+                        intercepted_url = self.cdp.eval_js("window._intercepted_url")
+                        if intercepted_url:
+                            external_url = intercepted_url
+                        # Restore window.open to prevent memory leaks or issues
+                        self.cdp.eval_js("if(window._originalOpen) { window.open = window._originalOpen; window._originalOpen = null; }")
 
                     # Classify roles/locations using normalizers
                     title = card.get("title", "")
@@ -224,6 +261,17 @@ class LinkedInJobScraper:
                         links = [card_url]
                     c_method = "form" if apply_mode == "easy_apply" else classify_contact(links=links, text=jd_text)
 
+                    from normalizer import resolve_and_categorize_link
+                    app_link = external_url or card_url
+                    link_category = "unknown"
+                    if app_link:
+                        link_category, resolved_url = resolve_and_categorize_link(app_link)
+                        app_link = resolved_url
+
+                    job_relevance = "relevant"
+                    if link_category in ('aggregator', 'unresolvable'):
+                        job_relevance = "irrelevant"
+
                     job_data = {
                         "job_id": expected_job_id,
                         "company_name": company,
@@ -235,7 +283,7 @@ class LinkedInJobScraper:
                         "raw_message_id": None,
                         "email": None,
                         "phone": None,
-                        "application_link": external_url or card_url,
+                        "application_link": app_link,
                         "recruiter_name": None,
                         "is_hidden": False,
                         "is_duplicate": False,
@@ -252,11 +300,12 @@ class LinkedInJobScraper:
                         "poster_url": None,
                         "post_url": card_url,
                         "source_event_id": None,
-                        "job_relevance": "relevant",
+                        "job_relevance": job_relevance,
                         "metadata": {
                             "apply_mode": apply_mode,
                             "posted_time_text": card.get("posted_time", ""),
-                            "scraped_at": datetime.now(timezone.utc).isoformat()
+                            "scraped_at": datetime.now(timezone.utc).isoformat(),
+                            "link_category": link_category
                         }
                     }
 

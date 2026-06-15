@@ -135,7 +135,20 @@ async def process_queue_batch(batch_size: int = BATCH_SIZE, worker_id: str = "pr
                 processed_data["source_event_id"] = event_id
                 processed_data["raw_message_id"] = None
 
+                from normalizer import resolve_and_categorize_link
                 from deduper import DedupAgent, make_fingerprint, simhash
+
+                app_link = processed_data.get("application_link") or processed_data.get("post_url") or ""
+                if app_link:
+                    category, resolved_url = resolve_and_categorize_link(app_link)
+                    processed_data["application_link"] = resolved_url
+                    if "metadata" not in processed_data:
+                        processed_data["metadata"] = {}
+                    processed_data["metadata"]["link_category"] = category
+                    
+                    if category in ('aggregator', 'unresolvable'):
+                        processed_data["job_relevance"] = "irrelevant"
+                        
                 dedup_agent = DedupAgent(db)
                 if not processed_data.get("job_fingerprint"):
                     processed_data["job_fingerprint"] = make_fingerprint(
