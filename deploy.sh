@@ -14,7 +14,7 @@ echo "Network 'dokploy-network' is ready."
 
 # 2. Deploy Database Stack
 echo -e "${GREEN}2. Deploying Database Stack (Postgres + Adminer)...${NC}"
-docker-compose -f database-compose.yaml up -d
+docker compose -f database-compose.yaml up -d
 if [ $? -eq 0 ]; then
     echo "Database stack deployed successfully."
 else
@@ -24,7 +24,7 @@ fi
 
 # 3. Deploy Application Stack
 echo -e "${GREEN}3. Deploying Application Stack (Telegram Scraper)...${NC}"
-docker-compose -f docker-compose.yaml up -d --build
+docker compose -f docker-compose.yml up -d --build
 if [ $? -eq 0 ]; then
     echo "Application stack deployed successfully."
 else

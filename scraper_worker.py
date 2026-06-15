@@ -87,7 +87,7 @@ def main() -> None:
     parser.add_argument("--role", type=str, default=None, help="Limit scraping to a specific role bucket")
     parser.add_argument("--limit", type=int, default=15, help="Limit the number of jobs per role")
     parser.add_argument("--loop", action="store_true", help="Run continuously in a loop")
-    parser.add_argument("--interval", type=int, default=14400, help="Interval in seconds between runs (default 4 hours)")
+    parser.add_argument("--interval", type=int, default=7200, help="Interval in seconds between runs (default 2 hours)")
     args = parser.parse_args()
 
     logger.info("LinkedIn scraper worker started")

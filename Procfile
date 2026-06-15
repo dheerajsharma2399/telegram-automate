@@ -1,5 +1,5 @@
 web: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 web_server:app
-scraper: python scraper_worker.py --loop
+scraper: python scraper_worker.py --loop --interval 7200
 telegram: python telegram_worker.py
 processor: python processor_worker.py
 mcp: python mcp_server.py streamable-http
